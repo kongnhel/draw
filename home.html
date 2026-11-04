@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ArtSpace | Discover original artwork</title>
+    <meta name="description" content="ArtSpace is a premium art and drawing social platform for artists and art lovers." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body data-theme="dark">
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="container nav-wrap">
+          <a href="/" class="brand" aria-label="ArtSpace home">
+            <span class="brand-mark">ក</span>
+            <span>ArtSpace</span>
+          </a>
+
+          <form action="/search" method="GET" class="nav-search">
+            <input type="search" name="q" placeholder="Search artwork, artists, tags" value="" />
+            <button type="submit" aria-label="Search">Search</button>
+          </form>
+
+          <nav class="nav-links" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <a href="/explore">Explore</a>
+            <a href="/upload">Upload</a>
+            
+          </nav>
+
+          <div class="nav-actions">
+            <button class="theme-toggle" type="button" aria-label="Toggle theme">☼</button>
+            
+              <a href="/login" class="btn btn-ghost">Login</a>
+              <a href="/register" class="btn btn-primary">Join</a>
+            
+          </div>
+        </div>
+      </header>
+
+      
+        <div class="category-bar">
+          <div class="container category-list">
+            <a href="/explore?category=all" class="category-pill ">All</a>
+            
+              <a href="/explore?category=pencil-drawing" class="category-pill ">Pencil Drawing</a>
+            
+              <a href="/explore?category=portrait-drawing" class="category-pill ">Portrait Drawing</a>
+            
+              <a href="/explore?category=digital-art" class="category-pill ">Digital Art</a>
+            
+              <a href="/explore?category=character-design" class="category-pill ">Character Design</a>
+            
+              <a href="/explore?category=anime-manga" class="category-pill ">Anime &amp; Manga</a>
+            
+              <a href="/explore?category=sketching" class="category-pill ">Sketching</a>
+            
+              <a href="/explore?category=watercolor" class="category-pill ">Watercolor</a>
+            
+              <a href="/explore?category=oil-painting" class="category-pill ">Oil Painting</a>
+            
+              <a href="/explore?category=landscape-drawing" class="category-pill ">Landscape Drawing</a>
+            
+              <a href="/explore?category=abstract-art" class="category-pill ">Abstract Art</a>
+            
+              <a href="/explore?category=3d-art" class="category-pill ">3D Art</a>
+            
+              <a href="/explore?category=other-art" class="category-pill ">Other Art</a>
+            
+          </div>
+        </div>
+      
+
+      <main class="container main-content">
+
+
+<section class="hero">
+  <div class="hero-box">
+    <div class="hero-copy">
+      <span class="eyebrow">Cambodian Creative Community</span>
+      <h1>Where Khmer stories bloom in color, craft, and imagination.</h1>
+      <p>Discover remarkable drawings, digital art, paintings, and visual stories from a vibrant community of artists, curators, and art lovers across Cambodia and beyond.</p>
+      <div class="hero-actions">
+        <a href="/explore" class="btn btn-primary">Explore artwork</a>
+        <a href="/upload" class="btn btn-secondary">Upload your work</a>
+      </div>
+      <div class="hero-stats panel-surface">
+        <div class="stat-box"><strong>24k+</strong><span>Artworks</span></div>
+        <div class="stat-box"><strong>6.8k</strong><span>Artists</span></div>
+        <div class="stat-box"><strong>91%</strong><span>Positive vibes</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <img src="https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=1200&q=80" alt="Featured art" />
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Featured artwork</h2>
+    <a href="/explore" class="section-link">View all</a>
+  </div>
+  <div class="gallery-grid portfolio-grid">
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/7">
+      <img src="/uploads/processed/test.png" alt="Test Upload" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Pencil Drawing</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Nov 1, 2026</span>
+    </div>
+
+    <h3><a href="/art/7">Test Upload</a></h3>
+    <p>Fresh upload for a smoke test....</p>
+
+    <div class="artist-row">
+      <a href="/profile/zoe" class="artist-mini">
+        <img src="/uploads/avatars/default-avatar.svg" alt="Zoe" />
+        <span>Zoe</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 1</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/7/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/7/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/8">
+      <img src="/uploads/processed/1793508887472-456255693.webp" alt="dark" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Sketching</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Nov 1, 2026</span>
+    </div>
+
+    <h3><a href="/art/8">dark</a></h3>
+    <p>dark...</p>
+
+    <div class="artist-row">
+      <a href="/profile/kong" class="artist-mini">
+        <img src="/uploads/avatars/default-avatar.svg" alt="kong" />
+        <span>kong</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 1</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/8/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/8/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/1">
+      <img src="https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Midnight Bloom" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Portrait Drawing</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 31, 2026</span>
+    </div>
+
+    <h3><a href="/art/1">Midnight Bloom</a></h3>
+    <p>A portrait study exploring emotion through color and shadow....</p>
+
+    <div class="artist-row">
+      <a href="/profile/mira" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+        <span>Mira Sol</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 3</span>
+        <span>💬 2</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/1/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/1/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Latest creations</h2>
+    <a href="/explore?sort=latest" class="section-link">See latest</a>
+  </div>
+  <div class="gallery-grid portfolio-grid">
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/7">
+      <img src="/uploads/processed/test.png" alt="Test Upload" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Pencil Drawing</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Nov 1, 2026</span>
+    </div>
+
+    <h3><a href="/art/7">Test Upload</a></h3>
+    <p>Fresh upload for a smoke test....</p>
+
+    <div class="artist-row">
+      <a href="/profile/zoe" class="artist-mini">
+        <img src="/uploads/avatars/default-avatar.svg" alt="Zoe" />
+        <span>Zoe</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 1</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/7/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/7/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/8">
+      <img src="/uploads/processed/1793508887472-456255693.webp" alt="dark" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Sketching</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Nov 1, 2026</span>
+    </div>
+
+    <h3><a href="/art/8">dark</a></h3>
+    <p>dark...</p>
+
+    <div class="artist-row">
+      <a href="/profile/kong" class="artist-mini">
+        <img src="/uploads/avatars/default-avatar.svg" alt="kong" />
+        <span>kong</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 1</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/8/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/8/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/1">
+      <img src="https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Midnight Bloom" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Portrait Drawing</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 31, 2026</span>
+    </div>
+
+    <h3><a href="/art/1">Midnight Bloom</a></h3>
+    <p>A portrait study exploring emotion through color and shadow....</p>
+
+    <div class="artist-row">
+      <a href="/profile/mira" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+        <span>Mira Sol</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 3</span>
+        <span>💬 2</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/1/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/1/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/2">
+      <img src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Neon Vanguard" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Character Design</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 30, 2026</span>
+    </div>
+
+    <h3><a href="/art/2">Neon Vanguard</a></h3>
+    <p>A character concept designed around futuristic combat and motion....</p>
+
+    <div class="artist-row">
+      <a href="/profile/glen" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+        <span>Glen Hart</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 2</span>
+        <span>💬 1</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/2/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/2/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/3">
+      <img src="https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Coastal Notes" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Watercolor</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 29, 2026</span>
+    </div>
+
+    <h3><a href="/art/3">Coastal Notes</a></h3>
+    <p>A watercolor study based on layered washes and relaxed horizon lines....</p>
+
+    <div class="artist-row">
+      <a href="/profile/mira" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+        <span>Mira Sol</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 2</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/3/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/3/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/4">
+      <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Rain Alley Pose" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Anime &amp; Manga</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 28, 2026</span>
+    </div>
+
+    <h3><a href="/art/4">Rain Alley Pose</a></h3>
+    <p>A manga-inspired scene built around motion, contrast, and atmosphere....</p>
+
+    <div class="artist-row">
+      <a href="/profile/glen" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+        <span>Glen Hart</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 2</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/4/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/4/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/5">
+      <img src="https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Silent Geometry" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Abstract Art</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 27, 2026</span>
+    </div>
+
+    <h3><a href="/art/5">Silent Geometry</a></h3>
+    <p>A balanced abstract composition using rhythm and negative spaces....</p>
+
+    <div class="artist-row">
+      <a href="/profile/mira" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+        <span>Mira Sol</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 0</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/5/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/5/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/6">
+      <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Forest Echo" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Digital Art</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 26, 2026</span>
+    </div>
+
+    <h3><a href="/art/6">Forest Echo</a></h3>
+    <p>A digital painting shaped by atmosphere, light, and mystery....</p>
+
+    <div class="artist-row">
+      <a href="/profile/glen" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+        <span>Glen Hart</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 0</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/6/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/6/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Trending now</h2>
+    <a href="/explore?sort=trending" class="section-link">Explore trends</a>
+  </div>
+  <div class="gallery-grid portfolio-grid">
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/1">
+      <img src="https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Midnight Bloom" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Portrait Drawing</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 31, 2026</span>
+    </div>
+
+    <h3><a href="/art/1">Midnight Bloom</a></h3>
+    <p>A portrait study exploring emotion through color and shadow....</p>
+
+    <div class="artist-row">
+      <a href="/profile/mira" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+        <span>Mira Sol</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 3</span>
+        <span>💬 2</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/1/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/1/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/2">
+      <img src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Neon Vanguard" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Character Design</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 30, 2026</span>
+    </div>
+
+    <h3><a href="/art/2">Neon Vanguard</a></h3>
+    <p>A character concept designed around futuristic combat and motion....</p>
+
+    <div class="artist-row">
+      <a href="/profile/glen" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+        <span>Glen Hart</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 2</span>
+        <span>💬 1</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/2/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/2/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/3">
+      <img src="https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Coastal Notes" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Watercolor</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 29, 2026</span>
+    </div>
+
+    <h3><a href="/art/3">Coastal Notes</a></h3>
+    <p>A watercolor study based on layered washes and relaxed horizon lines....</p>
+
+    <div class="artist-row">
+      <a href="/profile/mira" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+        <span>Mira Sol</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 2</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/3/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/3/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/4">
+      <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Rain Alley Pose" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Anime &amp; Manga</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Oct 28, 2026</span>
+    </div>
+
+    <h3><a href="/art/4">Rain Alley Pose</a></h3>
+    <p>A manga-inspired scene built around motion, contrast, and atmosphere....</p>
+
+    <div class="artist-row">
+      <a href="/profile/glen" class="artist-mini">
+        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+        <span>Glen Hart</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 2</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/4/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/4/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+      <div class="art-card-wrapper">
+        <article class="art-card">
+  <div class="art-card-media">
+    <a href="/art/7">
+      <img src="/uploads/processed/test.png" alt="Test Upload" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge">Pencil Drawing</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Nov 1, 2026</span>
+    </div>
+
+    <h3><a href="/art/7">Test Upload</a></h3>
+    <p>Fresh upload for a smoke test....</p>
+
+    <div class="artist-row">
+      <a href="/profile/zoe" class="artist-mini">
+        <img src="/uploads/avatars/default-avatar.svg" alt="Zoe" />
+        <span>Zoe</span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ 1</span>
+        <span>💬 0</span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/7/like">
+        <button type="submit" class="action-btn ">
+          Like
+        </button>
+      </form>
+      <form method="POST" action="/art/7/bookmark">
+        <button type="submit" class="action-btn neutral ">
+          Save
+        </button>
+      </form>
+    </div>
+  </div>
+</article>
+
+      </div>
+    
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Popular artists</h2>
+    <a href="/explore" class="section-link">Discover more</a>
+  </div>
+  <div class="artist-grid">
+    
+      <div class="artist-panel">
+        <a href="/profile/mira">
+          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+        </a>
+        <h3>Mira Sol</h3>
+        <p>3 artworks</p>
+        <p>1 followers</p>
+      </div>
+    
+      <div class="artist-panel">
+        <a href="/profile/glen">
+          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+        </a>
+        <h3>Glen Hart</h3>
+        <p>3 artworks</p>
+        <p>1 followers</p>
+      </div>
+    
+      <div class="artist-panel">
+        <a href="/profile/zoe">
+          <img src="/uploads/avatars/default-avatar.svg" alt="Zoe" />
+        </a>
+        <h3>Zoe</h3>
+        <p>1 artworks</p>
+        <p>0 followers</p>
+      </div>
+    
+      <div class="artist-panel">
+        <a href="/profile/kong">
+          <img src="/uploads/avatars/default-avatar.svg" alt="kong" />
+        </a>
+        <h3>kong</h3>
+        <p>1 artworks</p>
+        <p>0 followers</p>
+      </div>
+    
+      <div class="artist-panel">
+        <a href="/profile/alice">
+          <img src="/uploads/avatars/default-avatar.svg" alt="Alice" />
+        </a>
+        <h3>Alice</h3>
+        <p>0 artworks</p>
+        <p>0 followers</p>
+      </div>
+    
+  </div>
+</section>
+
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid">
+          <div>
+            <div class="brand footer-brand">
+              <span class="brand-mark">A</span>
+              <span>ArtSpace</span>
+            </div>
+            <p>Showcase your creative work. Discover talent. Build an art community.</p>
+          </div>
+
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/explore">Artwork</a></li>
+              <li><a href="/explore?category=digital-art">Digital Art</a></li>
+              <li><a href="/explore?category=portrait-drawing">Portraits</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>Community</h4>
+            <ul>
+              <li><a href="/dashboard">Dashboard</a></li>
+              <li><a href="/upload">Upload</a></li>
+              <li><a href="/notifications">Notifications</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>About</h4>
+            <ul>
+              <li><a href="/">Home</a></li>
+              <li><a href="/register">Join</a></li>
+              <li><a href="/forgot-password">Help</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="container footer-bottom">
+          <span>© 2026 ArtSpace</span>
+          <span>Crafted for artists and art lovers.</span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>
+

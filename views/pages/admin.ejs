@@ -1,0 +1,112 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <div>
+    <h1>Admin dashboard</h1>
+    <div class="page-subtitle">Moderate users, review artwork, and manage the community.</div>
+  </div>
+</div>
+
+<div class="grid-3" style="margin-bottom: 26px;">
+  <div class="admin-card">
+    <h3>Total users</h3>
+    <div style="font-size: 2rem; font-weight: 700;"><%= users.length %></div>
+  </div>
+  <div class="admin-card">
+    <h3>Recent artworks</h3>
+    <div style="font-size: 2rem; font-weight: 700;"><%= artworks.length %></div>
+  </div>
+  <div class="admin-card">
+    <h3>Reports</h3>
+    <div style="font-size: 2rem; font-weight: 700;"><%= reports.length %></div>
+  </div>
+</div>
+
+<div class="dashboard-card" style="margin-bottom: 24px;">
+  <h3>Users</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Joined</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach((user) => { %>
+          <tr>
+            <td><%= user.display_name %></td>
+            <td><%= user.email %></td>
+            <td><span class="pill"><%= user.role %></span></td>
+            <td><%= new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="dashboard-card" style="margin-bottom: 24px;">
+  <h3>Reports</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Artwork</th>
+          <th>Reporter</th>
+          <th>Reason</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% reports.forEach((report) => { %>
+          <tr>
+            <td><%= report.artwork_title || 'Artwork' %></td>
+            <td><%= report.reporter_username || 'Unknown' %></td>
+            <td><%= report.reason || 'Inappropriate content' %></td>
+            <td>
+              <form method="POST" action="/admin/report/<%= report.id %>/clear" style="display:inline;">
+                <button type="submit" class="btn btn-ghost">Clear</button>
+              </form>
+              <% if (report.target_type === 'artwork' && report.target_id) { %>
+                <form method="POST" action="/admin/art/<%= report.target_id %>/hide" style="display:inline; margin-left: 8px;">
+                  <button type="submit" class="btn btn-primary">Hide artwork</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="dashboard-card">
+  <h3>Moderation queue</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Artwork</th>
+          <th>Artist</th>
+          <th>Category</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% artworks.forEach((artwork) => { %>
+          <tr>
+            <td><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></td>
+            <td><%= artwork.username %></td>
+            <td><%= artwork.category_name %></td>
+            <td><%= new Date(artwork.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

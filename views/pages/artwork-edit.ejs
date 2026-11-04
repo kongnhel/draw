@@ -1,0 +1,61 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <div>
+    <h1>Edit artwork</h1>
+    <div class="page-subtitle">Update the details for this piece.</div>
+  </div>
+</div>
+
+<div class="form-card" style="max-width: 780px; margin: 0 auto;">
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="empty-state" style="margin-bottom: 16px; color: #ffb8a8; border-color: rgba(255,122,89,0.3);"><%= error %></div>
+  <% } %>
+
+  <form action="/art/<%= artwork.id %>/edit" method="POST">
+    <div class="form-grid">
+      <div class="form-block">
+        <label for="title">Artwork title</label>
+        <input id="title" name="title" type="text" value="<%= artwork.title || '' %>" required />
+      </div>
+
+      <div class="form-block">
+        <label for="category">Category</label>
+        <select id="category" name="category" required>
+          <% categories.forEach((category) => { %>
+            <option value="<%= category.id %>" <%= category.id === artwork.category_id ? 'selected' : '' %>><%= category.name %></option>
+          <% }) %>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-block">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="6" required><%= artwork.description || '' %></textarea>
+    </div>
+
+    <div class="form-block">
+      <label for="tags">Tags</label>
+      <input id="tags" name="tags" type="text" value="<%= artwork.visible_tags || '' %>" />
+    </div>
+
+    <div class="form-block">
+      <label for="visual_effect">Viewer atmosphere</label>
+      <select id="visual_effect" name="visual_effect">
+        <option value="auto" <%= artwork.visual_effect === 'auto' ? 'selected' : '' %>>Automatic from category</option>
+        <option value="portrait" <%= artwork.visual_effect === 'portrait' ? 'selected' : '' %>>Portrait and human drawing</option>
+        <option value="sketch" <%= artwork.visual_effect === 'sketch' ? 'selected' : '' %>>Pencil and sketch</option>
+        <option value="digital" <%= artwork.visual_effect === 'digital' ? 'selected' : '' %>>Digital painting</option>
+        <option value="nature" <%= artwork.visual_effect === 'nature' ? 'selected' : '' %>>Nature and landscape</option>
+        <option value="khmer" <%= artwork.visual_effect === 'khmer' ? 'selected' : '' %>>Traditional Khmer art</option>
+      </select>
+    </div>
+
+    <div class="submit-row">
+      <button type="submit" class="btn btn-primary">Save changes</button>
+      <a href="/art/<%= artwork.id %>" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

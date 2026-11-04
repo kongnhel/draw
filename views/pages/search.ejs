@@ -1,0 +1,20 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <div>
+    <h1>Search results</h1>
+    <div class="page-subtitle"><%= query ? `Results for “${query}”` : 'Enter a keyword to discover artwork.' %></div>
+  </div>
+</div>
+
+<% if (artworks.length) { %>
+  <div class="masonry-grid">
+    <% artworks.forEach((artwork) => { %>
+      <%- include('../partials/art-card', { artwork }) %>
+    <% }) %>
+  </div>
+<% } else { %>
+  <div class="empty-state">No artwork matched your search. Try another keyword or browse the explore page.</div>
+<% } %>
+
+<%- include('../partials/footer') %>

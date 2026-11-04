@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= pageTitle || 'ArtSpace' %></title>
+    <meta name="description" content="ArtSpace is a premium art and drawing social platform for artists and art lovers." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body data-theme="light" class="<%= pageTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Dashboard') ? 'dashboard-body' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Upload') ? 'upload-body' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Explore') ? 'explore-body' : '' %>">
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="container nav-wrap">
+          <a href="/" class="brand" aria-label="ArtSpace home">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 40 40" focusable="false"><path d="m11 29 3-9L26 8l6 6-12 12-9 3Z" /><path d="m14 20 6 6M25 9l6 6M10 31l9-3M8 34l2-3" /><path d="M8 9c2-2 4-2 6 0" /></svg>
+            </span>
+            <span>ArtSpace</span>
+          </a>
+
+          <form action="/search" method="GET" class="nav-search">
+            <input type="search" name="q" placeholder="Search artwork, artists, tags" value="<%= typeof query !== 'undefined' ? query : '' %>" />
+            <button type="submit" aria-label="Search">Search</button>
+          </form>
+
+          <nav class="nav-links" id="primary-nav" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <a href="/explore">Explore</a>
+            <a href="/upload">Upload</a>
+            <% if (isAuthenticated) { %>
+              <a href="/dashboard">Dashboard</a>
+              <% if (currentUser && currentUser.role === 'admin') { %>
+                <a href="/admin">Admin</a>
+              <% } %>
+            <% } %>
+          </nav>
+
+          <div class="nav-actions">
+            <button class="nav-menu-toggle" type="button" data-mobile-menu aria-expanded="false" aria-controls="primary-nav" aria-label="Open notebook menu" title="Open menu">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5c2.5-1.1 4.8-.8 7 1v12c-2.2-1.8-4.5-2.1-7-1V5.5Zm14 0c-2.5-1.1-4.8-.8-7 1v12c2.2-1.8 4.5-2.1 7-1V5.5Z" /><path d="M8 9h1.7M8 12h1.7m5.1-3h1.7m-1.7 3h1.7" /></svg>
+            </button>
+            <button class="theme-toggle" type="button" aria-label="Toggle theme">☼</button>
+            <% if (isAuthenticated) { %>
+              <a href="/notifications" class="icon-link" aria-label="Notifications">
+                🔔
+                <% if (typeof unreadNotifications !== 'undefined' && unreadNotifications > 0) { %>
+                  <span style="position: absolute; top: -5px; right: -6px; min-width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; background: #ff5a36; color: white; border-radius: 999px; font-size: 10px; font-weight: 700;"> <%= unreadNotifications %> </span>
+                <% } %>
+              </a>
+              <a href="/profile/<%= currentUser.username %>" class="profile-chip">
+                <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= currentUser.display_name %>" />
+                <span><%= currentUser.display_name %></span>
+              </a>
+              <a href="/logout" class="btn btn-ghost">Logout</a>
+            <% } else { %>
+              <a href="/login" class="btn btn-ghost">Login</a>
+              <a href="/register" class="btn btn-primary">Join</a>
+            <% } %>
+          </div>
+        </div>
+      </header>
+
+      <% if (typeof categories !== 'undefined' && categories.length) { %>
+        <div class="category-bar">
+          <div class="container category-list">
+            <a href="/explore?category=all" class="category-pill <%= typeof filter !== 'undefined' && filter === 'all' ? 'active' : '' %>">All</a>
+            <% categories.forEach((category) => { %>
+              <a href="/explore?category=<%= category.slug %>" class="category-pill <%= typeof filter !== 'undefined' && filter === category.slug ? 'active' : '' %>"><%= category.name %></a>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <main class="container main-content <%= pageTitle === 'ArtSpace | Discover original artwork' ? 'home-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Explore') ? 'explore-main' : '' %>">

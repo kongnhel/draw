@@ -1,0 +1,63 @@
+<div class="studio-explore-results" data-explore-results data-page="<%= pagination.page %>" data-total="<%= pagination.total %>" data-has-more="<%= pagination.hasMore ? 'true' : 'false' %>">
+  <div class="studio-explore-results-meta" data-explore-meta aria-live="polite">
+    <p>
+      <% if (query && filter !== 'all' && activeCategory) { %>
+        <strong><%= pagination.total %></strong> <%= pagination.total === 1 ? 'work' : 'works' %> for &ldquo;<%= query %>&rdquo; in <%= activeCategory.name %>
+      <% } else if (query) { %>
+        <strong><%= pagination.total %></strong> <%= pagination.total === 1 ? 'work' : 'works' %> for &ldquo;<%= query %>&rdquo;
+      <% } else if (filter !== 'all' && activeCategory) { %>
+        <strong><%= pagination.total %></strong> <%= pagination.total === 1 ? 'work' : 'works' %> in <%= activeCategory.name %>
+      <% } else { %>
+        Showing <strong><%= pagination.start %>&ndash;<%= pagination.end %></strong> of <strong><%= pagination.total %></strong> published works
+      <% } %>
+    </p>
+    <% if (query || filter !== 'all') { %>
+      <a href="/explore?sort=<%= encodeURIComponent(sort) %>" class="studio-explore-clear" data-explore-link data-explore-clear>
+        Clear filters
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+      </a>
+    <% } %>
+  </div>
+
+  <div class="studio-explore-skeleton" data-explore-skeleton hidden aria-hidden="true">
+    <% [1, 2, 3].forEach((skeleton) => { %>
+      <span class="studio-explore-skeleton-card studio-explore-skeleton-card--<%= skeleton %>">
+        <i></i>
+        <b></b>
+        <b></b>
+      </span>
+    <% }) %>
+  </div>
+
+  <% if (artworks.length) { %>
+    <div class="studio-explore-masonry" data-explore-masonry>
+      <% artworks.forEach((artwork, index) => { %>
+        <%- include('./explore-card', { artwork, index }) %>
+      <% }) %>
+    </div>
+
+    <% if (pagination.hasMore) { %>
+      <div class="studio-explore-more-wrap">
+        <button class="studio-explore-more" type="button" data-explore-more data-next-url="/explore?category=<%= encodeURIComponent(filter) %>&amp;sort=<%= encodeURIComponent(sort) %>&amp;page=<%= pagination.nextPage %><% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>">
+          <span>Load more discoveries</span>
+          <small><%= pagination.remaining %> still on the table</small>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15m-5-5 5 5 5-5" /></svg>
+        </button>
+      </div>
+    <% } else if (pagination.total > pagination.pageSize) { %>
+      <p class="studio-explore-end-note"><span aria-hidden="true">✦</span> You have reached the last page of the sketchbook. <span aria-hidden="true">✦</span></p>
+    <% } %>
+  <% } else { %>
+    <div class="studio-explore-empty">
+      <svg class="studio-explore-empty-drawing" viewBox="0 0 220 150" aria-hidden="true">
+        <path d="M38 112c20-18 30-42 36-69m-8 48c22-2 42 0 63-9m-49 31c16 1 30 5 45 2" />
+        <path d="M126 118 184 36M171 34l17 9-13 16" />
+        <path d="M30 37c0 6-4 10-10 10 6 0 10 4 10 10 0-6 4-10 10-10-6 0-10-4-10-10Zm150 92c0-8 6-14 14-14" />
+      </svg>
+      <span class="studio-explore-kicker">An empty corner of the page</span>
+      <h2>No artwork found. Try another search.</h2>
+      <p>Try a different medium, artist, or a broader word. The collection changes as new work arrives.</p>
+      <a href="/explore" class="studio-explore-text-link" data-explore-link>Back to all artwork <span aria-hidden="true">→</span></a>
+    </div>
+  <% } %>
+</div>

@@ -1,0 +1,157 @@
+<%- include('../partials/header') %>
+
+<div class="home-page">
+  <section class="home-hero">
+    <div class="home-hero-copy">
+      <span class="home-kicker">ArtSpace <span>/</span> Cambodian creative community</span>
+      <div class="home-hero-title-wrap">
+        <h1>Art, gathered <span>page by page.</span></h1>
+        <svg class="home-pencil-doodle" viewBox="0 0 110 110" aria-hidden="true">
+          <path class="pencil-line" d="m25 79 7-25 43-43c3-3 7-3 10 0l8 8c3 3 3 7 0 10L50 72l-25 7Zm7-25 18 18m25-61 18 18M25 79l-4 12 12-4M83 11l-8 9m-45 38 18 18" />
+          <path class="pencil-spark" d="M91 61c0 7-5 11-12 11 7 0 12 4 12 11 0-7 5-11 12-11-7 0-12-4-12-11Z" />
+          <path class="pencil-spark" d="M21 21c0 4-3 7-7 7 4 0 7 3 7 7 0-4 3-7 7-7-4 0-7-3-7-7Z" />
+        </svg>
+      </div>
+      <p>A living collection of drawings, paintings, and visual stories, made by artists near and far.</p>
+      <div class="home-hero-actions">
+        <a href="#art-book" class="home-button home-button-dark">Open the art book <span aria-hidden="true">↗</span></a>
+        <a href="/upload" class="home-text-link">Share your work <span aria-hidden="true">→</span></a>
+      </div>
+      <p class="home-hero-count"><strong><%= bookArtworks.length %></strong> published <%= bookArtworks.length === 1 ? 'artwork' : 'artworks' %> in the collection</p>
+    </div>
+    <% if (heroArtwork) { %>
+      <a class="home-hero-feature" href="/art/<%= heroArtwork.id %>" data-artwork-view data-artwork-id="<%= heroArtwork.id %>" data-artwork-full="<%= heroArtwork.image_url %>" data-artwork-thumb="<%= heroArtworkImageUrl %>" data-artwork-title="<%= heroArtwork.title %>" data-artwork-description="<%= heroArtwork.description || '' %>" data-artwork-category="<%= heroArtwork.category_name || '' %>" data-artwork-tags="<%= heroArtwork.tags || '' %>" data-artwork-effect="<%= heroArtwork.visual_effect || 'auto' %>" data-artwork-artist="<%= heroArtwork.display_name || heroArtwork.username %>" data-artwork-artist-url="/profile/<%= heroArtwork.username %>" data-artwork-date="<%= heroArtwork.created_at_label %>" data-artwork-liked="<%= heroArtwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= heroArtwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= heroArtwork.likes_count || 0 %>" aria-label="View <%= heroArtwork.title %> by <%= heroArtwork.display_name || heroArtwork.username %>">
+        <img data-home-feature-image data-fallback-src="<%= heroArtwork.image_url %>" src="<%= heroArtworkImageUrl %>" alt="<%= heroArtwork.title %>" fetchpriority="high" />
+        <span class="home-feature-placeholder" aria-hidden="true"><strong><%= heroArtwork.title %></strong><span>Artwork image unavailable</span></span>
+        <span class="home-feature-index">FROM THE COLLECTION <span><%= String(heroArtworkIndex).padStart(2, '0') %> / <%= String(bookArtworks.length).padStart(2, '0') %></span></span>
+        <span class="home-feature-caption"><strong><%= heroArtwork.title %></strong><span>by <%= heroArtwork.display_name || heroArtwork.username %></span></span>
+      </a>
+    <% } else { %>
+      <div class="home-hero-feature home-hero-empty" aria-hidden="true">
+        <span class="home-feature-index">THE FIRST PAGE IS YOURS</span>
+        <span class="home-empty-glyph">A.</span>
+        <span class="home-feature-caption"><strong>A collection begins with one idea.</strong><span>Share the first artwork.</span></span>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="home-book-section" id="art-book" aria-labelledby="art-book-title">
+    <div class="home-section-heading">
+      <div>
+        <span class="home-kicker">The community collection</span>
+        <h2 id="art-book-title">An open book of art</h2>
+      </div>
+      <p>Every published work, in the order it arrived.</p>
+    </div>
+
+    <% if (bookArtworks.length) { %>
+      <div class="book-experience" data-art-book data-artwork-count="<%= bookArtworks.length %>">
+        <div class="book-stage">
+          <div class="art-book" data-book-root role="region" aria-label="ArtSpace community art book" tabindex="0">
+            <article class="book-page book-cover" data-book-page data-density="hard" aria-label="ArtSpace collection cover">
+              <div class="book-cover-design">
+                <span class="book-cover-mark">ARTSPACE <span>COMMUNITY EDITION</span></span>
+                <span class="book-cover-ornament" aria-hidden="true">A</span>
+                <span class="book-cover-title">The Art<br />Book</span>
+                <span class="book-cover-note"><%= bookArtworks.length %> original <%= bookArtworks.length === 1 ? 'work' : 'works' %><br />from a creative community</span>
+                <span class="book-cover-year">VOL. 01 &nbsp; / &nbsp; CAMBODIA & BEYOND</span>
+              </div>
+            </article>
+            <% bookArtworks.forEach((artwork, index) => { %>
+              <article class="book-page" data-book-page data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="Artwork <%= index + 1 %>: <%= artwork.title %>">
+                <div class="book-page-content">
+                  <a class="book-artwork-link" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
+                    <img data-book-image data-src="<%= artwork.thumbnail_url || artwork.image_url %>" data-fallback-src="<%= artwork.image_url || '' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+                    <span class="book-image-placeholder" aria-hidden="true"><strong><%= artwork.title %></strong><span>Artwork image unavailable</span></span>
+                  </a>
+                  <div class="book-page-details">
+                    <div class="book-page-heading">
+                      <span class="book-category"><%= artwork.category_name || 'Original artwork' %></span>
+                      <time><%= artwork.created_at_label %></time>
+                    </div>
+                    <a class="book-artwork-title" href="/art/<%= artwork.id %>"><%= artwork.title %></a>
+                    <span class="book-artwork-artist">by <%= artwork.display_name || artwork.username %></span>
+                    <span class="book-page-number"><%= String(index + 1).padStart(2, '0') %></span>
+                  </div>
+                </div>
+              </article>
+            <% }) %>
+          </div>
+        </div>
+        <div class="book-controls">
+          <div class="book-progress">
+            <span class="book-page-counter" data-book-current aria-live="polite">Cover</span>
+            <span class="book-counter-divider">/</span>
+            <span class="book-page-total" data-book-total><%= String(bookArtworks.length).padStart(2, '0') %></span>
+          </div>
+          <p class="book-current-work" data-book-live aria-live="polite">Turn the cover to explore the collection.</p>
+          <div class="book-navigation">
+            <button class="book-nav-button" type="button" data-book-prev aria-label="Turn to previous page" title="Previous page" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            <button class="book-nav-button" type="button" data-book-next aria-label="Turn to next page" title="Next page">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="book-empty-state">
+        <div class="book-empty-object" aria-hidden="true"><span></span><span></span></div>
+        <span class="home-kicker">A new collection begins</span>
+        <h3>The first page is still waiting.</h3>
+        <p>Be the first to add an artwork to the community book.</p>
+        <a href="/upload" class="home-button home-button-dark">Upload an artwork <span aria-hidden="true">↗</span></a>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="home-recent-section" aria-labelledby="recent-art-title">
+    <div class="home-section-heading">
+      <div>
+        <span class="home-kicker">Fresh from the studio</span>
+        <h2 id="recent-art-title">Recently added</h2>
+      </div>
+      <a href="/explore?sort=latest" class="home-text-link">View all artwork <span aria-hidden="true">→</span></a>
+    </div>
+    <% if (latest.length) { %>
+      <div class="home-recent-track" aria-label="Recently added artwork">
+        <% latest.slice(0, 8).forEach((artwork) => { %>
+          <div class="home-recent-item">
+            <%- include('../partials/art-card', { artwork }) %>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="home-recent-empty">New work will appear here as soon as it is shared.</p>
+    <% } %>
+  </section>
+
+  <section class="home-about-section" aria-labelledby="about-artist-title">
+    <div class="home-about-mark" aria-hidden="true">A.</div>
+    <div class="home-about-copy">
+      <span class="home-kicker"><%= artistSpotlight ? 'Artist in focus' : 'Made for artists' %></span>
+      <% if (artistSpotlight) { %>
+        <h2 id="about-artist-title">A little about <%= artistSpotlight.display_name || artistSpotlight.username %></h2>
+        <p><%= artistSpotlight.bio || 'Part of a growing community sharing original drawings, paintings, and visual stories with the world.' %></p>
+        <a href="/profile/<%= artistSpotlight.username %>" class="home-text-link">Visit artist profile <span aria-hidden="true">→</span></a>
+      <% } else { %>
+        <h2 id="about-artist-title">Every artist has a first page.</h2>
+        <p>ArtSpace is a home for original work and the people who make it. Share your practice and help this collection grow.</p>
+        <a href="/register" class="home-text-link">Join the community <span aria-hidden="true">→</span></a>
+      <% } %>
+    </div>
+    <% if (artistSpotlight) { %>
+      <div class="home-about-profile">
+        <img src="<%= artistSpotlight.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" loading="lazy" />
+        <div><strong><%= artistSpotlight.display_name || artistSpotlight.username %></strong><span><%= artistSpotlight.art_count %> published <%= artistSpotlight.art_count === 1 ? 'work' : 'works' %></span></div>
+      </div>
+    <% } %>
+  </section>
+</div>
+
+<% if (bookArtworks.length) { %>
+  <script src="/vendor/page-flip.browser.js"></script>
+<% } %>
+
+<%- include('../partials/footer') %>

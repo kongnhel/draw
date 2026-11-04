@@ -1,0 +1,480 @@
+<%- include('../partials/header') %>
+
+<div class="studio-dashboard" data-studio-dashboard>
+  <aside class="studio-sidebar" aria-label="Artist workspace navigation">
+    <div class="studio-sidebar-clip" aria-hidden="true"></div>
+    <div class="studio-sidebar-profile">
+      <span class="studio-mini-avatar">
+        <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= currentUser.display_name %>" />
+      </span>
+      <div>
+        <strong><%= currentUser.display_name %></strong>
+        <span>@<%= currentUser.username %></span>
+      </div>
+    </div>
+
+    <p class="studio-sidebar-label">My sketchbook</p>
+
+    <nav class="studio-nav" aria-label="Dashboard sections">
+      <a href="#overview" class="studio-nav-link is-active" data-studio-nav="overview">
+        <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5c2.5 1 5 1.3 8 .4v13c-3 .9-5.5.6-8-.4v-13Z" /><path d="M20 5.5c-2.5 1-5 1.3-8 .4v13c3 .9 5.5.6 8-.4v-13Z" /><path d="M7 8.6c1.4.2 2.6.2 3.8 0M7 11.4c1.4.2 2.6.2 3.8 0M13.2 8.6c1.2.2 2.4.2 3.8 0M13.2 11.4c1.2.2 2.4.2 3.8 0" /></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="#artwork" class="studio-nav-link" data-studio-nav="artwork">
+        <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 4.6c5-.3 10.3-.3 15.6 0 .4 4.9.4 9.9 0 14.8-5 .4-10.3.4-15.6 0-.4-4.8-.4-9.9 0-14.8Z" /><path d="M7 16.6c1.4-2.8 2.7-4.2 4-4.2 1.6 0 2.4 2.5 3.6 2.5.9 0 1.6-.8 2.4-2.3M9 8.2c1.2-.1 2.2.7 2.2 1.8S10.2 12 9 11.9c-1.2 0-2.1-.8-2.1-1.9S7.8 8.3 9 8.2Z" /></svg>
+        <span>My Artwork</span>
+      </a>
+      <a href="/upload" class="studio-nav-link">
+        <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4.5 19.5 1.6-5.2L16.8 3.6c1-1 2.6-1 3.6 0s1 2.8 0 3.8L9.7 18l-5.2 1.5Z" /><path d="m15.6 4.8 3.7 3.8M6.1 14.3l3.7 3.8M4.5 19.5l3.1-1M18.2 2.8l2.9 3" /></svg>
+        <span>Upload Drawing</span>
+      </a>
+      <a href="#collections" class="studio-nav-link" data-studio-nav="collections">
+        <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 8.2c4.9-.3 10.7-.3 16.4 0 .4 4.2.4 8.5 0 12.3-5.2.4-10.9.4-16.4 0-.4-4-.4-8.2 0-12.3Z" /><path d="M3.8 8.2c1.4-1.8 2.8-3 4.2-3.4 1.3-.4 2.4.3 3.2 1.8h5M7.3 11.6c3.2-.2 6.4-.2 9.6 0M7.3 14.6c2.7-.2 5.4-.2 8.1 0" /></svg>
+        <span>Collections</span>
+      </a>
+      <a href="#favorites" class="studio-nav-link" data-studio-nav="favorites">
+        <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.2c-1.7-1.2-7.4-5-8.1-9.2-.5-3.2 1.3-5.6 4-5.8 1.8-.1 3.2 1 4.1 2.5.9-1.5 2.3-2.6 4.1-2.5 2.7.2 4.5 2.6 4 5.8-.7 4.2-6.4 8-8.1 9.2Z" /><path d="M8.2 9.2c.7-1 1.7-1.2 2.5-.6M15.8 9.2c-.7-1-1.7-1.2-2.5-.6" /></svg>
+        <span>Favorites</span>
+      </a>
+      <a href="/profile/<%= currentUser.username %>" class="studio-nav-link">
+        <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4c2.8-.1 5.1 2.1 5.1 4.9 0 2.9-2.2 5.2-5.1 5.2-2.9 0-5.1-2.3-5.1-5.2 0-2.8 2.3-5 5.1-4.9Z" /><path d="M4.6 20.4c.3-3.7 3.4-6 7.4-6s7.1 2.3 7.4 6c-4.9.4-9.9.4-14.8 0Z" /><path d="M9.6 7.9c1.5-.1 3-.1 4.8 0" /></svg>
+        <span>Profile</span>
+      </a>
+      <a href="/profile/edit" class="studio-nav-link">
+        <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" /><path d="M12 2.8v2.1M12 19.1v2.1M4.8 12H2.7M21.3 12h-2.1M6.9 6.9 5.4 5.4M18.6 18.6l-1.5-1.5M17.1 6.9l1.5-1.5M5.4 18.6l1.5-1.5" /></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="studio-sidebar-note">
+      <span class="studio-sidebar-flower" aria-hidden="true">
+        <svg viewBox="0 0 44 44"><path d="M22 22c-5-1-7-6-3-9 3-2 6 1 3 9Z" /><path d="M22 22c1-5 6-7 9-3 2 3-1 6-9 3Z" /><path d="M22 22c5 1 7 6 3 9-3 2-6-1-3-9Z" /><path d="M22 22c-1 5-6 7-9 3-2-3 1-6 9-3Z" /><circle cx="22" cy="22" r="2.2" /></svg>
+      </span>
+      <p>“Art is the handwriting of the soul.”</p>
+    </div>
+
+    <button class="studio-sound-toggle" type="button" data-pencil-sound aria-pressed="false" title="Enable pencil sounds">
+      <svg class="studio-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5v3h3.4l4 3.3V7.2l-4 3.3H4Z" /><path class="studio-sound-wave" d="M15 9.2a4 4 0 0 1 .1 5.6M17.8 6.7a7.6 7.6 0 0 1 .1 10.6" /></svg>
+      <span>Pencil sounds</span>
+      <em data-pencil-sound-state>Off</em>
+    </button>
+  </aside>
+
+  <div class="studio-main">
+    <header class="studio-welcome" data-studio-section>
+      <span class="studio-tape studio-tape-left" aria-hidden="true"></span>
+      <span class="studio-tape studio-tape-right" aria-hidden="true"></span>
+
+      <svg class="studio-doodle studio-doodle-pencil" data-doodle viewBox="0 0 120 120" aria-hidden="true">
+        <path d="m22 88 6-22L76 18c3-3 7-3 10 0l8 8c3 3 3 7 0 10L46 84l-24 4Z" />
+        <path d="m28 66 16 16M80 20l16 16M22 88l-3 10 10-4M92 31l-7 8M33 72l16 16" />
+        <path d="M96 68c0 6-5 10-11 10 6 0 11 4 11 10 0-6 5-10 11-10-6 0-11-4-11-10Z" />
+      </svg>
+
+      <svg class="studio-doodle studio-doodle-flower" data-doodle viewBox="0 0 90 110" aria-hidden="true">
+        <path d="M46 98c2-18 3-32 1-48" />
+        <path d="M46 72c-9-4-15-1-18 6 8 2 14 0 18-6ZM47 60c8-4 14-2 17 4-7 3-13 1-17-4Z" />
+        <path d="M46 50c-8-2-12-8-9-14 3-5 9-5 13 0 4-5 10-5 13 0 3 6-1 12-9 14-2 3-6 3-8 0Z" />
+        <circle cx="48" cy="41" r="3" />
+      </svg>
+
+      <div class="studio-welcome-copy">
+        <p class="studio-kicker">Artist workspace <span>/</span> <%= todayLabel %></p>
+        <h1>Welcome Back, <span>Artist!</span></h1>
+        <p class="studio-welcome-note">Your desk is just as you left it, <strong><%= currentUser.display_name %></strong>. There is fresh paper waiting for the next idea.</p>
+        <p class="studio-quote">“Draw the thing only you can see.”</p>
+        <div class="studio-welcome-actions">
+          <a href="/upload" class="studio-btn studio-btn-primary">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 18.5 1.3-4.3L17 3.5c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.4 17.3 5 18.5Z" /><path d="m16.2 4.3 3.4 3.4M5 18.5l3.1-.9" /></svg>
+            Start a new drawing
+          </a>
+          <a href="/profile/<%= currentUser.username %>" class="studio-btn studio-btn-ghost">Visit my gallery <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+
+      <div class="studio-welcome-profile">
+        <span class="studio-avatar-frame">
+          <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= currentUser.display_name %>" />
+          <svg viewBox="0 0 170 170" aria-hidden="true"><path d="M85 8c26-2 51 7 66 27 14 19 17 46 8 69-9 24-32 43-59 47-27 4-57-6-73-28C11 101 8 71 20 49 32 27 56 17 85 8Z" /></svg>
+        </span>
+        <span class="studio-profile-caption"><%= currentUser.display_name %> <span aria-hidden="true">✎</span></span>
+      </div>
+    </header>
+
+    <section class="studio-stats" id="overview" aria-label="Workspace statistics" data-studio-section>
+      <article class="studio-stat-card studio-stat-artworks">
+        <span class="studio-pin" aria-hidden="true"></span>
+        <svg class="studio-stat-doodle" data-doodle viewBox="0 0 80 80" aria-hidden="true"><path d="m16 62 5-17 30-30c2-2 5-2 7 0l6 6c2 2 2 5 0 7L34 58l-18 4Z" /><path d="m21 45 12 12M53 17l12 12M16 62l-2 8 8-3" /></svg>
+        <span class="studio-stat-label">Total Artworks</span>
+        <strong class="studio-stat-value"><%= stats.totalArtworks %></strong>
+        <span class="studio-stat-note">published pages</span>
+      </article>
+      <article class="studio-stat-card studio-stat-views">
+        <span class="studio-pin studio-pin-blue" aria-hidden="true"></span>
+        <svg class="studio-stat-doodle" data-doodle viewBox="0 0 80 80" aria-hidden="true"><path d="M8 38c9-12 20-18 32-18s23 6 32 18c-9 12-20 18-32 18S17 50 8 38Z" /><circle cx="40" cy="38" r="9" /><path d="M40 28c3 3 3 7 0 10M40 38c-3-3-3-7 0-10" /></svg>
+        <span class="studio-stat-label">Total Views</span>
+        <strong class="studio-stat-value"><%= stats.totalViews %></strong>
+        <span class="studio-stat-note">visits to your desk</span>
+      </article>
+      <article class="studio-stat-card studio-stat-favorites">
+        <span class="studio-tape" aria-hidden="true"></span>
+        <svg class="studio-stat-doodle" data-doodle viewBox="0 0 80 80" aria-hidden="true"><path d="M40 65C28 56 12 45 14 29c1-12 12-18 21-12 3 2 5 5 5 6 1-1 2-4 5-6 9-6 20 0 21 12 2 16-14 27-26 36Z" /><path d="M23 27c3-5 8-6 12-3" /></svg>
+        <span class="studio-stat-label">Favorites</span>
+        <strong class="studio-stat-value"><%= stats.favoritesReceived %></strong>
+        <span class="studio-stat-note">hearts on your work</span>
+      </article>
+      <article class="studio-stat-card studio-stat-collections">
+        <span class="studio-pin studio-pin-green" aria-hidden="true"></span>
+        <svg class="studio-stat-doodle" data-doodle viewBox="0 0 80 80" aria-hidden="true"><path d="M10 26c15-2 33-2 51 0 2 12 2 24 0 36-17 2-35 2-51 0-2-12-2-24 0-36Z" /><path d="M10 26c5-6 9-9 14-10 4-1 7 1 9 5h18M24 37c8-1 15-1 23 0M24 46c7-1 14-1 21 0" /></svg>
+        <span class="studio-stat-label">Collections</span>
+        <strong class="studio-stat-value"><%= stats.collectionsCount %></strong>
+        <span class="studio-stat-note">curated sets</span>
+      </article>
+    </section>
+
+    <section class="studio-section studio-quick-section" aria-labelledby="quick-actions-title" data-studio-section>
+      <div class="studio-section-heading">
+        <div>
+          <p class="studio-kicker">Tools within reach</p>
+          <h2 id="quick-actions-title">Pick up where you left off</h2>
+        </div>
+        <span class="studio-heading-note">choose a tool from the desk</span>
+      </div>
+
+      <div class="studio-quick-grid">
+        <a href="/upload" class="studio-quick-card studio-quick-pencil">
+          <span class="studio-quick-icon" aria-hidden="true">
+            <svg data-doodle viewBox="0 0 96 96"><path d="m20 76 6-20 34-34c3-3 8-3 11 0l7 7c3 3 3 8 0 11L44 74l-24 2Z" /><path d="m26 56 18 18M61 22l18 18M20 76l-3 10 11-4" /></svg>
+          </span>
+          <span>
+            <strong>Upload New Drawing</strong>
+            <em>Place a fresh page on the desk.</em>
+          </span>
+          <span class="studio-quick-arrow" aria-hidden="true">↗</span>
+        </a>
+
+        <button type="button" class="studio-quick-card studio-quick-folder" data-open-collection>
+          <span class="studio-quick-icon" aria-hidden="true">
+            <svg data-doodle viewBox="0 0 96 96"><path d="M13 31c18-2 40-2 70 0 2 14 2 29 0 43-22 2-46 2-70 0-2-14-2-29 0-43Z" /><path d="M13 31c6-7 12-11 18-12 5-1 9 1 12 6h25M31 45c12-1 24-1 36 0M31 56c10-1 20-1 30 0" /><path d="M64 25c4-4 8-6 12-6" /></svg>
+          </span>
+          <span>
+            <strong>Create Collection</strong>
+            <em>Tie a few favorite pages together.</em>
+          </span>
+          <span class="studio-quick-arrow" aria-hidden="true">＋</span>
+        </button>
+
+        <a href="/explore" class="studio-quick-card studio-quick-brush">
+          <span class="studio-quick-icon" aria-hidden="true">
+            <svg data-doodle viewBox="0 0 96 96"><path d="M25 71c8-2 14-7 17-15l25-36c3-4 9-5 13-2s5 9 2 13L57 67c-5 9-13 14-24 14-5 0-8-4-8-10Z" /><path d="M25 71c7 1 12 4 15 9M62 25l17 17" /></svg>
+          </span>
+          <span>
+            <strong>Explore Gallery</strong>
+            <em>Wander through other artists' books.</em>
+          </span>
+          <span class="studio-quick-arrow" aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="studio-section studio-artwork-section" id="artwork" aria-labelledby="recent-art-title" data-studio-section>
+      <div class="studio-section-heading">
+        <div>
+          <p class="studio-kicker">Fresh from your desk</p>
+          <h2 id="recent-art-title">Recent artwork</h2>
+        </div>
+        <a href="/profile/<%= currentUser.username %>?tab=artworks" class="studio-text-link">View all <span aria-hidden="true">→</span></a>
+      </div>
+
+      <% if (uploaded.length) { %>
+        <div class="studio-art-grid">
+          <% uploaded.slice(0, 6).forEach((artwork, index) => { %>
+            <article class="studio-art-card" style="--card-tilt: <%= [-1.1, 0.7, -0.4, 0.9, -0.6, 0.3][index % 6] %>deg">
+              <span class="studio-tape" aria-hidden="true"></span>
+              <a href="/art/<%= artwork.id %>" class="studio-art-frame" aria-label="View <%= artwork.title %>">
+                <img src="<%= artwork.thumbnail_url || artwork.image_url %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+                <svg class="studio-art-frame-line" viewBox="0 0 100 120" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M3 4C19 3 31 5 49 4c17-1 32 1 48 0l-1 112c-15-1-31 1-47 0C33 115 17 117 3 116 2 78 2 42 3 4Z" /></svg>
+              </a>
+              <div class="studio-art-body">
+                <div class="studio-art-meta">
+                  <span><%= artwork.category_name || 'Artwork' %></span>
+                  <span><%= artwork.created_at_label %></span>
+                </div>
+                <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+                <div class="studio-art-metrics">
+                  <span>♡ <%= artwork.likes_count %></span>
+                  <span>✎ <%= artwork.comments_count %></span>
+                  <span>◉ <%= artwork.views %></span>
+                </div>
+                <div class="studio-art-actions">
+                  <a href="/art/<%= artwork.id %>" class="studio-mini-btn">View</a>
+                  <a href="/art/<%= artwork.id %>/edit" class="studio-mini-btn">Edit</a>
+                  <form method="POST" action="/art/<%= artwork.id %>/delete" onsubmit="return confirm('Remove this artwork from your sketchbook?');">
+                    <button type="submit" class="studio-mini-btn studio-mini-btn-soft">Delete</button>
+                  </form>
+                </div>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="studio-empty-note">
+          <svg data-doodle viewBox="0 0 100 100" aria-hidden="true"><path d="M18 78 24 58l36-36c3-3 8-3 11 0l6 6c3 3 3 8 0 11L41 75l-23 3Z" /><path d="m24 58 18 18M60 22l18 18" /></svg>
+          <h3>The first page is still blank.</h3>
+          <p>Pin your first drawing to the desk and let the collection begin.</p>
+          <a href="/upload" class="studio-btn studio-btn-primary">Upload an artwork</a>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="studio-section studio-workspace-section" id="workspace" aria-labelledby="workspace-title" data-studio-section>
+      <div class="studio-section-heading">
+        <div>
+          <p class="studio-kicker">A quiet place to think</p>
+          <h2 id="workspace-title">Open notebook</h2>
+        </div>
+        <span class="studio-heading-note">studio notes &amp; half-finished ideas</span>
+      </div>
+
+      <div class="studio-notebook">
+        <span class="studio-notebook-spine" aria-hidden="true"></span>
+        <div class="studio-notebook-page studio-notebook-left">
+          <div class="studio-page-heading">
+            <span class="studio-page-number">01</span>
+            <h3>Recent creative activity</h3>
+          </div>
+
+          <% if (recentActivity.length) { %>
+            <div class="studio-activity-list">
+              <% recentActivity.forEach((activity) => { %>
+                <a href="<%= activity.link %>" class="studio-activity-item">
+                  <span class="studio-activity-mark studio-activity-<%= activity.type %>" aria-hidden="true">
+                    <% if (activity.type === 'like') { %>♡<% } else if (activity.type === 'comment') { %>✎<% } else { %>✦<% } %>
+                  </span>
+                  <span class="studio-activity-copy">
+                    <span><%= activity.message %></span>
+                    <% if (activity.detail) { %><em>“<%= activity.detail %>”</em><% } %>
+                    <time><%= activity.time_label %></time>
+                  </span>
+                  <% if (activity.actor_avatar) { %>
+                    <img src="<%= activity.actor_avatar %>" alt="" loading="lazy" />
+                  <% } %>
+                </a>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <p class="studio-page-empty">The activity page is quiet. New hearts and notes will be sketched here.</p>
+          <% } %>
+
+          <div class="studio-page-divider" aria-hidden="true"></div>
+
+          <div class="studio-circle-note">
+            <span class="studio-kicker">Studio circle</span>
+            <p><strong><%= stats.followers %></strong> artists follow your work · you follow <strong><%= stats.following %></strong>.</p>
+            <div class="studio-circle-faces">
+              <% followers.slice(0, 5).forEach((person) => { %>
+                <a href="/profile/<%= person.username %>" title="<%= person.display_name %>">
+                  <img src="<%= person.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= person.display_name %>" loading="lazy" />
+                </a>
+              <% }) %>
+              <% if (!followers.length) { %><span class="studio-circle-empty">No names on this page yet.</span><% } %>
+            </div>
+          </div>
+        </div>
+
+        <div class="studio-notebook-page studio-notebook-right">
+          <div class="studio-page-heading">
+            <span class="studio-page-number">02</span>
+            <h3>Fresh sketches &amp; drafts</h3>
+          </div>
+
+          <% if (uploaded.length) { %>
+            <div class="studio-sketch-list">
+              <% uploaded.slice(0, 3).forEach((artwork) => { %>
+                <a href="/art/<%= artwork.id %>" class="studio-sketch-item">
+                  <img src="<%= artwork.thumbnail_url || artwork.image_url %>" alt="" loading="lazy" />
+                  <span><strong><%= artwork.title %></strong><em><%= artwork.created_at_label %> · <%= artwork.views %> views</em></span>
+                </a>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <p class="studio-page-empty">Recent sketches will appear here after your first upload.</p>
+          <% } %>
+
+          <div class="studio-draft-block">
+            <span class="studio-kicker">Draft pages</span>
+            <% if (drafts.length) { %>
+              <div class="studio-draft-list">
+                <% drafts.slice(0, 4).forEach((draft) => { %>
+                  <a href="/art/<%= draft.id %>/edit">
+                    <span>✎</span>
+                    <strong><%= draft.title %></strong>
+                    <em><%= draft.created_at_label %></em>
+                  </a>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <p class="studio-page-empty">No half-finished pages. The desk is clear.</p>
+            <% } %>
+          </div>
+
+          <div class="studio-inspiration-note">
+            <svg class="studio-inspiration-flower" data-doodle viewBox="0 0 70 90" aria-hidden="true">
+              <path d="M36 82c1-16 2-28 0-42" />
+              <path d="M36 62c-7-3-12-1-14 5 6 2 11 0 14-5ZM37 53c6-3 11-1 13 4-6 2-10 1-13-4Z" />
+              <path d="M36 45c-6-2-9-6-7-11 2-4 7-4 10 0 3-4 8-4 10 0 2 5-1 9-7 11-2 2-4 2-6 0Z" />
+            </svg>
+            <span class="studio-kicker">A note for today</span>
+            <p>“Make something small today. Small pages still count. The sketchbook remembers everything you try.”</p>
+            <span class="studio-signature">— your future self</span>
+          </div>
+        </div>
+
+        <svg class="studio-notebook-doodle" data-doodle viewBox="0 0 120 120" aria-hidden="true">
+          <path d="M30 92c14-7 27-8 42-3M50 84c3-13 10-21 21-25M71 59c-1 7 2 12 8 15M72 73c7-1 13 1 18 6" />
+          <path d="M48 34c0 6-5 10-11 10 6 0 11 4 11 10 0-6 5-10 11-10-6 0-11-4-11-10ZM94 24c0 4-3 6-7 6 4 0 7 3 7 7 0-4 3-7 7-7-4 0-7-2-7-6Z" />
+        </svg>
+      </div>
+    </section>
+
+    <section class="studio-section studio-collections-section" id="collections" aria-labelledby="collections-title" data-studio-section>
+      <div class="studio-section-heading">
+        <div>
+          <p class="studio-kicker">Tied with a ribbon</p>
+          <h2 id="collections-title">My collections</h2>
+        </div>
+        <button type="button" class="studio-btn studio-btn-ghost" data-open-collection>＋ New collection</button>
+      </div>
+
+      <% if (collections.length) { %>
+        <div class="studio-collection-grid">
+          <% collections.forEach((collection, index) => { %>
+            <article class="studio-collection-card" style="--card-tilt: <%= [0.6, -0.8, 0.4, -0.5][index % 4] %>deg">
+              <span class="studio-collection-ribbon" aria-hidden="true"></span>
+              <div class="studio-collection-cover">
+                <% if (collection.cover_thumbnail || collection.cover_image) { %>
+                  <img src="<%= collection.cover_thumbnail || collection.cover_image %>" alt="" loading="lazy" />
+                <% } else { %>
+                  <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M10 28c16-2 34-2 60 0 2 12 2 24 0 34-22 2-42 2-60 0-2-11-2-22 0-34Z" /><path d="M10 28c5-6 10-9 15-10 4-1 7 1 9 5h26M31 44c6-1 12-1 18 0" /></svg>
+                <% } %>
+              </div>
+              <div class="studio-collection-body">
+                <h3><%= collection.name %></h3>
+                <p><%= collection.items_count %> <%= collection.items_count === 1 ? 'page' : 'pages' %> · <%= collection.created_at_label %></p>
+                <% if (collection.description) { %><span class="studio-collection-note"><%= collection.description %></span><% } %>
+                <form method="POST" action="/collections/<%= collection.id %>/delete" onsubmit="return confirm('Untie and remove this collection?');">
+                  <button type="submit" class="studio-text-link studio-text-link-soft">Remove</button>
+                </form>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="studio-empty-note studio-empty-inline">
+          <svg data-doodle viewBox="0 0 100 100" aria-hidden="true"><path d="M12 32c20-2 50-2 76 0 2 15 2 30 0 42-26 2-56 2-76 0-2-14-2-28 0-42Z" /><path d="M12 32c6-7 12-11 18-12 5-1 9 1 12 6h28M32 47c12-1 24-1 36 0" /></svg>
+          <h3>No collections tied yet.</h3>
+          <p>Gather a few pages into a folder for a series, a mood, or a future exhibition.</p>
+          <button type="button" class="studio-btn studio-btn-primary" data-open-collection>Create your first collection</button>
+        </div>
+      <% } %>
+
+      <% if (bookmarks.length) { %>
+        <div class="studio-clippings">
+          <div class="studio-clippings-heading">
+            <span class="studio-kicker">Saved clippings from other desks</span>
+            <span><%= bookmarks.length %> clipped</span>
+          </div>
+          <div class="studio-clipping-row">
+            <% bookmarks.slice(0, 6).forEach((artwork) => { %>
+              <a href="/art/<%= artwork.id %>" class="studio-clipping" title="<%= artwork.title %>">
+                <img src="<%= artwork.thumbnail_url || artwork.image_url %>" alt="<%= artwork.title %>" loading="lazy" />
+                <span><%= artwork.title %></span>
+              </a>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="studio-section studio-favorites-section" id="favorites" aria-labelledby="favorites-title" data-studio-section>
+      <div class="studio-section-heading">
+        <div>
+          <p class="studio-kicker">Pieces you keep coming back to</p>
+          <h2 id="favorites-title">Favorites</h2>
+        </div>
+        <a href="/explore" class="studio-text-link">Find more <span aria-hidden="true">→</span></a>
+      </div>
+
+      <% if (likedArtworks.length) { %>
+        <div class="studio-favorite-grid">
+          <% likedArtworks.forEach((artwork, index) => { %>
+            <a href="/art/<%= artwork.id %>" class="studio-favorite-card" style="--card-tilt: <%= [-0.5, 0.8, -0.9, 0.4, 0.6, -0.3, 0.9, -0.7][index % 8] %>deg">
+              <span class="studio-favorite-pin" aria-hidden="true"></span>
+              <img src="<%= artwork.thumbnail_url || artwork.image_url %>" alt="<%= artwork.title %>" loading="lazy" />
+              <span class="studio-favorite-body">
+                <strong><%= artwork.title %></strong>
+                <em>by <%= artwork.display_name || artwork.username %></em>
+              </span>
+            </a>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="studio-empty-note studio-empty-inline">
+          <svg data-doodle viewBox="0 0 100 100" aria-hidden="true"><path d="M50 82C34 70 14 56 17 36c1-14 15-21 26-14 4 2 6 6 7 8 1-2 3-6 7-8 11-7 25 0 26 14 3 20-17 34-33 46Z" /><path d="M30 33c4-6 10-7 15-3" /></svg>
+          <h3>No favorites pinned yet.</h3>
+          <p>When a piece catches your eye, keep it here for a closer look later.</p>
+          <a href="/explore" class="studio-btn studio-btn-primary">Explore the gallery</a>
+        </div>
+      <% } %>
+    </section>
+
+    <p class="studio-footer-note">Made at your own pace <span aria-hidden="true">✎</span> last visited <%= todayLabel %></p>
+  </div>
+</div>
+
+<dialog class="studio-dialog" data-collection-dialog aria-labelledby="collection-dialog-title">
+  <form method="POST" action="/collections/create" class="studio-dialog-card">
+    <button type="button" class="studio-dialog-close" data-close-collection aria-label="Close collection form">×</button>
+    <svg class="studio-dialog-doodle" data-doodle viewBox="0 0 110 80" aria-hidden="true"><path d="M12 62c14-8 27-9 42-4M14 22c7 0 12 4 13 11M101 55c-6 7-13 9-21 7" /><path d="M78 18c0 5-4 9-9 9 5 0 9 4 9 9 0-5 4-9 9-9-5 0-9-4-9-9Z" /></svg>
+    <p class="studio-kicker">A new folder for the shelf</p>
+    <h2 id="collection-dialog-title">Create a collection</h2>
+    <p class="studio-dialog-note">Name the set, then tick the pages that belong inside.</p>
+
+    <div class="studio-dialog-field">
+      <label for="collection-name">Collection name</label>
+      <input id="collection-name" name="name" type="text" maxlength="80" placeholder="e.g. Quiet Portraits" required />
+    </div>
+
+    <div class="studio-dialog-field">
+      <label for="collection-description">A small note <span>(optional)</span></label>
+      <textarea id="collection-description" name="description" rows="2" maxlength="300" placeholder="What ties these pages together?"></textarea>
+    </div>
+
+    <fieldset class="studio-dialog-field studio-dialog-pages">
+      <legend>Choose pages <span>(optional)</span></legend>
+      <% if (uploaded.length) { %>
+        <div class="studio-dialog-pages-grid">
+          <% uploaded.forEach((artwork) => { %>
+            <label class="studio-page-choice">
+              <input type="checkbox" name="artwork_ids" value="<%= artwork.id %>" />
+              <span class="studio-page-choice-card">
+                <img src="<%= artwork.thumbnail_url || artwork.image_url %>" alt="" loading="lazy" />
+                <span><%= artwork.title %></span>
+                <i aria-hidden="true">✓</i>
+              </span>
+            </label>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="studio-dialog-empty">Upload a drawing first and it will be ready to pin into a collection.</p>
+      <% } %>
+    </fieldset>
+
+    <div class="studio-dialog-actions">
+      <button type="button" class="studio-btn studio-btn-ghost" data-close-collection>Not now</button>
+      <button type="submit" class="studio-btn studio-btn-primary">Tie the collection</button>
+    </div>
+  </form>
+</dialog>
+
+<%- include('../partials/footer') %>

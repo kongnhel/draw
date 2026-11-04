@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" fill="none">
+  <g stroke="#D4AF37" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".24" stroke-width="1.2">
+    <circle cx="90" cy="90" r="9"/>
+    <circle cx="90" cy="90" r="35"/>
+    <g id="leaf">
+      <path d="M90 82C79 71 78 57 90 42c12 15 11 29 0 40Z"/>
+      <path d="M90 77c-4-9-3-16 0-22 3 6 4 13 0 22Z"/>
+      <path d="M90 51c-6-7-7-13-4-19 6 3 8 9 4 19Z"/>
+    </g>
+    <use href="#leaf" transform="rotate(45 90 90)"/>
+    <use href="#leaf" transform="rotate(90 90 90)"/>
+    <use href="#leaf" transform="rotate(135 90 90)"/>
+    <use href="#leaf" transform="rotate(180 90 90)"/>
+    <use href="#leaf" transform="rotate(225 90 90)"/>
+    <use href="#leaf" transform="rotate(270 90 90)"/>
+    <use href="#leaf" transform="rotate(315 90 90)"/>
+    <path d="M90 7c7 7 7 13 0 19-7-6-7-12 0-19ZM173 90c-7 7-13 7-19 0 6-7 12-7 19 0ZM90 173c-7-7-7-13 0-19 7 6 7 12 0 19ZM7 90c7-7 13-7 19 0-6 7-12 7-19 0Z"/>
+  </g>
+</svg>

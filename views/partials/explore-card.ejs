@@ -1,0 +1,42 @@
+<article class="studio-explore-card" data-explore-card data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
+  <span class="studio-explore-card-tape" aria-hidden="true"></span>
+
+  <a class="studio-explore-card-image" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
+    <img src="<%= artwork.thumbnail_url || artwork.image_url || '/uploads/processed/default-thumb.webp' %>" data-fallback-src="<%= artwork.image_url || '' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+    <span class="studio-explore-card-placeholder" aria-hidden="true">
+      <svg viewBox="0 0 80 80"><path d="M15 62 26 24l29-12 8 29-23 23-25-2Z" /><path d="m26 24 29 17M35 64l-9-40" /></svg>
+      <strong><%= artwork.title %></strong>
+      <small>Artwork image unavailable</small>
+    </span>
+    <span class="studio-explore-card-open" aria-hidden="true">
+      Open artwork
+      <svg viewBox="0 0 24 24"><path d="M5 19 19 5M9 5h10v10" /></svg>
+    </span>
+  </a>
+
+  <form class="studio-explore-save" method="POST" action="/art/<%= artwork.id %>/bookmark">
+    <button type="submit" class="<%= artwork.is_bookmarked ? 'active' : '' %>" aria-pressed="<%= artwork.is_bookmarked ? 'true' : 'false' %>" aria-label="<%= artwork.is_bookmarked ? 'Remove from saved artworks' : 'Save artwork' %>"><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></button>
+  </form>
+
+  <div class="studio-explore-card-copy">
+    <div class="studio-explore-card-meta">
+      <span><%= artwork.category_name || 'Original artwork' %></span>
+      <time datetime="<%= artwork.created_at %>"><%= artwork.created_at_label || 'Fresh' %></time>
+    </div>
+    <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+    <a class="studio-explore-card-artist" href="/profile/<%= artwork.username %>">
+      <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-explore-avatar="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" />
+      <span>by <%= artwork.display_name || artwork.username %></span>
+    </a>
+    <div class="studio-explore-card-metrics">
+      <span class="studio-explore-card-likes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.8a5.4 5.4 0 0 0-7.7 0L12 7l-1.1-1.2a5.4 5.4 0 1 0-7.7 7.7L12 22l8.8-8.5a5.4 5.4 0 0 0 0-7.7Z" /></svg>
+        <span data-explore-likes-for="<%= artwork.id %>"><%= artwork.likes_count || 0 %></span>
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.7" /></svg>
+        <%= artwork.views || 0 %>
+      </span>
+    </div>
+  </div>
+</article>

@@ -1,0 +1,56 @@
+<%- include('../partials/header') %>
+
+<section class="auth-page" aria-labelledby="register-title">
+  <div class="auth-frame">
+    <div class="auth-visual">
+      <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=1400&q=85" alt="A colorful painting in an art gallery" />
+      <div class="auth-visual-copy">
+        <span class="auth-kicker">ARTSPACE / YOUR CREATIVE HOME</span>
+        <p>Make room for what you imagine.</p>
+        <span class="auth-caption">Build your artist profile and share what you create.</span>
+      </div>
+      <span class="auth-ornament" aria-hidden="true">ក</span>
+    </div>
+
+    <div class="auth-content">
+      <a class="auth-back" href="/">&larr; Back to gallery</a>
+      <p class="auth-eyebrow">JOIN THE COMMUNITY</p>
+      <h1 id="register-title">Create your artist profile.</h1>
+      <p class="auth-intro">A place to share your work, find inspiration, and connect with artists.</p>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="auth-error" role="alert"><%= error %></div>
+      <% } %>
+
+      <form class="auth-form" action="/register" method="POST">
+        <div class="form-grid">
+          <div class="form-block">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="e.g. sokha_art" autocomplete="username" required />
+          </div>
+
+          <div class="form-block">
+            <label for="display_name">Display name</label>
+            <input type="text" id="display_name" name="display_name" placeholder="Your public name" autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="form-block">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="form-block">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="At least 6 characters" minlength="6" autocomplete="new-password" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary auth-submit">Create account</button>
+      </form>
+
+      <p class="auth-register">Already part of the community? <a href="/login">Log in</a></p>
+    </div>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,122 @@
+<%- include('../partials/header') %>
+
+<div class="detail-layout">
+  <section class="detail-card">
+    <button class="detail-artwork-open" type="button" data-artwork-open data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= new Date(artwork.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="Open <%= artwork.title %> in immersive viewer">
+      <img src="<%= artwork.image_url %>" alt="<%= artwork.title %>" />
+    </button>
+
+    <div class="detail-body">
+      <div class="meta-wrap">
+        <span class="badge"><%= artwork.category_name %></span>
+        <span>By <a href="/profile/<%= artwork.username %>"><%= artwork.display_name || artwork.username %></a></span>
+        <span><%= new Date(artwork.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></span>
+      </div>
+
+      <h1><%= artwork.title %></h1>
+
+      <div class="detail-actions">
+        <form method="POST" action="/art/<%= artwork.id %>/like">
+          <button type="submit" class="action-btn <%= artwork.is_liked ? 'active' : '' %>"><%= artwork.is_liked ? 'Unlike' : 'Like' %></button>
+        </form>
+        <form method="POST" action="/art/<%= artwork.id %>/bookmark">
+          <button type="submit" class="action-btn neutral <%= artwork.is_bookmarked ? 'active' : '' %>"><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></button>
+        </form>
+        <% if (isAuthenticated && currentUser.id === artwork.user_id) { %>
+          <a href="/art/<%= artwork.id %>/edit" class="btn btn-ghost">Edit</a>
+          <form method="POST" action="/art/<%= artwork.id %>/delete" onsubmit="return confirm('Delete this artwork?');">
+            <button type="submit" class="btn btn-ghost">Delete</button>
+          </form>
+        <% } else if (isAuthenticated) { %>
+          <form method="POST" action="/art/<%= artwork.id %>/report">
+            <button type="submit" class="btn btn-ghost">Report</button>
+          </form>
+        <% } %>
+        <a href="/explore" class="btn btn-ghost">Back to explore</a>
+      </div>
+
+      <p class="detail-description"><%= artwork.description %></p>
+
+      <div class="tags">
+        <% const tagList = artwork.tags ? artwork.tags.split(' ') : []; %>
+        <% tagList.forEach((tag) => { %>
+          <% if (tag.trim() && !/^effect:/i.test(tag.trim())) { %>
+            <span class="tag"><%= tag %></span>
+          <% } %>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <aside class="sidebar-card">
+    <div class="artist-profile">
+      <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= artwork.display_name || artwork.username %>" />
+      <div>
+        <h3><%= artwork.display_name || artwork.username %></h3>
+        <p>@<%= artwork.username %></p>
+      </div>
+    </div>
+
+    <div class="info-list">
+      <div class="info-item"><span>Likes</span><strong><%= artwork.likes_count || 0 %></strong></div>
+      <div class="info-item"><span>Comments</span><strong><%= artwork.comments_count || 0 %></strong></div>
+      <div class="info-item"><span>Views</span><strong><%= artwork.views || 0 %></strong></div>
+      <div class="info-item"><span>Visibility</span><strong><%= artwork.visibility %></strong></div>
+      <div class="info-item"><span>Category</span><strong><%= artwork.category_name %></strong></div>
+    </div>
+
+    <% if (isAuthenticated && currentUser.id !== artwork.user_id) { %>
+      <div class="detail-actions" style="margin-top: 20px;">
+        <form method="POST" action="/follow/<%= artwork.user_id %>">
+          <button type="submit" class="btn btn-primary"><%= artistStats.isFollowing ? 'Unfollow artist' : 'Follow artist' %></button>
+        </form>
+      </div>
+    <% } %>
+  </aside>
+</div>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Comments</h2>
+  </div>
+
+  <div class="comment-list">
+    <% if (comments.length) { %>
+      <% comments.forEach((comment) => { %>
+        <div class="comment-item">
+          <img src="<%= comment.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= comment.display_name || comment.username %>" />
+          <div class="comment-body">
+            <strong><%= comment.display_name || comment.username %></strong>
+            <p><%= comment.body %></p>
+          </div>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <div class="empty-state">No comments yet. Be the first to share feedback.</div>
+    <% } %>
+  </div>
+
+  <% if (isAuthenticated) { %>
+    <form class="comment-form" method="POST" action="/art/<%= artwork.id %>/comment" style="margin-top: 24px;">
+      <textarea name="body" placeholder="Leave a thoughtful comment about this artwork..." required></textarea>
+      <div class="submit-row">
+        <button type="submit" class="btn btn-primary">Post comment</button>
+      </div>
+    </form>
+  <% } else { %>
+    <div class="empty-state" style="margin-top: 24px;"><a href="/login">Log in</a> to join the conversation.</div>
+  <% } %>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Related artwork</h2>
+  </div>
+  <div class="gallery-grid">
+    <% related.forEach((item) => { %>
+      <%- include('../partials/art-card', { artwork: item }) %>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

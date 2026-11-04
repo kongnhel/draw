@@ -1,0 +1,46 @@
+<article class="art-card" data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
+  <div class="art-card-media">
+    <a href="/art/<%= artwork.id %>">
+      <img src="<%= artwork.image_url || artwork.thumbnail_url || '/uploads/processed/default-thumb.webp' %>" alt="<%= artwork.title %>" />
+    </a>
+    <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M4 4H96V121H4Z" pathLength="1000" />
+    </svg>
+  </div>
+
+  <div class="art-card-body">
+    <div class="card-meta-row">
+      <span class="badge"><%= artwork.category_name || 'Artwork' %></span>
+      <span class="dot" aria-hidden="true"></span>
+      <span><%= artwork.created_at_label || 'Fresh' %></span>
+    </div>
+
+    <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+    <p><%= artwork.description ? artwork.description.substring(0, 105) : 'Original piece from the creator.' %>...</p>
+
+    <div class="artist-row">
+      <a href="/profile/<%= artwork.username %>" class="artist-mini">
+        <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.png' %>" alt="<%= artwork.display_name || artwork.username %>" />
+        <span><%= artwork.display_name || artwork.username %></span>
+      </a>
+
+      <div class="metric-inline">
+        <span>❤ <%= artwork.likes_count || 0 %></span>
+        <span>💬 <%= artwork.comments_count || 0 %></span>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <form method="POST" action="/art/<%= artwork.id %>/like">
+        <button type="submit" class="action-btn <%= artwork.is_liked ? 'active' : '' %>">
+          <%= artwork.is_liked ? 'Unlike' : 'Like' %>
+        </button>
+      </form>
+      <form method="POST" action="/art/<%= artwork.id %>/bookmark">
+        <button type="submit" class="action-btn neutral <%= artwork.is_bookmarked ? 'active' : '' %>">
+          <%= artwork.is_bookmarked ? 'Saved' : 'Save' %>
+        </button>
+      </form>
+    </div>
+  </div>
+</article>

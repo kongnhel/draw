@@ -1,0 +1,25 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <div>
+    <h1>Notifications</h1>
+    <div class="page-subtitle">Recent activity from the community.</div>
+  </div>
+</div>
+
+<div class="dashboard-card">
+  <% if (notifications.length) { %>
+    <div style="display: grid; gap: 12px;">
+      <% notifications.forEach((item) => { %>
+        <a href="<%= item.link || '/' %>" class="user-card" style="display: block;">
+          <strong><%= item.type %></strong>
+          <p style="margin: 8px 0 0; color: var(--muted);"><%= item.message %></p>
+        </a>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <div class="empty-state">You are all caught up. No new notifications.</div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

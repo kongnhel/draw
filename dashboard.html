@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | ArtSpace</title>
+    <meta name="description" content="ArtSpace is a premium art and drawing social platform for artists and art lovers." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body data-theme="dark">
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="container nav-wrap">
+          <a href="/" class="brand" aria-label="ArtSpace home">
+            <span class="brand-mark">ក</span>
+            <span>ArtSpace</span>
+          </a>
+
+          <form action="/search" method="GET" class="nav-search">
+            <input type="search" name="q" placeholder="Search artwork, artists, tags" value="" />
+            <button type="submit" aria-label="Search">Search</button>
+          </form>
+
+          <nav class="nav-links" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <a href="/explore">Explore</a>
+            <a href="/upload">Upload</a>
+            
+              <a href="/dashboard">Dashboard</a>
+              
+            
+          </nav>
+
+          <div class="nav-actions">
+            <button class="theme-toggle" type="button" aria-label="Toggle theme">☼</button>
+            
+              <a href="/notifications" class="icon-link" aria-label="Notifications">
+                🔔
+                
+              </a>
+              <a href="/profile/mira" class="profile-chip">
+                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Mira Sol" />
+                <span>Mira Sol</span>
+              </a>
+              <a href="/logout" class="btn btn-ghost">Logout</a>
+            
+          </div>
+        </div>
+      </header>
+
+      
+        <div class="category-bar">
+          <div class="container category-list">
+            <a href="/explore?category=all" class="category-pill ">All</a>
+            
+              <a href="/explore?category=pencil-drawing" class="category-pill ">Pencil Drawing</a>
+            
+              <a href="/explore?category=portrait-drawing" class="category-pill ">Portrait Drawing</a>
+            
+              <a href="/explore?category=digital-art" class="category-pill ">Digital Art</a>
+            
+              <a href="/explore?category=character-design" class="category-pill ">Character Design</a>
+            
+              <a href="/explore?category=anime-manga" class="category-pill ">Anime &amp; Manga</a>
+            
+              <a href="/explore?category=sketching" class="category-pill ">Sketching</a>
+            
+              <a href="/explore?category=watercolor" class="category-pill ">Watercolor</a>
+            
+              <a href="/explore?category=oil-painting" class="category-pill ">Oil Painting</a>
+            
+              <a href="/explore?category=landscape-drawing" class="category-pill ">Landscape Drawing</a>
+            
+              <a href="/explore?category=abstract-art" class="category-pill ">Abstract Art</a>
+            
+              <a href="/explore?category=3d-art" class="category-pill ">3D Art</a>
+            
+              <a href="/explore?category=other-art" class="category-pill ">Other Art</a>
+            
+          </div>
+        </div>
+      
+
+      <main class="container main-content">
+
+
+<div class="dashboard-shell">
+  <div class="page-header dashboard-header">
+    <div>
+      <p class="eyebrow eyebrow-compact">Creator dashboard</p>
+      <h1>My dashboard</h1>
+      <div class="page-subtitle">Track your portfolio, interactions, and creative growth.</div>
+    </div>
+    <a href="/upload" class="btn btn-primary">Upload new artwork</a>
+  </div>
+
+  <div class="dashboard-overview grid-3">
+    <div class="dashboard-card dashboard-stat-card">
+      <div class="stat-card-label">Uploaded</div>
+      <div class="stat-card-value">3</div>
+    </div>
+    <div class="dashboard-card dashboard-stat-card">
+      <div class="stat-card-label">Followers</div>
+      <div class="stat-card-value">1</div>
+    </div>
+    <div class="dashboard-card dashboard-stat-card">
+      <div class="stat-card-label">Likes received</div>
+      <div class="stat-card-value">5</div>
+    </div>
+  </div>
+
+  <div class="grid-3 dashboard-grid" style="margin-bottom: 0;">
+    <div class="dashboard-card dashboard-panel">
+      <div class="panel-head">
+        <h3>My uploaded artwork</h3>
+        <span class="panel-badge">3</span>
+      </div>
+      
+        <div class="stack-list">
+          
+            <a href="/art/1" class="mini-item">
+              <strong>Midnight Bloom</strong>
+              <span>3 likes</span>
+            </a>
+          
+            <a href="/art/3" class="mini-item">
+              <strong>Coastal Notes</strong>
+              <span>2 likes</span>
+            </a>
+          
+            <a href="/art/5" class="mini-item">
+              <strong>Silent Geometry</strong>
+              <span>0 likes</span>
+            </a>
+          
+        </div>
+      
+    </div>
+
+    <div class="dashboard-card dashboard-panel">
+      <div class="panel-head">
+        <h3>Bookmarks</h3>
+        <span class="panel-badge">0</span>
+      </div>
+      
+        <div class="empty-state" style="margin-top: 12px;">No bookmarks saved yet.</div>
+      
+    </div>
+
+    <div class="dashboard-card dashboard-panel">
+      <div class="panel-head">
+        <h3>Drafts</h3>
+        <span class="panel-badge">0</span>
+      </div>
+      
+        <div class="empty-state" style="margin-top: 12px;">No drafts in progress.</div>
+      
+    </div>
+  </div>
+
+  <div class="grid-3 dashboard-grid">
+    <div class="dashboard-card dashboard-panel">
+      <div class="panel-head">
+        <h3>Followers</h3>
+      </div>
+      
+        <div class="profile-list">
+          
+            <div class="user-card profile-card">
+              <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+              <div>
+                <strong>Glen Hart</strong>
+                <p>@glen</p>
+              </div>
+            </div>
+          
+        </div>
+      
+    </div>
+
+    <div class="dashboard-card dashboard-panel">
+      <div class="panel-head">
+        <h3>Following</h3>
+      </div>
+      
+        <div class="profile-list">
+          
+            <div class="user-card profile-card">
+              <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&amp;fit=crop&amp;w=300&amp;q=80" alt="Glen Hart" />
+              <div>
+                <strong>Glen Hart</strong>
+                <p>@glen</p>
+              </div>
+            </div>
+          
+        </div>
+      
+    </div>
+
+    <div class="dashboard-card dashboard-panel">
+      <div class="panel-head">
+        <h3>Profile settings</h3>
+      </div>
+      <p class="muted-copy">Update your creative bio, artist links, and public presence from the profile manager.</p>
+      <a href="/profile/mira" class="btn btn-ghost" style="margin-top: 14px;">Open profile</a>
+    </div>
+  </div>
+</div>
+
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid">
+          <div>
+            <div class="brand footer-brand">
+              <span class="brand-mark">A</span>
+              <span>ArtSpace</span>
+            </div>
+            <p>Showcase your creative work. Discover talent. Build an art community.</p>
+          </div>
+
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/explore">Artwork</a></li>
+              <li><a href="/explore?category=digital-art">Digital Art</a></li>
+              <li><a href="/explore?category=portrait-drawing">Portraits</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>Community</h4>
+            <ul>
+              <li><a href="/dashboard">Dashboard</a></li>
+              <li><a href="/upload">Upload</a></li>
+              <li><a href="/notifications">Notifications</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>About</h4>
+            <ul>
+              <li><a href="/">Home</a></li>
+              <li><a href="/register">Join</a></li>
+              <li><a href="/forgot-password">Help</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="container footer-bottom">
+          <span>© 2026 ArtSpace</span>
+          <span>Crafted for artists and art lovers.</span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>
+

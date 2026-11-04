@@ -1,0 +1,169 @@
+<%- include('../partials/header') %>
+
+<div class="studio-explore-page" data-explore-page>
+  <section class="studio-explore-hero" aria-labelledby="explore-title">
+    <svg class="studio-explore-doodle studio-explore-doodle--pencil" viewBox="0 0 120 120" aria-hidden="true">
+      <path d="m21 88 9-31 49-49c4-4 9-4 13 0l10 10c4 4 4 9 0 13L53 80l-32 8Zm9-31 22 22m28-68 22 22" />
+      <path d="M96 74c0 9-7 16-16 16 9 0 16 7 16 16 0-9 7-16 16-16-9 0-16-7-16-16Z" />
+    </svg>
+    <svg class="studio-explore-doodle studio-explore-doodle--brush" viewBox="0 0 150 150" aria-hidden="true">
+      <path d="M34 120c17-25 38-50 64-75m-52 57c12-3 24-1 36 5M104 44c8-8 16-12 22-11 7 2 8 11 2 20-8 12-20 15-31 19" />
+      <path d="M92 74c10 4 20 4 31 0" />
+    </svg>
+    <svg class="studio-explore-doodle studio-explore-doodle--flower" viewBox="0 0 110 110" aria-hidden="true">
+      <path d="M55 55c-15-20-8-34 0-34s15 14 0 34Zm0 0c20-15 34-8 34 0s-14 15-34 0Zm0 0c15 20 8 34 0 34s-15-14 0-34Zm0 0c-20 15-34 8-34 0s14-15 34 0Zm0 0v36" />
+    </svg>
+    <svg class="studio-explore-doodle studio-explore-doodle--star" viewBox="0 0 70 70" aria-hidden="true">
+      <path d="M35 7c0 15-12 27-27 27 15 0 27 12 27 27 0-15 12-27 27-27-15 0-27-12-27-27Z" />
+    </svg>
+
+    <div class="studio-explore-hero-copy">
+      <span class="studio-explore-kicker">ArtSpace <span>/</span> the discovery sketchbook</span>
+      <div class="studio-explore-title-wrap">
+        <h1 id="explore-title">Explore the <span>Art World</span></h1>
+      </div>
+      <p class="studio-explore-intro">Discover beautiful drawings, creative ideas, and stories from artists.</p>
+
+      <form class="studio-explore-search" method="GET" action="/explore" role="search" data-explore-form>
+        <input type="hidden" name="category" value="<%= filter %>" data-explore-category-input />
+        <input type="hidden" name="sort" value="<%= sort %>" data-explore-sort-input />
+        <label class="studio-explore-search-label" for="explore-search-input">
+          <span class="studio-explore-sr-only">Search artwork, artists, and tags</span>
+          <svg class="studio-explore-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
+          <input id="explore-search-input" type="search" name="q" value="<%= query %>" placeholder="Search artwork, artists, tags..." autocomplete="off" data-explore-query />
+        </label>
+        <button class="studio-explore-search-submit" type="submit">
+          Search
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+        </button>
+      </form>
+      <p class="studio-explore-search-hint">A notebook of original work. Try &ldquo;portrait&rdquo;, &ldquo;watercolor&rdquo;, or an artist&rsquo;s name.</p>
+
+      <div class="studio-explore-stats">
+        <span><strong><%= totalArtworks %></strong> published works</span>
+        <i aria-hidden="true"></i>
+        <span><strong><%= artistCount %></strong> artists</span>
+        <i aria-hidden="true"></i>
+        <span><strong><%= mediumCount %></strong> mediums</span>
+      </div>
+    </div>
+
+    <div class="studio-explore-spotlight-shell">
+      <% if (spotlightArtwork) { %>
+        <a class="studio-explore-spotlight" href="/art/<%= spotlightArtwork.id %>" data-artwork-view data-artwork-id="<%= spotlightArtwork.id %>" data-artwork-full="<%= spotlightArtwork.image_url || spotlightArtwork.thumbnail_url %>" data-artwork-thumb="<%= spotlightArtwork.thumbnail_url || spotlightArtwork.image_url %>" data-artwork-title="<%= spotlightArtwork.title %>" data-artwork-description="<%= spotlightArtwork.description || '' %>" data-artwork-category="<%= spotlightArtwork.category_name || '' %>" data-artwork-tags="<%= spotlightArtwork.tags || '' %>" data-artwork-effect="<%= spotlightArtwork.visual_effect || 'auto' %>" data-artwork-artist="<%= spotlightArtwork.display_name || spotlightArtwork.username %>" data-artwork-artist-url="/profile/<%= spotlightArtwork.username %>" data-artwork-date="<%= spotlightArtwork.created_at_label %>" data-artwork-liked="<%= spotlightArtwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= spotlightArtwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= spotlightArtwork.likes_count || 0 %>" aria-label="View <%= spotlightArtwork.title %> by <%= spotlightArtwork.display_name || spotlightArtwork.username %>">
+          <span class="studio-explore-tape studio-explore-tape--one" aria-hidden="true"></span>
+          <span class="studio-explore-tape studio-explore-tape--two" aria-hidden="true"></span>
+          <span class="studio-explore-spotlight-index">Latest page <b>A-<%= String(spotlightArtwork.id).padStart(3, '0') %></b></span>
+          <img src="<%= spotlightArtwork.image_url || spotlightArtwork.thumbnail_url %>" data-fallback-src="<%= spotlightArtwork.thumbnail_url || '' %>" alt="<%= spotlightArtwork.title %>" fetchpriority="high" />
+          <span class="studio-explore-spotlight-placeholder" aria-hidden="true">
+            <svg viewBox="0 0 80 80"><path d="M15 62 26 24l29-12 8 29-23 23-25-2Z" /><path d="m26 24 29 17M35 64l-9-40" /></svg>
+            <strong><%= spotlightArtwork.title %></strong>
+            <small>Artwork image unavailable</small>
+          </span>
+          <span class="studio-explore-spotlight-caption">
+            <small><%= spotlightArtwork.category_name || 'Original artwork' %></small>
+            <strong><%= spotlightArtwork.title %></strong>
+            <em>by <%= spotlightArtwork.display_name || spotlightArtwork.username %></em>
+          </span>
+        </a>
+        <span class="studio-explore-spotlight-note" aria-hidden="true">freshly pinned <svg viewBox="0 0 24 24"><path d="m5 19 14-14M9 5h10v10" /></svg></span>
+      <% } else { %>
+        <div class="studio-explore-spotlight studio-explore-spotlight--empty">
+          <span class="studio-explore-spotlight-index">The first page is waiting</span>
+          <span class="studio-explore-empty-glyph" aria-hidden="true">A.</span>
+          <span class="studio-explore-spotlight-caption">
+            <strong>A collection begins with one idea.</strong>
+            <em>Share the first artwork.</em>
+          </span>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <nav class="studio-explore-categories" aria-label="Browse artwork by medium" data-explore-categories>
+    <span class="studio-explore-section-label">Browse by medium</span>
+    <div class="studio-explore-category-track">
+      <a href="/explore?category=all&amp;sort=<%= encodeURIComponent(sort) %><% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="studio-explore-category <%= filter === 'all' ? 'is-active' : '' %>" data-explore-link data-explore-category="all" <%= filter === 'all' ? 'aria-current="page"' : '' %>>
+        All artwork <sup><%= totalArtworks %></sup>
+      </a>
+      <% categoryFilters.forEach((category) => { %>
+        <a href="/explore?category=<%= encodeURIComponent(category.slug) %>&amp;sort=<%= encodeURIComponent(sort) %><% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="studio-explore-category <%= filter === category.slug ? 'is-active' : '' %>" data-explore-link data-explore-category="<%= category.slug %>" <%= filter === category.slug ? 'aria-current="page"' : '' %>>
+          <%= category.name %> <sup><%= category.count %></sup>
+        </a>
+      <% }) %>
+    </div>
+  </nav>
+
+  <section class="studio-explore-gallery-section" id="explore-gallery" aria-labelledby="gallery-title">
+    <div class="studio-explore-gallery-heading">
+      <div>
+        <span class="studio-explore-kicker">The community wall <span>/</span> <span data-explore-total-label><%= totalArtworks %> works</span></span>
+        <h2 id="gallery-title">Pinned from the studio</h2>
+      </div>
+      <p>Original work, unedited and in the artist&rsquo;s own frame. Hover a page to save it for later.</p>
+    </div>
+
+    <div class="studio-explore-toolbar">
+      <div class="studio-explore-sort-label">
+        <span>Order the pages</span>
+        <small>Choose how the wall unfolds</small>
+      </div>
+      <nav class="studio-explore-sort" aria-label="Sort artwork">
+        <a href="/explore?category=<%= encodeURIComponent(filter) %>&amp;sort=latest<% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="<%= sort === 'latest' ? 'is-active' : '' %>" data-explore-link data-explore-sort="latest" <%= sort === 'latest' ? 'aria-current="page"' : '' %>>Latest</a>
+        <a href="/explore?category=<%= encodeURIComponent(filter) %>&amp;sort=views<% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="<%= sort === 'views' ? 'is-active' : '' %>" data-explore-link data-explore-sort="views" <%= sort === 'views' ? 'aria-current="page"' : '' %>>Most viewed</a>
+        <a href="/explore?category=<%= encodeURIComponent(filter) %>&amp;sort=popular<% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="<%= sort === 'popular' ? 'is-active' : '' %>" data-explore-link data-explore-sort="popular" <%= sort === 'popular' ? 'aria-current="page"' : '' %>>Most liked</a>
+      </nav>
+    </div>
+
+    <%- include('../partials/explore-results') %>
+  </section>
+
+  <% if (artists.length) { %>
+    <section class="studio-explore-artists" aria-labelledby="explore-artists-title">
+      <div class="studio-explore-artists-heading">
+        <div>
+          <span class="studio-explore-kicker">The hands behind the work <span>/</span> meet the makers</span>
+          <h2 id="explore-artists-title">Artists Behind the Art</h2>
+        </div>
+        <p>Every sketch has a hand behind it. Step into a studio, follow a practice, and see where the next page leads.</p>
+      </div>
+
+      <div class="studio-explore-artist-grid">
+        <% artists.forEach((artist, index) => { %>
+          <a class="studio-explore-artist-card" href="/profile/<%= artist.username %>">
+            <span class="studio-explore-artist-number"><%= String(index + 1).padStart(2, '0') %></span>
+            <span class="studio-explore-artist-portrait">
+              <img src="<%= artist.avatar || '/uploads/avatars/default-avatar.svg' %>" data-explore-avatar="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" />
+              <i aria-hidden="true"></i>
+            </span>
+            <span class="studio-explore-artist-copy">
+              <strong><%= artist.display_name || artist.username %></strong>
+              <small><%= artist.bio ? artist.bio.substring(0, 62) : 'Artist in the ArtSpace community.' %></small>
+              <em><%= artist.art_count %> <%= artist.art_count === 1 ? 'work' : 'works' %> <span>/</span> <%= artist.likes_count %> loves</em>
+            </span>
+            <svg class="studio-explore-artist-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M9 5h10v10" /></svg>
+          </a>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="studio-explore-invite" aria-labelledby="explore-invite-title">
+    <svg class="studio-explore-invite-doodle" viewBox="0 0 180 140" aria-hidden="true">
+      <path d="M26 119c30 3 61 2 92-4 13-2 28-5 36-15 7-9 1-18-10-20-20-4-42 3-62 12" />
+      <path d="M54 48c12-15 27-23 42-24M62 38c-4-9-2-17 5-22 8 7 10 15 5 24M96 27c4-7 10-10 18-8-1 8-6 13-14 15" />
+      <path d="m119 92 34-33m-25 25 15 3" />
+    </svg>
+    <div>
+      <span class="studio-explore-kicker">A blank page is an invitation</span>
+      <h2 id="explore-invite-title">Your next page is waiting.</h2>
+      <p>Add a drawing, painting, or experiment to the wall. Someone out there is looking for exactly what you make.</p>
+    </div>
+    <a href="/upload" class="studio-explore-invite-button">
+      Share your work
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+    </a>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

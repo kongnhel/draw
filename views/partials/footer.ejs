@@ -1,0 +1,117 @@
+      </main>
+
+      <dialog class="art-viewer" data-art-viewer aria-labelledby="art-viewer-title">
+        <div class="art-viewer-shell">
+          <div class="art-viewer-particles" data-viewer-particles aria-hidden="true"></div>
+          <div class="art-viewer-toolbar">
+            <span class="art-viewer-brand">ARTSPACE <span>ARTWORK VIEWER</span></span>
+            <div class="art-viewer-tools">
+              <button class="art-viewer-tool" type="button" data-viewer-sound aria-label="Enable sound" aria-pressed="false" title="Enable subtle sound">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z" /><path class="sound-wave" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12" /></svg>
+              </button>
+              <button class="art-viewer-tool" type="button" data-viewer-effects aria-label="Disable visual effects" aria-pressed="true" title="Disable visual effects">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Zm7 12 .9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15Z" /></svg>
+              </button>
+              <button class="art-viewer-tool" type="button" data-viewer-zoom aria-label="Zoom in" title="Zoom in">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5M10.8 7.5v6.6M7.5 10.8h6.6" /></svg>
+              </button>
+              <button class="art-viewer-tool" type="button" data-viewer-fullscreen aria-label="Enter fullscreen" title="Enter fullscreen">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4" /></svg>
+              </button>
+              <button class="art-viewer-tool art-viewer-close" type="button" data-viewer-close aria-label="Close artwork viewer" title="Close">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+              </button>
+            </div>
+          </div>
+          <button class="art-viewer-step art-viewer-previous" type="button" data-viewer-prev aria-label="Previous artwork" title="Previous artwork">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+          </button>
+          <figure class="art-viewer-stage">
+            <img class="art-viewer-image" data-viewer-image alt="" />
+            <svg class="art-viewer-drawn-frame" data-viewer-frame viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 3 C18 2 31 4 49 3 C66 2 82 4 98 3 L97 97 C79 96 65 98 49 97 C31 96 17 98 3 97 Z" /></svg>
+            <div class="art-viewer-loader" data-viewer-loader aria-hidden="true"></div>
+            <div class="art-viewer-image-placeholder" data-viewer-placeholder aria-hidden="true">This artwork image is unavailable.</div>
+          </figure>
+          <button class="art-viewer-step art-viewer-next" type="button" data-viewer-next aria-label="Next artwork" title="Next artwork">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+          <div class="art-viewer-caption">
+            <div class="art-viewer-description">
+              <a class="art-viewer-artist" data-viewer-artist href="#"></a>
+              <h2 id="art-viewer-title" data-viewer-title>Artwork</h2>
+              <p data-viewer-date></p>
+              <p class="art-viewer-description-text" data-viewer-description></p>
+            </div>
+            <div class="art-viewer-caption-actions">
+              <span class="art-viewer-count" data-viewer-count aria-live="polite"></span>
+              <div class="art-viewer-social-actions">
+                <form method="POST" action="/art/1/like" data-viewer-like-form>
+                  <button class="art-viewer-action" type="submit" data-viewer-like aria-pressed="false">Like</button>
+                  <span data-viewer-like-count aria-live="polite"></span>
+                </form>
+                <form method="POST" action="/art/1/bookmark" data-viewer-bookmark-form>
+                  <button class="art-viewer-action" type="submit" data-viewer-bookmark aria-pressed="false">Save</button>
+                </form>
+                <button class="art-viewer-action" type="button" data-viewer-share>Share</button>
+                <button class="art-viewer-action" type="button" data-viewer-related-toggle aria-expanded="false">Related</button>
+              </div>
+              <a class="art-viewer-details" data-viewer-detail href="#">Open artwork details <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+          <section class="art-viewer-related" data-viewer-related hidden aria-label="Related artworks">
+            <div class="art-viewer-related-heading"><span>Related works</span><button type="button" data-viewer-related-close aria-label="Close related artworks">×</button></div>
+            <div class="art-viewer-related-list" data-viewer-related-list></div>
+          </section>
+        </div>
+      </dialog>
+
+      <footer class="site-footer">
+        <div class="container footer-grid">
+          <div>
+            <div class="brand footer-brand">
+              <span class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 40 40" focusable="false"><path d="m11 29 3-9L26 8l6 6-12 12-9 3Z" /><path d="m14 20 6 6M25 9l6 6M10 31l9-3M8 34l2-3" /><path d="M8 9c2-2 4-2 6 0" /></svg>
+              </span>
+              <span>ArtSpace</span>
+            </div>
+            <p>Showcase your creative work. Discover talent. Build an art community.</p>
+          </div>
+
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/explore">Artwork</a></li>
+              <li><a href="/explore?category=digital-art">Digital Art</a></li>
+              <li><a href="/explore?category=portrait-drawing">Portraits</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>Community</h4>
+            <ul>
+              <li><a href="/dashboard">Dashboard</a></li>
+              <li><a href="/upload">Upload</a></li>
+              <li><a href="/notifications">Notifications</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>About</h4>
+            <ul>
+              <li><a href="/">Home</a></li>
+              <li><a href="/register">Join</a></li>
+              <li><a href="/forgot-password">Help</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="container footer-bottom">
+          <span>© 2026 ArtSpace</span>
+          <span>Crafted for artists and art lovers.</span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>

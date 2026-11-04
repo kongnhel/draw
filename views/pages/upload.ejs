@@ -1,0 +1,280 @@
+<%- include('../partials/header') %>
+
+<div class="studio-upload-page" data-upload-studio>
+  <header class="studio-upload-hero">
+    <span class="studio-upload-tape studio-upload-tape-left" aria-hidden="true"></span>
+    <span class="studio-upload-tape studio-upload-tape-right" aria-hidden="true"></span>
+
+    <svg class="studio-upload-doodle studio-upload-doodle-pencil" viewBox="0 0 120 120" aria-hidden="true">
+      <path d="m20 91 6-22 47-47c3-3 8-3 11 0l8 8c3 3 3 8 0 11L45 88l-25 3Z" />
+      <path d="m26 69 18 18M73 22l18 18M20 91l-3 10 11-4M90 32l-7 8" />
+    </svg>
+
+    <svg class="studio-upload-doodle studio-upload-doodle-brush" viewBox="0 0 90 120" aria-hidden="true">
+      <path d="M61 14c9 4 13 12 12 22-1 10-7 18-15 25l-9-10c7-8 11-16 10-25 0-5 0-9 2-12Z" />
+      <path d="M49 51c7 4 10 10 9 18-1 9-7 15-16 18-7 2-13 0-16-5 7-4 12-9 15-16 2-7 4-12 8-15Z" />
+      <path d="M29 81c-5 3-8 8-8 14" />
+    </svg>
+
+    <svg class="studio-upload-doodle studio-upload-doodle-flower" viewBox="0 0 90 110" aria-hidden="true">
+      <path d="M45 99c2-17 3-31 1-47" />
+      <path d="M45 72c-9-4-15-1-18 6 8 2 14 0 18-6ZM46 61c8-4 14-2 17 4-7 3-13 1-17-4Z" />
+      <path d="M45 50c-8-2-12-8-9-14 3-5 9-5 13 0 4-5 10-5 13 0 3 6-1 12-9 14-2 3-6 3-8 0Z" />
+      <circle cx="47" cy="41" r="2.7" />
+    </svg>
+
+    <svg class="studio-upload-doodle studio-upload-doodle-star" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M40 9c2 12 9 19 21 21-12 2-19 9-21 21-2-12-9-19-21-21 12-2 19-9 21-21Z" />
+      <path d="M62 54c1 5 4 8 9 9-5 1-8 4-9 9-1-5-4-8-9-9 5-1 8-4 9-9Z" />
+    </svg>
+
+    <div class="studio-upload-hero-copy">
+      <p class="studio-upload-kicker">New page <span>·</span> artist sketchbook</p>
+      <h1>Add a New <span>Artwork</span></h1>
+      <p class="studio-upload-subtitle">Every drawing tells a story. Share yours with the world.</p>
+      <p class="studio-upload-handnote">“The page is ready when you are.”</p>
+    </div>
+
+    <div class="studio-upload-hero-seal" aria-hidden="true">
+      <svg viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="44" />
+        <path d="M60 33c-8-2-12-8-8-14 4-5 10-3 12 4 2-7 8-9 12-4 4 6 0 12-8 14-2 2-6 2-8 0Z" />
+        <path d="M60 73c-2 9-3 16-2 23M58 85c-6-3-11-2-14 3 6 2 11 1 14-3ZM59 80c6-3 11-2 14 3-6 2-11 1-14-3Z" />
+      </svg>
+      <span>Fresh paper</span>
+    </div>
+  </header>
+
+  <form class="studio-upload-workspace" action="/upload" method="POST" enctype="multipart/form-data" data-upload-form novalidate>
+    <div class="studio-upload-alert" data-upload-form-error <%= typeof error !== 'undefined' && error ? '' : 'hidden' %> role="alert">
+      <span class="studio-upload-alert-mark" aria-hidden="true">!</span>
+      <span data-upload-form-error-text><%= typeof error !== 'undefined' && error ? error : '' %></span>
+      <button type="button" class="studio-upload-alert-close" data-upload-dismiss-error aria-label="Dismiss message">×</button>
+    </div>
+
+    <section class="studio-upload-sheet" aria-labelledby="upload-canvas-title">
+      <span class="studio-upload-tape" aria-hidden="true"></span>
+
+      <div class="studio-upload-step">
+        <span class="studio-upload-step-number">01</span>
+        <div>
+          <p class="studio-upload-kicker">The canvas</p>
+          <h2 id="upload-canvas-title">Place your drawing here</h2>
+        </div>
+      </div>
+
+      <div class="studio-dropzone" data-upload-dropzone tabindex="0" role="button" aria-label="Choose or drop an artwork image">
+        <div class="studio-dropzone-empty" data-upload-empty>
+          <svg class="studio-upload-illustration" viewBox="0 0 160 140" aria-hidden="true">
+            <path class="studio-illustration-paper" d="M36 16c27-2 55-2 86 1 3 31 3 62 0 92-27 3-56 3-86 0-3-31-2-62 0-93Z" />
+            <path d="M50 40c12-1 28-1 44 0M50 53c19-1 37-1 56 0M50 66c11-1 22-1 33 0" />
+            <path class="studio-illustration-pencil" d="m65 105 4-18 38-38c3-3 7-3 10 0l6 6c3 3 3 7 0 10l-38 38-20 2Z" />
+            <path d="m70 88 15 15M104 51l15 15M65 105l-2 8 9-3" />
+            <path class="studio-illustration-spark" d="M122 33c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10ZM123 93c1 4 3 6 7 7-4 1-6 3-7 7-1-4-3-6-7-7 4-1 6-3 7-7Z" />
+            <path d="M28 36c-5 2-8 6-9 12M27 96c-4-2-8-2-11 1M137 70c4 1 7 3 9 6" />
+          </svg>
+          <p class="studio-upload-kicker">A blank page awaits</p>
+          <h3>Drop a drawing on the desk</h3>
+          <p class="studio-dropzone-copy">or <label for="images" class="studio-browse-link">browse your sketchbook</label></p>
+          <div class="studio-format-row" aria-label="Accepted file types">
+            <span>JPG</span>
+            <span>PNG</span>
+            <span>WEBP</span>
+            <em>up to 8 MB</em>
+          </div>
+        </div>
+
+        <div class="studio-upload-preview" data-upload-preview hidden>
+          <div class="studio-preview-frame">
+            <img data-upload-preview-image alt="Preview of the selected artwork" />
+            <svg class="studio-preview-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M2 3C18 2 31 4 49 3c17-1 33 1 49 0l-1 94c-15-1-31 1-47 0C33 98 17 100 3 97 2 66 2 35 2 3Z" />
+            </svg>
+          </div>
+          <div class="studio-preview-tools">
+            <button type="button" class="studio-upload-mini-btn" data-upload-replace>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 12a8 8 0 0 1-13.7 5.6L4 15" /><path d="M20 4v5h-5M4 20v-5h5" /></svg>
+              Replace
+            </button>
+            <button type="button" class="studio-upload-mini-btn studio-upload-mini-btn-soft" data-upload-remove>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5c0-1 .6-1.5 1.5-1.5h3C14.4 3.5 15 4 15 5v2M7 7l1 13h8l1-13M10 10v7M14 10v7" /></svg>
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <input class="studio-upload-file-input" type="file" id="images" name="images" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required />
+      </div>
+
+      <div class="studio-upload-file" data-upload-file hidden>
+        <span class="studio-upload-file-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 5.5c5-.3 10.5-.3 16 0 .4 4.4.4 8.8 0 13-5.5.4-11 .4-16 0-.4-4.3-.4-8.7 0-13Z" /><path d="M7 16c1.3-2.6 2.5-3.8 3.7-3.8 1.5 0 2.2 2.3 3.3 2.3.8 0 1.5-.8 2.2-2.2M8.5 8.6c1.1 0 2 .8 2 1.8s-.9 1.8-2 1.8c-1.1 0-2-.8-2-1.8s.9-1.8 2-1.8Z" /></svg>
+        </span>
+        <span class="studio-upload-file-copy">
+          <strong data-upload-file-name></strong>
+          <em data-upload-file-size></em>
+        </span>
+        <span class="studio-upload-file-ready">Ready to pin</span>
+      </div>
+
+      <p class="studio-upload-error" data-upload-error hidden role="alert"></p>
+
+      <div class="studio-upload-stage-note">
+        <span aria-hidden="true">✎</span>
+        <p>Your original file stays untouched. We press it into a gallery-ready page after you publish.</p>
+      </div>
+    </section>
+
+    <section class="studio-upload-notebook" aria-labelledby="upload-details-title">
+      <span class="studio-upload-tape" aria-hidden="true"></span>
+      <span class="studio-upload-margin-line" aria-hidden="true"></span>
+
+      <div class="studio-upload-step">
+        <span class="studio-upload-step-number">02</span>
+        <div>
+          <p class="studio-upload-kicker">The story</p>
+          <h2 id="upload-details-title">Tell us about this page</h2>
+        </div>
+      </div>
+
+      <p class="studio-upload-intro">A few handwritten notes help the right people find and feel your work.</p>
+
+      <div class="studio-upload-fields">
+        <div class="studio-upload-field">
+          <label for="title">Artwork title <span class="studio-required">*</span></label>
+          <input type="text" id="title" name="title" maxlength="120" placeholder="e.g. Quiet Mornings" value="<%= typeof formValues !== 'undefined' && formValues.title ? formValues.title : '' %>" required />
+        </div>
+
+        <div class="studio-upload-field">
+          <label for="description">Description <span class="studio-field-hint">optional</span></label>
+          <textarea id="description" name="description" rows="4" maxlength="1200" placeholder="What story lives inside this drawing?"><%= typeof formValues !== 'undefined' && formValues.description ? formValues.description : '' %></textarea>
+        </div>
+
+        <div class="studio-upload-row">
+          <div class="studio-upload-field">
+            <label for="category">Category <span class="studio-required">*</span></label>
+            <span class="studio-select-wrap">
+              <select id="category" name="category" required>
+                <option value="">Choose a category</option>
+                <% categories.forEach((category) => { %>
+                  <option value="<%= category.id %>" <%= typeof formValues !== 'undefined' && String(formValues.category) === String(category.id) ? 'selected' : '' %>><%= category.name %></option>
+                <% }) %>
+              </select>
+            </span>
+          </div>
+
+          <div class="studio-upload-field">
+            <label for="visual_effect">Artistic technique</label>
+            <span class="studio-select-wrap">
+              <select id="visual_effect" name="visual_effect">
+                <option value="auto" <%= typeof formValues === 'undefined' || !formValues.visual_effect || formValues.visual_effect === 'auto' ? 'selected' : '' %>>Let the category decide</option>
+                <option value="portrait" <%= typeof formValues !== 'undefined' && formValues.visual_effect === 'portrait' ? 'selected' : '' %>>Portrait / figure drawing</option>
+                <option value="sketch" <%= typeof formValues !== 'undefined' && formValues.visual_effect === 'sketch' ? 'selected' : '' %>>Pencil / sketch</option>
+                <option value="digital" <%= typeof formValues !== 'undefined' && formValues.visual_effect === 'digital' ? 'selected' : '' %>>Digital painting</option>
+                <option value="nature" <%= typeof formValues !== 'undefined' && formValues.visual_effect === 'nature' ? 'selected' : '' %>>Nature / landscape</option>
+                <option value="khmer" <%= typeof formValues !== 'undefined' && formValues.visual_effect === 'khmer' ? 'selected' : '' %>>Traditional Khmer art</option>
+              </select>
+            </span>
+            <span class="studio-field-help">Sets the atmosphere of the artwork viewer.</span>
+          </div>
+        </div>
+
+        <div class="studio-upload-row">
+          <div class="studio-upload-field">
+            <label for="tags">Tags</label>
+            <input type="text" id="tags" name="tags" maxlength="180" placeholder="#portrait #ink #quiet" value="<%= typeof formValues !== 'undefined' && formValues.tags ? formValues.tags : '' %>" />
+            <span class="studio-field-help">Separate tags with spaces.</span>
+          </div>
+
+          <div class="studio-upload-field">
+            <label for="created_at">Created on <span class="studio-field-hint">optional</span></label>
+            <input type="date" id="created_at" name="created_at" value="<%= typeof formValues !== 'undefined' && formValues.created_at ? String(formValues.created_at).slice(0, 10) : '' %>" />
+          </div>
+        </div>
+
+        <fieldset class="studio-visibility">
+          <legend>Who can see this page?</legend>
+          <div class="studio-visibility-grid">
+            <label class="studio-visibility-card">
+              <input type="radio" name="visibility" value="public" <%= typeof formValues === 'undefined' || !formValues.visibility || formValues.visibility !== 'private' ? 'checked' : '' %> />
+              <span>
+                <strong><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c2.7-4 5.7-6 9-6s6.3 2 9 6c-2.7 4-5.7 6-9 6s-6.3-2-9-6Z" /><circle cx="12" cy="12" r="2.6" /></svg> Public</strong>
+                <em>Share it in the gallery and your collection.</em>
+              </span>
+            </label>
+            <label class="studio-visibility-card">
+              <input type="radio" name="visibility" value="private" <%= typeof formValues !== 'undefined' && formValues.visibility === 'private' ? 'checked' : '' %> />
+              <span>
+                <strong><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg> Private</strong>
+                <em>Keep this page tucked away for your eyes only.</em>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="studio-upload-progress" data-upload-progress hidden aria-live="polite">
+        <div class="studio-upload-progress-heading">
+          <div>
+            <p class="studio-upload-kicker" data-upload-progress-kicker>Pressing pencil to paper</p>
+            <strong data-upload-progress-label>Uploading your page…</strong>
+          </div>
+          <span class="studio-upload-progress-percent" data-upload-progress-percent>0%</span>
+        </div>
+        <div class="studio-upload-progress-track" data-upload-progress-track>
+          <svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+            <path class="studio-upload-progress-base" d="M1 5h98" />
+            <path class="studio-upload-progress-line" data-upload-progress-line pathLength="100" d="M1 5h98" />
+          </svg>
+          <span class="studio-upload-progress-pencil" data-upload-progress-pencil aria-hidden="true">
+            <svg viewBox="0 0 40 24"><path d="m3 20 2-7 16-16c1.5-1.5 4-1.5 5.5 0l4 4c1.5 1.5 1.5 4 0 5.5L14.5 22.5 3 24l-1-4Z" /><path d="m5 13 8 8M25 1l9 9" /></svg>
+          </span>
+        </div>
+        <p class="studio-upload-progress-detail" data-upload-progress-detail>Keep this page open while the ink dries.</p>
+      </div>
+
+      <div class="studio-upload-actions">
+        <button type="submit" class="studio-publish-btn" data-upload-publish disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 18.5 1.3-4.3L17 3.5c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.4 17.3 5 18.5Z" /><path d="m16.2 4.3 3.4 3.4M5 18.5l3.1-.9" /></svg>
+          <span data-upload-publish-label>Publish Artwork</span>
+          <span class="studio-publish-spinner" aria-hidden="true"></span>
+        </button>
+        <button type="submit" class="studio-draft-btn" name="save_as_draft" value="on" data-upload-draft disabled>
+          Save as draft
+        </button>
+      </div>
+
+      <p class="studio-upload-readiness" data-upload-readiness>Add a drawing, a title, and a category to publish.</p>
+    </section>
+  </form>
+
+  <section class="studio-upload-success" data-upload-success hidden aria-live="polite">
+    <span class="studio-upload-tape studio-upload-tape-left" aria-hidden="true"></span>
+    <span class="studio-upload-tape studio-upload-tape-right" aria-hidden="true"></span>
+
+    <svg class="studio-success-spark studio-success-spark-one" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4c2 12 8 18 20 20-12 2-18 8-20 20-2-12-8-18-20-20 12-2 18-8 20-20Z" /></svg>
+    <svg class="studio-success-spark studio-success-spark-two" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4c2 12 8 18 20 20-12 2-18 8-20 20-2-12-8-18-20-20 12-2 18-8 20-20Z" /></svg>
+    <svg class="studio-success-flower" viewBox="0 0 100 130" aria-hidden="true">
+      <path d="M50 121c2-23 3-41 1-62" />
+      <path d="M50 88c-11-5-19-1-22 8 10 2 18-1 22-8ZM51 73c10-4 17-2 21 5-9 3-16 1-21-5Z" />
+      <path d="M50 59c-10-2-15-9-11-17 4-6 11-6 16 0 5-6 12-6 16 0 4 8-1 15-11 17-3 3-7 3-10 0Z" />
+      <circle cx="52" cy="48" r="3.5" />
+    </svg>
+
+    <div class="studio-success-art">
+      <img data-upload-success-image alt="Your newly published artwork" />
+      <svg viewBox="0 0 100 120" preserveAspectRatio="none" aria-hidden="true"><path d="M2 3C18 2 31 4 49 3c17-1 33 1 49 0l-1 112c-15-1-31 1-47 0C33 115 17 117 3 116 2 78 2 42 2 3Z" /></svg>
+    </div>
+
+    <p class="studio-upload-kicker">A new page in your sketchbook</p>
+    <h2 data-upload-success-title tabindex="-1">Your artwork has been added to your collection!</h2>
+    <p class="studio-success-note" data-upload-success-note>It is pinned to your gallery and ready for the world to see.</p>
+
+    <div class="studio-success-actions">
+      <a href="/dashboard" class="studio-btn studio-btn-primary" data-upload-success-view>View Artwork</a>
+      <a href="/upload" class="studio-btn studio-btn-ghost">Upload Another</a>
+    </div>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

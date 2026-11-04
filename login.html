@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <meta name="description" content="ArtSpace is a premium art and drawing social platform for artists and art lovers." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body data-theme="dark">
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="container nav-wrap">
+          <a href="/" class="brand" aria-label="ArtSpace home">
+            <span class="brand-mark">ក</span>
+            <span>ArtSpace</span>
+          </a>
+
+          <form action="/search" method="GET" class="nav-search">
+            <input type="search" name="q" placeholder="Search artwork, artists, tags" value="" />
+            <button type="submit" aria-label="Search">Search</button>
+          </form>
+
+          <nav class="nav-links" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <a href="/explore">Explore</a>
+            <a href="/upload">Upload</a>
+            
+          </nav>
+
+          <div class="nav-actions">
+            <button class="theme-toggle" type="button" aria-label="Toggle theme">☼</button>
+            
+              <a href="/login" class="btn btn-ghost">Login</a>
+              <a href="/register" class="btn btn-primary">Join</a>
+            
+          </div>
+        </div>
+      </header>
+
+      
+        <div class="category-bar">
+          <div class="container category-list">
+            <a href="/explore?category=all" class="category-pill ">All</a>
+            
+              <a href="/explore?category=pencil-drawing" class="category-pill ">Pencil Drawing</a>
+            
+              <a href="/explore?category=portrait-drawing" class="category-pill ">Portrait Drawing</a>
+            
+              <a href="/explore?category=digital-art" class="category-pill ">Digital Art</a>
+            
+              <a href="/explore?category=character-design" class="category-pill ">Character Design</a>
+            
+              <a href="/explore?category=anime-manga" class="category-pill ">Anime &amp; Manga</a>
+            
+              <a href="/explore?category=sketching" class="category-pill ">Sketching</a>
+            
+              <a href="/explore?category=watercolor" class="category-pill ">Watercolor</a>
+            
+              <a href="/explore?category=oil-painting" class="category-pill ">Oil Painting</a>
+            
+              <a href="/explore?category=landscape-drawing" class="category-pill ">Landscape Drawing</a>
+            
+              <a href="/explore?category=abstract-art" class="category-pill ">Abstract Art</a>
+            
+              <a href="/explore?category=3d-art" class="category-pill ">3D Art</a>
+            
+              <a href="/explore?category=other-art" class="category-pill ">Other Art</a>
+            
+          </div>
+        </div>
+      
+
+      <main class="container main-content">
+
+
+<section class="auth-page" aria-labelledby="login-title">
+  <div class="auth-frame">
+    <div class="auth-visual">
+      <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=1400&q=85" alt="A colorful painting in an art gallery" />
+      <div class="auth-visual-copy">
+        <span class="auth-kicker">ARTSPACE / COMMUNITY</span>
+        <p>Every work begins with a point of view.</p>
+        <span class="auth-caption">Find inspiration in the work of artists around you.</span>
+      </div>
+      <span class="auth-ornament" aria-hidden="true">ក</span>
+    </div>
+
+    <div class="auth-content">
+      <a class="auth-back" href="/">&larr; Back to gallery</a>
+      <p class="auth-eyebrow">WELCOME BACK</p>
+      <h1 id="login-title">Make space for your next idea.</h1>
+      <p class="auth-intro">Sign in to discover new work and reconnect with the creative community.</p>
+
+      
+
+      <form class="auth-form" action="/login" method="POST">
+        <div class="form-block">
+          <label for="email">Email or username</label>
+          <input type="text" id="email" name="email" placeholder="Email address or username" autocomplete="username" required />
+        </div>
+
+        <div class="form-block">
+          <div class="auth-label-row">
+            <label for="password">Password</label>
+            <a href="/forgot-password">Forgot password?</a>
+          </div>
+          <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary auth-submit">Log in</button>
+      </form>
+
+      <p class="auth-register">New to ArtSpace? <a href="/register">Create an account</a></p>
+    </div>
+  </div>
+</section>
+
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid">
+          <div>
+            <div class="brand footer-brand">
+              <span class="brand-mark">A</span>
+              <span>ArtSpace</span>
+            </div>
+            <p>Showcase your creative work. Discover talent. Build an art community.</p>
+          </div>
+
+          <div>
+            <h4>Explore</h4>
+            <ul>
+              <li><a href="/explore">Artwork</a></li>
+              <li><a href="/explore?category=digital-art">Digital Art</a></li>
+              <li><a href="/explore?category=portrait-drawing">Portraits</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>Community</h4>
+            <ul>
+              <li><a href="/dashboard">Dashboard</a></li>
+              <li><a href="/upload">Upload</a></li>
+              <li><a href="/notifications">Notifications</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4>About</h4>
+            <ul>
+              <li><a href="/">Home</a></li>
+              <li><a href="/register">Join</a></li>
+              <li><a href="/forgot-password">Help</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="container footer-bottom">
+          <span>© 2026 ArtSpace</span>
+          <span>Crafted for artists and art lovers.</span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>
+

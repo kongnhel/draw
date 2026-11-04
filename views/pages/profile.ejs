@@ -1,0 +1,122 @@
+<%- include('../partials/header') %>
+
+<div class="profile-hero">
+  <div class="cover-banner" style="background-image: url('<%= profileUser.cover_image || '/uploads/covers/default-cover.svg' %>')">
+    <div class="cover-banner-shade" aria-hidden="true"></div>
+    <span class="profile-cover-label">FIELD NOTES <span>NO. <%= String(profileUser.id).padStart(2, '0') %></span></span>
+    <div class="profile-cover-identity">
+      <span class="profile-avatar-frame">
+        <img src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= profileUser.display_name %>" />
+      </span>
+      <div class="profile-cover-name">
+        <h1><%= profileUser.display_name %></h1>
+        <p>@<%= profileUser.username %></p>
+      </div>
+    </div>
+    <svg class="profile-cover-doodle" viewBox="0 0 120 90" aria-hidden="true"><path d="M15 66c14-20 23 14 38-2s18-31 31-20 17 20 24 6M67 18c0 8-7 12-15 12 8 0 15 5 15 13 0-8 7-13 15-13-8 0-15-4-15-12ZM21 20c0 5-4 8-9 8 5 0 9 3 9 8 0-5 4-8 9-8-5 0-9-3-9-8Z" /></svg>
+  </div>
+</div>
+
+<div class="grid-3 profile-stats">
+  <div class="dashboard-card">
+    <h3>Artworks</h3>
+    <div class="profile-stat-value"><%= stats.totalArtworks %></div>
+  </div>
+  <div class="dashboard-card">
+    <h3>Followers</h3>
+    <div class="profile-stat-value"><%= stats.followers %></div>
+  </div>
+  <div class="dashboard-card">
+    <h3>Following</h3>
+    <div class="profile-stat-value"><%= stats.following %></div>
+  </div>
+</div>
+
+<div class="detail-layout">
+  <div>
+      <div class="sidebar-card profile-notebook-card">
+      <h2>About</h2>
+      <p class="profile-bio"><%= profileUser.bio || 'This artist is ready to share new ideas and experiments with the community.' %></p>
+      <div class="info-list profile-social-links">
+        <% if (profileUser.website) { %><div class="info-item"><span>Website</span><a href="<%= profileUser.website %>" target="_blank" rel="noreferrer"><%= profileUser.website %></a></div><% } %>
+        <% if (profileUser.instagram) { %><div class="info-item"><span>Instagram</span><strong><%= profileUser.instagram %></strong></div><% } %>
+        <% if (profileUser.twitter) { %><div class="info-item"><span>Twitter</span><strong><%= profileUser.twitter %></strong></div><% } %>
+      </div>
+      <div class="profile-studio-notes">
+        <h3>In this notebook</h3>
+        <% if (artworks.length) { %>
+          <% artworks.slice(0, 3).forEach((artwork, index) => { %>
+            <a href="/art/<%= artwork.id %>"><span><%= String(index + 1).padStart(2, '0') %> / <%= artwork.category_name || 'Artwork' %></span><strong><%= artwork.title %></strong></a>
+          <% }) %>
+        <% } else { %>
+          <p>New pages are waiting to be added.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+        <h2>Portfolio</h2>
+        <div class="filter-row" style="margin: 0;">
+          <a href="/profile/<%= profileUser.username %>?tab=artworks" class="btn <%= activeTab === 'artworks' ? 'btn-primary' : 'btn-secondary' %>">Artworks</a>
+          <a href="/profile/<%= profileUser.username %>?tab=liked" class="btn <%= activeTab === 'liked' ? 'btn-primary' : 'btn-secondary' %>">Liked</a>
+          <a href="/profile/<%= profileUser.username %>?tab=saved" class="btn <%= activeTab === 'saved' ? 'btn-primary' : 'btn-secondary' %>">Saved</a>
+        </div>
+      </div>
+
+      <% if (activeTab === 'liked') { %>
+        <% if (likedArtworks.length) { %>
+          <div class="masonry-grid">
+            <% likedArtworks.forEach((artwork) => { %>
+              <%- include('../partials/art-card', { artwork: { ...artwork, likes_count: artwork.likes_count || 0, comments_count: artwork.comments_count || 0, is_liked: true, is_bookmarked: false } }) %>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="empty-state">No liked artwork yet.</div>
+        <% } %>
+      <% } else if (activeTab === 'saved') { %>
+        <% if (savedArtworks.length) { %>
+          <div class="masonry-grid">
+            <% savedArtworks.forEach((artwork) => { %>
+              <%- include('../partials/art-card', { artwork: { ...artwork, likes_count: artwork.likes_count || 0, comments_count: artwork.comments_count || 0, is_liked: false, is_bookmarked: true } }) %>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="empty-state">No saved artwork yet.</div>
+        <% } %>
+      <% } else if (artworks.length) { %>
+        <div class="masonry-grid">
+          <% artworks.forEach((artwork) => { %>
+            <%- include('../partials/art-card', { artwork }) %>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="empty-state">This artist has not published any public artwork yet.</div>
+      <% } %>
+    </div>
+  </div>
+
+  <aside class="sidebar-card">
+    <% if (isAuthenticated && currentUser.id !== profileUser.id) { %>
+      <form method="POST" action="/follow/<%= profileUser.id %>">
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 18px;"><%= isFollowing ? 'Unfollow' : 'Follow' %> artist</button>
+      </form>
+    <% } else if (isAuthenticated && currentUser.id === profileUser.id) { %>
+      <a href="/profile/edit" class="btn btn-primary" style="width: 100%; margin-bottom: 18px; display: inline-flex;">Edit profile</a>
+    <% } %>
+
+    <h3>Quick highlights</h3>
+    <div style="display: grid; gap: 12px; margin-top: 14px;">
+      <div class="user-card" style="display: block;">
+        <strong>Saved works</strong>
+        <p style="margin: 6px 0 0; color: var(--muted);"><%= savedArtworks.length %> items</p>
+      </div>
+      <div class="user-card" style="display: block;">
+        <strong>Liked works</strong>
+        <p style="margin: 6px 0 0; color: var(--muted);"><%= likedArtworks.length %> items</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<%- include('../partials/footer') %>
