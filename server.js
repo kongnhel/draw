@@ -203,7 +203,7 @@ app.get('/', async (req, res, next) => {
 
     const bookArtworks = await db.execute(
       `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-              u.username, u.avatar, c.name AS category_name, c.slug AS category_slug,
+              u.username, c.name AS category_name, c.slug AS category_slug,
               a.created_at, a.visibility, a.is_published
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
