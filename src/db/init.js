@@ -13,6 +13,7 @@ const dbConfig = {
 };
 
 let pool;
+let baseSql;
 
 async function initPool() {
   if (!pool) {
@@ -23,6 +24,7 @@ async function initPool() {
 
 // Execute SQL and return results (mimics better-sqlite3 .all() behavior)
 async function execute(sql, params = []) {
+  baseSql = sql;
   const p = pool || await initPool();
   const [results] = await p.execute(sql, params);
   return results;
@@ -30,6 +32,7 @@ async function execute(sql, params = []) {
 
 // Prepare a statement (mimics better-sqlite3 .prepare())
 function prepare(sql) {
+  baseSql = sql;
   return {
     all: async (...args) => {
       const p = args[0] || [];
@@ -47,24 +50,6 @@ function prepare(sql) {
   };
 }
 
-// Add sync methods that wait for promises (for compatibility with existing server.js)
-prepare.prototype.allSync = async function(...args) {
-  const p = args[0] || [];
-  const results = await execute(sql, typeof p === 'object' ? p : [p]);
-  return results;
-};
-
-prepare.prototype.getSync = async function(...args) {
-  const p = args[0] || [];
-  const [results] = await execute(sql, typeof p === 'object' ? p : [p]);
-  return results.length > 0 ? results[0] : null;
-};
-
-prepare.prototype.runSync = async function(...args) {
-  const p = args.length > 1 ? args[1] : args[0] || [];
-  return await execute(sql, typeof p === 'object' ? p : [p]);
-};
-
 function pragma(...args) {
   return [];
 }
@@ -80,7 +65,7 @@ initPool().then(() => {
   console.error('Failed to initialize MySQL pool:', err.message);
 });
 
-// Export with both async and sync methods
+// Export with both async and direct query methods
 const db = {
   ...prepare('SELECT 1'),
   prepare,
@@ -91,19 +76,6 @@ const db = {
       await pool.end();
     }
   }
-};
-
-// Add sync wrappers to db object
-db.allSync = async () => {
-  const [results] = await execute('SELECT 1');
-  return results;
-};
-db.getSync = async () => {
-  const [results] = await execute('SELECT 1');
-  return results.length > 0 ? results[0] : null;
-};
-db.runSync = async () => {
-  return await execute('SELECT 1');
 };
 
 module.exports = { db };

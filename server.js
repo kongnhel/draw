@@ -15,7 +15,7 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const { dbConfig } = require('./src/db/init');
+const { dbConfig, db } = require('./src/db/init');
 
 // Initialize MySQL connection pool
 const pool = mysql.createPool({
@@ -27,31 +27,6 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
-});
-
-// Wrap pool methods with promise support
-global.db = pool;
-db = {
-  execute: (...args) => pool.execute(...args),
-  query: (...args) => pool.query(...args).then(([results]) => results),
-  getConnection: () => pool.getConnection()
-};
-
-async function initDb() {
-  const connection = await pool.getConnection();
-  console.log('Connected to Aiven MySQL');
-  connection.release();
-}
-
-initDb().then(() => {
-  // Seed database after connection
-  const { ensureSeeded } = require('./src/db/seed');
-  return ensureSeeded();
-}).then(() => {
-  console.log('Database seeded successfully');
-}).catch((err) => {
-  console.error('Error initializing database:', err);
-  process.exit(1);
 });
 
 const app = express();
