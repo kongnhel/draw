@@ -275,6 +275,137 @@ app.use((req, res, next) => {
   });
 });
 
+// Explore page
+app.get('/explore', async (req, res, next) => {
+  try {
+    const query = req.query.q || '';
+    const filter = req.query.category || 'all';
+    const sort = req.query.sort || 'latest';
+
+    const categoryRows = await db.execute(
+      `SELECT c.slug, c.name, COUNT(a.id) AS count
+         FROM categories c
+         LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
+         GROUP BY c.id
+         ORDER BY c.sort_order`
+    );
+    const categories = categoryRows.map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      count: Number(row.count) || 0
+    }));
+
+    const whereConditions = [];
+    const queryParams = [];
+
+    if (filter !== 'all') {
+      whereConditions.push(`c.slug = ?`);
+      queryParams.push(filter);
+    }
+
+    if (query) {
+      whereConditions.push(`(a.title LIKE ? OR a.tags LIKE ? OR u.username LIKE ?)`);
+      queryParams.push(`%${query}%`, `%${query}%`, `%${query}%`);
+    }
+
+    const sortMap = {
+      latest: 'a.created_at DESC',
+      views: 'a.likes_count DESC',
+      popular: 'a.likes_count DESC'
+    };
+    const orderBy = sortMap[sort] || 'a.created_at DESC';
+
+    const artworks = await db.execute(
+      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+              u.username, c.name AS category_name, c.slug AS category_slug
+         FROM artworks a
+         INNER JOIN users u ON u.id = a.user_id
+         INNER JOIN categories c ON c.id = a.category_id
+        WHERE ${whereConditions.join(' AND ')} AND a.visibility = 'public' AND a.is_published = 1
+        ORDER BY ${orderBy}
+        LIMIT 20`
+    );
+
+    const total = artworks[0] ? artworks[0].count : 0;
+
+    res.render('pages/explore', {
+      pageTitle: 'ArtSpace | Explore',
+      isAuthenticated: false,
+      currentUser: null,
+      unreadNotifications: 0,
+      query: query,
+      filter: filter,
+      categories: categories,
+      artworks: artworks,
+      total: total,
+      sort: sort
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Upload page
+app.get('/upload', async (req, res, next) => {
+  try {
+    res.render('pages/upload', {
+      pageTitle: 'ArtSpace | Upload',
+      isAuthenticated: false,
+      currentUser: null,
+      unreadNotifications: 0
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Profile page (basic - requires auth check)
+app.get('/profile/:username', async (req, res, next) => {
+  try {
+    const targetUsername = req.params.username;
+    const userRows = await db.execute(
+      `SELECT u.username, u.avatar, u.bio, u.display_name, COUNT(a.id) AS art_count
+         FROM users u
+         LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
+         GROUP BY u.id
+         HAVING u.username = ?`,
+      [targetUsername]
+    );
+    const targetUser = userRows[0];
+
+    if (!targetUser) {
+      return res.status(404).render('pages/error', {
+        message: 'User not found.',
+        pageTitle: 'ArtSpace | Page not found',
+        isAuthenticated: false,
+        currentUser: null,
+        unreadNotifications: 0
+      });
+    }
+
+    const artRows = await db.execute(
+      `SELECT a.id, a.title, a.image_url, a.thumbnail_url, a.tags,
+              a.likes_count, a.is_liked, a.is_bookmarked
+         FROM artworks a
+        WHERE a.user_id = ? AND a.visibility = 'public' AND a.is_published = 1
+        ORDER BY a.created_at DESC
+        LIMIT 12`,
+      [targetUser.id]
+    );
+
+    res.render('pages/profile', {
+      pageTitle: `ArtSpace | ${targetUser.username}'s Profile`,
+      isAuthenticated: false,
+      currentUser: null,
+      unreadNotifications: 0,
+      targetUser: targetUser,
+      artworks: artRows
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Start the HTTP listener only during local development
 if (!IS_VERCEL) {
   const PORT = process.env.PORT || 3000;
