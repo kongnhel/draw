@@ -196,6 +196,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// 1. Home Page Route
 app.get('/', async (req, res, next) => {
   try {
     const totalArtworkRows = await db.execute('SELECT COUNT(*) AS count FROM artworks');
@@ -265,17 +266,7 @@ app.get('/', async (req, res, next) => {
   }
 });
 
-app.use((req, res, next) => {
-  res.status(404).render('pages/error', {
-    message: 'The page you requested could not be found.',
-    pageTitle: 'ArtSpace | Page not found',
-    isAuthenticated: false,
-    currentUser: null,
-    unreadNotifications: 0
-  });
-});
-
-// Explore page
+// 2. Explore Page Route
 app.get('/explore', async (req, res, next) => {
   try {
     const query = req.query.q || '';
@@ -315,18 +306,23 @@ app.get('/explore', async (req, res, next) => {
     };
     const orderBy = sortMap[sort] || 'a.created_at DESC';
 
+    const whereClause = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')} AND a.visibility = 'public' AND a.is_published = 1`
+      : `WHERE a.visibility = 'public' AND a.is_published = 1`;
+
     const artworks = await db.execute(
       `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
               u.username, c.name AS category_name, c.slug AS category_slug
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
          INNER JOIN categories c ON c.id = a.category_id
-        WHERE ${whereConditions.join(' AND ')} AND a.visibility = 'public' AND a.is_published = 1
+        ${whereClause}
         ORDER BY ${orderBy}
-        LIMIT 20`
+        LIMIT 20`,
+      queryParams
     );
 
-    const total = artworks[0] ? artworks[0].count : 0;
+    const total = artworks ? artworks.length : 0;
 
     res.render('pages/explore', {
       pageTitle: 'ArtSpace | Explore',
@@ -336,7 +332,7 @@ app.get('/explore', async (req, res, next) => {
       query: query,
       filter: filter,
       categories: categories,
-      artworks: artworks,
+      artworks: artworks || [],
       total: total,
       sort: sort
     });
@@ -345,26 +341,52 @@ app.get('/explore', async (req, res, next) => {
   }
 });
 
-// Upload page
+// 3. Upload Page Route
 app.get('/upload', async (req, res, next) => {
   try {
     res.render('pages/upload', {
       pageTitle: 'ArtSpace | Upload',
       isAuthenticated: false,
       currentUser: null,
-      unreadNotifications: 0
+      unreadNotifications: 0,
+      error: null,
+      formValues: {}
     });
   } catch (err) {
     next(err);
   }
 });
 
-// Profile page (basic - requires auth check)
+// 4. Login Page Route
+app.get('/login', (req, res) => {
+  res.render('pages/login', {
+    pageTitle: 'ArtSpace | Login',
+    isAuthenticated: false,
+    currentUser: null,
+    unreadNotifications: 0,
+    error: null,
+    formValues: {}
+  });
+});
+
+// 5. Register Page Route
+app.get('/register', (req, res) => {
+  res.render('pages/register', {
+    pageTitle: 'ArtSpace | Register',
+    isAuthenticated: false,
+    currentUser: null,
+    unreadNotifications: 0,
+    error: null,
+    formValues: {}
+  });
+});
+
+// 6. Profile Page Route
 app.get('/profile/:username', async (req, res, next) => {
   try {
     const targetUsername = req.params.username;
     const userRows = await db.execute(
-      `SELECT u.username, u.avatar, u.bio, u.display_name, COUNT(a.id) AS art_count
+      `SELECT u.id, u.username, u.avatar, u.bio, u.display_name, COUNT(a.id) AS art_count
          FROM users u
          LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
          GROUP BY u.id
@@ -399,11 +421,22 @@ app.get('/profile/:username', async (req, res, next) => {
       currentUser: null,
       unreadNotifications: 0,
       targetUser: targetUser,
-      artworks: artRows
+      artworks: artRows || []
     });
   } catch (err) {
     next(err);
   }
+});
+
+// 7. 404 Catch-All Middleware (MUST STAY AT THE VERY BOTTOM OF ALL ROUTES)
+app.use((req, res, next) => {
+  res.status(404).render('pages/error', {
+    message: 'The page you requested could not be found.',
+    pageTitle: 'ArtSpace | Page not found',
+    isAuthenticated: false,
+    currentUser: null,
+    unreadNotifications: 0
+  });
 });
 
 // Start the HTTP listener only during local development
