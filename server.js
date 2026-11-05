@@ -200,6 +200,72 @@ async function uploadArtworkToImageKit(files, userId) {
   return processedImages;
 }
 
+// ImageKit configuration with provided credentials
+const imagekit = {
+  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'public_1THau+UteDSvtH49YQq/QUrOcGg=',
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || 'private_1YwvomC1l8IhLU1mIQ1GUh2aQjU=',
+  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/x1cuwrrgc'
+};
+
+// Initialize ImageKit SDK
+const { imagekit } = require('@imagekit.io/node');
+const ik = imagekit({
+  publicKey: imagekit.publicKey,
+  privateKey: imagekit.privateKey,
+  urlEndpoint: imagekit.urlEndpoint
+});
+
+// Upload artwork images to ImageKit
+async function uploadArtworkToImageKit(files, userId) {
+  if (!files || files.length === 0) return [];
+
+  const processedImages = [];
+
+  for (const file of files) {
+    try {
+      let buffer = file.buffer;
+      let originalName = file.originalname || 'artwork.jpg';
+
+      // If using memory storage (Vercel), file is a Buffer
+      // If using disk storage (local), read from path
+      if (!buffer && file.path) {
+        const fs = require('fs');
+        buffer = fs.readFileSync(file.path);
+        originalName = file.filename || originalName;
+      }
+
+      // Optimize image with sharp
+      const optimized = sharp(buffer)
+        .resize({ width: 1600, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
+
+      // Upload to ImageKit
+      const result = await ik.upload({
+        file: optimized,
+        fileName: `${userId}-${Date.now()}-${path.extname(originalName)}`,
+        folder: `/artspace/${userId}`
+      });
+
+      processedImages.push({
+        image_url: result.url,
+        thumbnail_url: result.thumbnailUrl || result.url,
+        original_name: originalName
+      });
+    } catch (err) {
+      console.error('ImageKit upload error:', err);
+      // Fallback: use local path format
+      processedImages.push({
+        image_url: IS_VERCEL ? '/uploads/processed/fallback.jpg' : `/uploads/processed/${path.basename(file.path || originalName)}`,
+        thumbnail_url: '/uploads/processed/fallback-thumb.webp',
+        original_name: originalName
+      });
+    }
+  }
+
+  return processedImages;
+}
+
 // Add IS_VERCEL to res.locals for template rendering
 app.use((req, res, next) => {
   res.locals.isVercel = IS_VERCEL;
