@@ -134,20 +134,7 @@ function handleArtworkUpload(req, res, next) {
   });
 }
 
-// ImageKit configuration and upload function
-const imagekit = {
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'your-public-key-here',
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || 'your-private-key-here',
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://your-url-endpoint.iframe.imagekit.io'
-};
 
-// Initialize ImageKit SDK
-const { imagekit } = require('@imagekit.io/node');
-const ik = imagekit({
-  publicKey: imagekit.publicKey,
-  privateKey: imagekit.privateKey,
-  urlEndpoint: imagekit.urlEndpoint
-});
 
 // Upload artwork images to ImageKit
 async function uploadArtworkToImageKit(files, userId) {
@@ -200,19 +187,11 @@ async function uploadArtworkToImageKit(files, userId) {
   return processedImages;
 }
 
-// ImageKit configuration with provided credentials
-const imagekit = {
+// Initialize ImageKit SDK
+const ik = imagekit({
   publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'public_1THau+UteDSvtH49YQq/QUrOcGg=',
   privateKey: process.env.IMAGEKIT_PRIVATE_KEY || 'private_1YwvomC1l8IhLU1mIQ1GUh2aQjU=',
   urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/x1cuwrrgc'
-};
-
-// Initialize ImageKit SDK
-const { imagekit } = require('@imagekit.io/node');
-const ik = imagekit({
-  publicKey: imagekit.publicKey,
-  privateKey: imagekit.privateKey,
-  urlEndpoint: imagekit.urlEndpoint
 });
 
 // Upload artwork images to ImageKit
