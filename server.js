@@ -203,7 +203,7 @@ app.get('/', async (req, res, next) => {
 
     const bookArtworks = await db.execute(
       `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-              u.username, u.display_name, u.avatar, c.name AS category_name, c.slug AS category_slug,
+              u.username, u.avatar, c.name AS category_name, c.slug AS category_slug,
               a.created_at, a.visibility, a.is_published
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
@@ -217,7 +217,7 @@ app.get('/', async (req, res, next) => {
     const heroArtworkIndex = heroArtwork ? bookArtworks.indexOf(heroArtwork) : 0;
 
     const artistRows = await db.execute(
-      `SELECT u.username, u.display_name, u.avatar, u.bio, COUNT(a.id) AS art_count
+      `SELECT u.username, u.avatar, u.bio, COUNT(a.id) AS art_count
          FROM users u
          LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
          GROUP BY u.id
