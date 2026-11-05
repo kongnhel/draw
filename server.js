@@ -272,6 +272,7 @@ app.get('/', async (req, res, next) => {
 });
 
 // 2. Explore Page Route
+// 2. Explore Page Route
 app.get('/explore', async (req, res, next) => {
   try {
     const query = req.query.q || '';
@@ -333,6 +334,9 @@ app.get('/explore', async (req, res, next) => {
     const artistRows = await db.execute("SELECT COUNT(DISTINCT user_id) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1");
     const artistCount = Number((artistRows && artistRows[0] && artistRows[0].count) || 0);
 
+    // Calculate mediumCount (total categories available)
+    const mediumCount = categories ? categories.length : 0;
+
     res.render('pages/explore', {
       pageTitle: 'ArtSpace | Explore',
       isAuthenticated: false,
@@ -345,6 +349,7 @@ app.get('/explore', async (req, res, next) => {
       total: totalArtworks,
       totalArtworks,
       artistCount,
+      mediumCount, // Pass mediumCount to EJS
       sort
     });
   } catch (err) {
