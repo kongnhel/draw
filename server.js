@@ -217,7 +217,7 @@ app.get('/', async (req, res, next) => {
     const heroArtworkIndex = heroArtwork ? bookArtworks.indexOf(heroArtwork) : 0;
 
     const artistRows = await db.execute(
-      `SELECT u.username, u.avatar, u.bio, COUNT(a.id) AS art_count
+      `SELECT u.username, COUNT(a.id) AS art_count
          FROM users u
          LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
          GROUP BY u.id
