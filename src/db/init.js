@@ -1,146 +1,72 @@
-const fs = require('fs');
-const path = require('path');
-const sqlite = require('better-sqlite3');
+const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 
-const dataDir = path.join(__dirname, '..', '..', 'data');
-fs.mkdirSync(dataDir, { recursive: true });
+const dbConfig = {
+  host: process.env.AIVEN_MYSQL_HOST,
+  port: process.env.AIVEN_MYSQL_PORT || 3306,
+  database: process.env.AIVEN_MYSQL_DATABASE,
+  user: process.env.AIVEN_MYSQL_USER,
+  password: process.env.AIVEN_MYSQL_PASSWORD,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+};
 
-const db = new sqlite(path.join(dataDir, 'artspace.db'));
-db.pragma('journal_mode = WAL');
+let pool;
 
-const schema = `
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    sort_order INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    display_name TEXT NOT NULL,
-    bio TEXT,
-    avatar TEXT DEFAULT '/uploads/avatars/default-avatar.svg',
-    cover_image TEXT DEFAULT '/uploads/covers/default-cover.svg',
-    website TEXT,
-    instagram TEXT,
-    twitter TEXT,
-    role TEXT NOT NULL DEFAULT 'artist',
-    is_verified INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS artworks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    category_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT,
-    tags TEXT,
-    image_url TEXT NOT NULL,
-    thumbnail_url TEXT,
-    visibility TEXT NOT NULL DEFAULT 'public',
-    is_published INTEGER NOT NULL DEFAULT 1,
-    views INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (category_id) REFERENCES categories(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS comments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    artwork_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
-    parent_id INTEGER,
-    body TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (artwork_id) REFERENCES artworks(id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (parent_id) REFERENCES comments(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS likes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    artwork_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(artwork_id, user_id),
-    FOREIGN KEY (artwork_id) REFERENCES artworks(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS bookmarks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    artwork_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(artwork_id, user_id),
-    FOREIGN KEY (artwork_id) REFERENCES artworks(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS follows (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    follower_id INTEGER NOT NULL,
-    following_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(follower_id, following_id),
-    FOREIGN KEY (follower_id) REFERENCES users(id),
-    FOREIGN KEY (following_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    recipient_id INTEGER NOT NULL,
-    actor_id INTEGER,
-    type TEXT NOT NULL,
-    message TEXT NOT NULL,
-    link TEXT,
-    is_read INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (recipient_id) REFERENCES users(id),
-    FOREIGN KEY (actor_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    reporter_id INTEGER,
-    target_type TEXT NOT NULL,
-    target_id INTEGER NOT NULL,
-    reason TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (reporter_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS collections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS collection_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    collection_id INTEGER NOT NULL,
-    artwork_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(collection_id, artwork_id),
-    FOREIGN KEY (collection_id) REFERENCES collections(id),
-    FOREIGN KEY (artwork_id) REFERENCES artworks(id)
-  );
-`;
-
-db.exec(schema);
-
-const artworkColumns = db.prepare('PRAGMA table_info(artworks)').all().map((column) => column.name);
-if (!artworkColumns.includes('views')) {
-  db.exec('ALTER TABLE artworks ADD COLUMN views INTEGER NOT NULL DEFAULT 0');
+async function initPool() {
+  if (!pool) {
+    pool = mysql.createPool(dbConfig);
+  }
+  return pool;
 }
 
-module.exports = { db };
+// Execute SQL and return results (mimics better-sqlite3 .all() behavior)
+async function execute(sql, params = []) {
+  const p = pool || await initPool();
+  const [results] = await p.execute(sql, params);
+  return results;
+}
+
+// Prepare a statement (mimics better-sqlite3 .prepare())
+function prepare(sql) {
+  return {
+    all: (...args) => {
+      const p = args[0] || [];
+      return execute(sql, typeof p === 'object' ? p : [p]);
+    },
+    get: (...args) => {
+      const p = args[0] || [];
+      return execute(sql, typeof p === 'object' ? p : [p]).then(([results]) => results.length > 0 ? results[0] : null);
+    },
+    run: (...args) => {
+      const p = args.length > 1 ? args[1] : args[0] || [];
+      return execute(sql, typeof p === 'object' ? p : [p]);
+    }
+  };
+}
+
+function pragma(...args) {
+  return [];
+}
+
+function exec(sql) {
+  return execute(sql);
+}
+
+// Initialize pool
+initPool();
+
+module.exports = {
+  db: {
+    ...prepare('SELECT 1'),
+    prepare,
+    pragma,
+    exec,
+    end: async () => {
+      if (pool) {
+        await pool.end();
+      }
+    }
+  }
+};

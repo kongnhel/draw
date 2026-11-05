@@ -21,3 +21,4 @@ Thumbs.db
 
 # Runtime
 .server.pid
+aiven-mysql-*

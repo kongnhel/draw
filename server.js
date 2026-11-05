@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const session = require('express-session');
@@ -12,10 +13,46 @@ const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 
-const { db } = require('./src/db/init');
-const { ensureSeeded } = require('./src/db/seed');
-
 dotenv.config();
+
+const { dbConfig } = require('./src/db/init');
+
+// Initialize MySQL connection pool
+const pool = mysql.createPool({
+  host: process.env.AIVEN_MYSQL_HOST,
+  port: process.env.AIVEN_MYSQL_PORT || 3306,
+  database: process.env.AIVEN_MYSQL_DATABASE,
+  user: process.env.AIVEN_MYSQL_USER,
+  password: process.env.AIVEN_MYSQL_PASSWORD,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// Wrap pool methods with promise support
+global.db = pool;
+db = {
+  execute: (...args) => pool.execute(...args),
+  query: (...args) => pool.query(...args).then(([results]) => results),
+  getConnection: () => pool.getConnection()
+};
+
+async function initDb() {
+  const connection = await pool.getConnection();
+  console.log('Connected to Aiven MySQL');
+  connection.release();
+}
+
+initDb().then(() => {
+  // Seed database after connection
+  const { ensureSeeded } = require('./src/db/seed');
+  return ensureSeeded();
+}).then(() => {
+  console.log('Database seeded successfully');
+}).catch((err) => {
+  console.error('Error initializing database:', err);
+  process.exit(1);
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,8 +66,6 @@ fs.mkdirSync(uploadsDir, { recursive: true });
 fs.mkdirSync(processedDir, { recursive: true });
 fs.mkdirSync(avatarsDir, { recursive: true });
 fs.mkdirSync(coversDir, { recursive: true });
-
-ensureSeeded();
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
