@@ -12,6 +12,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const ImageKit = require('imagekit'); // 1. Added missing ImageKit import
 
 dotenv.config();
 
@@ -29,34 +30,32 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// Determine environment and set upload directory
+// Initialize ImageKit SDK
+const ik = new ImageKit({
+  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'public_1THau+UteDSvtH49YQq/QUrOcGg=',
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || 'private_1YwvomC1l8IhLU1mIQ1GUh2aQjU=',
+  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/x1cuwrrgc'
+});
+
+// Determine environment and set upload directories
 const IS_VERCEL = process.env.VERCEL === '1';
 const UPLOADS_DIR = IS_VERCEL ? '/tmp' : path.join(__dirname, 'uploads');
-const PROCESSED_DIR = IS_VERCEL ? '/tmp/processed' : path.join(uploadsDir, 'processed');
-const AVATARS_DIR = IS_VERCEL ? '/tmp/avatars' : path.join(uploadsDir, 'avatars');
-const COVERS_DIR = IS_VERCEL ? '/tmp/covers' : path.join(uploadsDir, 'covers');
+const PROCESSED_DIR = IS_VERCEL ? '/tmp/processed' : path.join(UPLOADS_DIR, 'processed');
+const AVATARS_DIR = IS_VERCEL ? '/tmp/avatars' : path.join(UPLOADS_DIR, 'avatars');
+const COVERS_DIR = IS_VERCEL ? '/tmp/covers' : path.join(UPLOADS_DIR, 'covers');
 
-// Create directories only in local development (Vercel uses /tmp)
+// Create directories only in local development
 if (!IS_VERCEL) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   fs.mkdirSync(PROCESSED_DIR, { recursive: true });
   fs.mkdirSync(AVATARS_DIR, { recursive: true });
   fs.mkdirSync(COVERS_DIR, { recursive: true });
 }
 
 // Configure multer based on environment
-// On Vercel: use memory storage since /tmp is ephemeral and serverless functions
-// restart frequently, requiring immediate upload to ImageKit cloud storage
-// On local: use disk storage with ./uploads directory
 let upload;
 if (IS_VERCEL) {
-  // Memory storage for Vercel serverless - files are processed in-memory
-  // and uploaded to ImageKit immediately
-  const memoryStorage = multer.memoryStorage({
-    destination: (req, file, cb) => {
-      cb(null, '');
-    }
-  });
+  const memoryStorage = multer.memoryStorage();
   upload = multer({
     storage: memoryStorage,
     limits: { fileSize: 8 * 1024 * 1024, files: 6 },
@@ -70,7 +69,6 @@ if (IS_VERCEL) {
     }
   });
 } else {
-  // Disk storage for local development
   const diskStorage = multer.diskStorage({
     destination: (req, file, cb) => {
       cb(null, UPLOADS_DIR);
@@ -134,8 +132,6 @@ function handleArtworkUpload(req, res, next) {
   });
 }
 
-
-
 // Upload artwork images to ImageKit
 async function uploadArtworkToImageKit(files, userId) {
   if (!files || files.length === 0) return [];
@@ -147,16 +143,13 @@ async function uploadArtworkToImageKit(files, userId) {
       let buffer = file.buffer;
       let originalName = file.originalname || 'artwork.jpg';
 
-      // If using memory storage (Vercel), file is a Buffer
-      // If using disk storage (local), read from path
       if (!buffer && file.path) {
-        const fs = require('fs');
         buffer = fs.readFileSync(file.path);
         originalName = file.filename || originalName;
       }
 
-      // Optimize image with sharp
-      const optimized = sharp(buffer)
+      // Optimize image with sharp (added await)
+      const optimized = await sharp(buffer)
         .resize({ width: 1600, fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 82 })
         .toBuffer();
@@ -175,7 +168,6 @@ async function uploadArtworkToImageKit(files, userId) {
       });
     } catch (err) {
       console.error('ImageKit upload error:', err);
-      // Fallback: use local path format
       processedImages.push({
         image_url: IS_VERCEL ? '/uploads/processed/fallback.jpg' : `/uploads/processed/${path.basename(file.path || originalName)}`,
         thumbnail_url: '/uploads/processed/fallback-thumb.webp',
@@ -187,63 +179,7 @@ async function uploadArtworkToImageKit(files, userId) {
   return processedImages;
 }
 
-// Initialize ImageKit SDK
-const ik = imagekit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'public_1THau+UteDSvtH49YQq/QUrOcGg=',
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || 'private_1YwvomC1l8IhLU1mIQ1GUh2aQjU=',
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/x1cuwrrgc'
-});
-
-// Upload artwork images to ImageKit
-async function uploadArtworkToImageKit(files, userId) {
-  if (!files || files.length === 0) return [];
-
-  const processedImages = [];
-
-  for (const file of files) {
-    try {
-      let buffer = file.buffer;
-      let originalName = file.originalname || 'artwork.jpg';
-
-      // If using memory storage (Vercel), file is a Buffer
-      // If using disk storage (local), read from path
-      if (!buffer && file.path) {
-        const fs = require('fs');
-        buffer = fs.readFileSync(file.path);
-        originalName = file.filename || originalName;
-      }
-
-      // Optimize image with sharp
-      const optimized = sharp(buffer)
-        .resize({ width: 1600, fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 82 })
-        .toBuffer();
-
-      // Upload to ImageKit
-      const result = await ik.upload({
-        file: optimized,
-        fileName: `${userId}-${Date.now()}-${path.extname(originalName)}`,
-        folder: `/artspace/${userId}`
-      });
-
-      processedImages.push({
-        image_url: result.url,
-        thumbnail_url: result.thumbnailUrl || result.url,
-        original_name: originalName
-      });
-    } catch (err) {
-      console.error('ImageKit upload error:', err);
-      // Fallback: use local path format
-      processedImages.push({
-        image_url: IS_VERCEL ? '/uploads/processed/fallback.jpg' : `/uploads/processed/${path.basename(file.path || originalName)}`,
-        thumbnail_url: '/uploads/processed/fallback-thumb.webp',
-        original_name: originalName
-      });
-    }
-  }
-
-  return processedImages;
-}
+const app = express();
 
 // Add IS_VERCEL to res.locals for template rendering
 app.use((req, res, next) => {
@@ -258,6 +194,3 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// ... rest of the server configuration continues below
-// Routes, etc. remain the same as original server.js
