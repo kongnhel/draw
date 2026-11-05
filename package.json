@@ -19,7 +19,7 @@
   "license": "MIT",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "26.x"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
