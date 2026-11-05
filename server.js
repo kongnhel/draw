@@ -318,7 +318,9 @@ app.get('/explore', async (req, res, next) => {
 
     const artworks = await db.execute(
       `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-              u.username, c.name AS category_name, c.slug AS category_slug
+              u.username, NULL AS display_name, c.name AS category_name, c.slug AS category_slug,
+              a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+              0 AS is_liked, 0 AS is_bookmarked, 0 AS likes_count, 'auto' AS visual_effect
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
          INNER JOIN categories c ON c.id = a.category_id
@@ -334,8 +336,8 @@ app.get('/explore', async (req, res, next) => {
     const artistRows = await db.execute("SELECT COUNT(DISTINCT user_id) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1");
     const artistCount = Number((artistRows && artistRows[0] && artistRows[0].count) || 0);
 
-    // Calculate mediumCount (total categories available)
     const mediumCount = categories ? categories.length : 0;
+    const spotlightArtwork = (artworks && artworks.length > 0) ? artworks[0] : null;
 
     res.render('pages/explore', {
       pageTitle: 'ArtSpace | Explore',
@@ -346,10 +348,11 @@ app.get('/explore', async (req, res, next) => {
       filter,
       categories,
       artworks: artworks || [],
+      spotlightArtwork,
       total: totalArtworks,
       totalArtworks,
       artistCount,
-      mediumCount, // Pass mediumCount to EJS
+      mediumCount,
       sort
     });
   } catch (err) {
