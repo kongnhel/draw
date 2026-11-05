@@ -52,7 +52,7 @@ if (!IS_VERCEL) {
   fs.mkdirSync(COVERS_DIR, { recursive: true });
 }
 
-// Configure multer based on environment
+// Configure Multer based on environment
 let upload;
 if (IS_VERCEL) {
   const memoryStorage = multer.memoryStorage();
@@ -127,7 +127,8 @@ function handleArtworkUpload(req, res, next) {
     res.status(400).render('pages/upload', {
       error: message,
       formValues: req.body || {},
-      pageTitle: 'Upload artwork'
+      pageTitle: 'Upload artwork',
+      categories: []
     });
   });
 }
@@ -196,6 +197,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// ----------------------------------------------------
+// ROUTES (MUST BE PLACED BEFORE 404 CATCH-ALL)
+// ----------------------------------------------------
+
 // 1. Home Page Route
 app.get('/', async (req, res, next) => {
   try {
@@ -213,8 +218,8 @@ app.get('/', async (req, res, next) => {
         ORDER BY a.created_at DESC`
     );
 
-    const latest = bookArtworks.slice(0, 9);
-    const heroArtwork = bookArtworks[0] || null;
+    const latest = (bookArtworks || []).slice(0, 9);
+    const heroArtwork = (bookArtworks && bookArtworks[0]) || null;
     const heroArtworkIndex = heroArtwork ? bookArtworks.indexOf(heroArtwork) : 0;
 
     const artistRows = await db.execute(
@@ -225,7 +230,7 @@ app.get('/', async (req, res, next) => {
          ORDER BY art_count DESC
          LIMIT 1`
     );
-    const artistSpotlight = artistRows[0] || null;
+    const artistSpotlight = (artistRows && artistRows[0]) || null;
 
     const categoryRows = await db.execute(
       `SELECT c.slug, c.name, COUNT(a.id) AS count
@@ -234,13 +239,13 @@ app.get('/', async (req, res, next) => {
          GROUP BY c.id
          ORDER BY c.sort_order`
     );
-    const visibleCategories = categoryRows.map((category) => ({
+    const visibleCategories = (categoryRows || []).map((category) => ({
       slug: category.slug,
       name: category.name,
       count: Number(category.count) || 0
     }));
 
-    const homeArtistCount = new Set(bookArtworks.map((artwork) => artwork.username)).size;
+    const homeArtistCount = new Set((bookArtworks || []).map((artwork) => artwork.username)).size;
 
     const currentUser = (req.session && req.session.user) || null;
     const isAuthenticated = Boolean(currentUser);
@@ -254,7 +259,7 @@ app.get('/', async (req, res, next) => {
       heroArtwork,
       heroArtworkImageUrl: heroArtwork ? (heroArtwork.image_url || heroArtwork.thumbnail_url) : null,
       heroArtworkIndex,
-      bookArtworks,
+      bookArtworks: bookArtworks || [],
       latest,
       artistSpotlight,
       visibleCategories,
@@ -280,7 +285,7 @@ app.get('/explore', async (req, res, next) => {
          GROUP BY c.id
          ORDER BY c.sort_order`
     );
-    const categories = categoryRows.map((row) => ({
+    const categories = (categoryRows || []).map((row) => ({
       slug: row.slug,
       name: row.name,
       count: Number(row.count) || 0
@@ -322,19 +327,25 @@ app.get('/explore', async (req, res, next) => {
       queryParams
     );
 
-    const total = artworks ? artworks.length : 0;
+    const totalRows = await db.execute("SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1");
+    const totalArtworks = Number((totalRows && totalRows[0] && totalRows[0].count) || 0);
+
+    const artistRows = await db.execute("SELECT COUNT(DISTINCT user_id) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1");
+    const artistCount = Number((artistRows && artistRows[0] && artistRows[0].count) || 0);
 
     res.render('pages/explore', {
       pageTitle: 'ArtSpace | Explore',
       isAuthenticated: false,
       currentUser: null,
       unreadNotifications: 0,
-      query: query,
-      filter: filter,
-      categories: categories,
+      query,
+      filter,
+      categories,
       artworks: artworks || [],
-      total: total,
-      sort: sort
+      total: totalArtworks,
+      totalArtworks,
+      artistCount,
+      sort
     });
   } catch (err) {
     next(err);
@@ -344,11 +355,16 @@ app.get('/explore', async (req, res, next) => {
 // 3. Upload Page Route
 app.get('/upload', async (req, res, next) => {
   try {
+    const categories = await db.execute(
+      `SELECT id, name, slug FROM categories ORDER BY sort_order ASC`
+    );
+
     res.render('pages/upload', {
       pageTitle: 'ArtSpace | Upload',
       isAuthenticated: false,
       currentUser: null,
       unreadNotifications: 0,
+      categories: categories || [],
       error: null,
       formValues: {}
     });
@@ -386,14 +402,14 @@ app.get('/profile/:username', async (req, res, next) => {
   try {
     const targetUsername = req.params.username;
     const userRows = await db.execute(
-      `SELECT u.id, u.username, u.avatar, u.bio, u.display_name, COUNT(a.id) AS art_count
+      `SELECT u.id, u.username, NULL AS avatar, NULL AS bio, u.display_name, COUNT(a.id) AS art_count
          FROM users u
          LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
          GROUP BY u.id
          HAVING u.username = ?`,
       [targetUsername]
     );
-    const targetUser = userRows[0];
+    const targetUser = (userRows && userRows[0]) || null;
 
     if (!targetUser) {
       return res.status(404).render('pages/error', {
@@ -420,7 +436,7 @@ app.get('/profile/:username', async (req, res, next) => {
       isAuthenticated: false,
       currentUser: null,
       unreadNotifications: 0,
-      targetUser: targetUser,
+      targetUser,
       artworks: artRows || []
     });
   } catch (err) {
@@ -428,7 +444,9 @@ app.get('/profile/:username', async (req, res, next) => {
   }
 });
 
-// 7. 404 Catch-All Middleware (MUST STAY AT THE VERY BOTTOM OF ALL ROUTES)
+// ----------------------------------------------------
+// 404 CATCH-ALL MIDDLEWARE (MUST BE AT THE VERY END)
+// ----------------------------------------------------
 app.use((req, res, next) => {
   res.status(404).render('pages/error', {
     message: 'The page you requested could not be found.',
@@ -439,7 +457,7 @@ app.use((req, res, next) => {
   });
 });
 
-// Start the HTTP listener only during local development
+// Start listener locally
 if (!IS_VERCEL) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
@@ -447,5 +465,5 @@ if (!IS_VERCEL) {
   });
 }
 
-// Export the app instance for Vercel Serverless Functions
+// Export app for Vercel Serverless
 module.exports = app;
