@@ -18,6 +18,45 @@ let baseSql;
 async function initPool() {
   if (!pool) {
     pool = mysql.createPool(dbConfig);
+    // Ensure required tables exist
+    await pool.execute(`CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(191) UNIQUE,
+      email VARCHAR(191) UNIQUE,
+      password_hash TEXT,
+      display_name TEXT,
+      bio TEXT,
+      avatar TEXT,
+      cover_image TEXT,
+      website TEXT,
+      instagram TEXT,
+      twitter TEXT,
+      role TEXT,
+      is_verified INTEGER,
+      created_at TEXT
+    )`);
+    await pool.execute(`CREATE TABLE IF NOT EXISTS categories (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name TEXT,
+      slug VARCHAR(191) UNIQUE,
+      sort_order INTEGER
+    )`);
+    await pool.execute(`CREATE TABLE IF NOT EXISTS artworks (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INTEGER,
+      category_id INTEGER,
+      title TEXT,
+      description TEXT,
+      tags TEXT,
+      image_url TEXT,
+      thumbnail_url TEXT,
+      visibility TEXT,
+      is_published INTEGER,
+      created_at TEXT,
+      updated_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (category_id) REFERENCES categories(id)
+    )`);
   }
   return pool;
 }
