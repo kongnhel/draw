@@ -86,7 +86,7 @@
       <a href="/explore?category=all&amp;sort=<%= encodeURIComponent(sort) %><% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="studio-explore-category <%= filter === 'all' ? 'is-active' : '' %>" data-explore-link data-explore-category="all" <%= filter === 'all' ? 'aria-current="page"' : '' %>>
         All artwork <sup><%= totalArtworks %></sup>
       </a>
-      <% categoryFilters.forEach((category) => { %>
+      <% categories.forEach((category) => { %>
         <a href="/explore?category=<%= encodeURIComponent(category.slug) %>&amp;sort=<%= encodeURIComponent(sort) %><% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="studio-explore-category <%= filter === category.slug ? 'is-active' : '' %>" data-explore-link data-explore-category="<%= category.slug %>" <%= filter === category.slug ? 'aria-current="page"' : '' %>>
           <%= category.name %> <sup><%= category.count %></sup>
         </a>
