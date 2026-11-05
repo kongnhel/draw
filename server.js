@@ -12,7 +12,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const ImageKit = require('imagekit'); // 1. Added missing ImageKit import
+const ImageKit = require('imagekit');
 
 dotenv.config();
 
@@ -148,13 +148,11 @@ async function uploadArtworkToImageKit(files, userId) {
         originalName = file.filename || originalName;
       }
 
-      // Optimize image with sharp (added await)
       const optimized = await sharp(buffer)
         .resize({ width: 1600, fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 82 })
         .toBuffer();
 
-      // Upload to ImageKit
       const result = await ik.upload({
         file: optimized,
         fileName: `${userId}-${Date.now()}-${path.extname(originalName)}`,
@@ -194,3 +192,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Add your app routes here (e.g., app.get('/', ...))
+
+// 1. Export the app instance for Vercel Serverless Functions
+module.exports = app;
+
+// 2. Start the HTTP listener only during local development
+if (!IS_VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server running locally on http://localhost:${PORT}`);
+  });
+}
