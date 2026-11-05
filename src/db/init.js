@@ -31,20 +31,39 @@ async function execute(sql, params = []) {
 // Prepare a statement (mimics better-sqlite3 .prepare())
 function prepare(sql) {
   return {
-    all: (...args) => {
+    all: async (...args) => {
       const p = args[0] || [];
       return execute(sql, typeof p === 'object' ? p : [p]);
     },
-    get: (...args) => {
+    get: async (...args) => {
       const p = args[0] || [];
-      return execute(sql, typeof p === 'object' ? p : [p]).then(([results]) => results.length > 0 ? results[0] : null);
+      const [results] = await execute(sql, typeof p === 'object' ? p : [p]);
+      return results.length > 0 ? results[0] : null;
     },
-    run: (...args) => {
+    run: async (...args) => {
       const p = args.length > 1 ? args[1] : args[0] || [];
       return execute(sql, typeof p === 'object' ? p : [p]);
     }
   };
 }
+
+// Add sync methods that wait for promises (for compatibility with existing server.js)
+prepare.prototype.allSync = async function(...args) {
+  const p = args[0] || [];
+  const results = await execute(sql, typeof p === 'object' ? p : [p]);
+  return results;
+};
+
+prepare.prototype.getSync = async function(...args) {
+  const p = args[0] || [];
+  const [results] = await execute(sql, typeof p === 'object' ? p : [p]);
+  return results.length > 0 ? results[0] : null;
+};
+
+prepare.prototype.runSync = async function(...args) {
+  const p = args.length > 1 ? args[1] : args[0] || [];
+  return await execute(sql, typeof p === 'object' ? p : [p]);
+};
 
 function pragma(...args) {
   return [];
@@ -54,19 +73,37 @@ function exec(sql) {
   return execute(sql);
 }
 
-// Initialize pool
-initPool();
+// Initialize pool on module load
+initPool().then(() => {
+  console.log('MySQL pool initialized');
+}).catch((err) => {
+  console.error('Failed to initialize MySQL pool:', err.message);
+});
 
-module.exports = {
-  db: {
-    ...prepare('SELECT 1'),
-    prepare,
-    pragma,
-    exec,
-    end: async () => {
-      if (pool) {
-        await pool.end();
-      }
+// Export with both async and sync methods
+const db = {
+  ...prepare('SELECT 1'),
+  prepare,
+  pragma,
+  exec,
+  end: async () => {
+    if (pool) {
+      await pool.end();
     }
   }
 };
+
+// Add sync wrappers to db object
+db.allSync = async () => {
+  const [results] = await execute('SELECT 1');
+  return results;
+};
+db.getSync = async () => {
+  const [results] = await execute('SELECT 1');
+  return results.length > 0 ? results[0] : null;
+};
+db.runSync = async () => {
+  return await execute('SELECT 1');
+};
+
+module.exports = { db };
