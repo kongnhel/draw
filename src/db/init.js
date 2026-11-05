@@ -71,6 +71,7 @@ const db = {
   prepare,
   pragma,
   exec,
+  execute,
   end: async () => {
     if (pool) {
       await pool.end();
@@ -78,4 +79,4 @@ const db = {
   }
 };
 
-module.exports = { db };
+module.exports = { dbConfig, db };

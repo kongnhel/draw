@@ -179,6 +179,9 @@ async function uploadArtworkToImageKit(files, userId) {
 
 const app = express();
 
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
 // Add IS_VERCEL to res.locals for template rendering
 app.use((req, res, next) => {
   res.locals.isVercel = IS_VERCEL;
@@ -193,15 +196,92 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Add your app routes here (e.g., app.get('/', ...))
+app.get('/', async (req, res, next) => {
+  try {
+    const totalArtworkRows = await db.execute('SELECT COUNT(*) AS count FROM artworks');
+    const totalArtworks = Number((totalArtworkRows && totalArtworkRows[0] && totalArtworkRows[0].count) || 0);
 
-// 1. Export the app instance for Vercel Serverless Functions
-module.exports = app;
+    const bookArtworks = await db.execute(
+      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+              u.username, u.display_name, u.avatar, c.name AS category_name, c.slug AS category_slug,
+              a.created_at, a.visibility, a.is_published
+         FROM artworks a
+         INNER JOIN users u ON u.id = a.user_id
+         INNER JOIN categories c ON c.id = a.category_id
+        WHERE a.visibility = 'public' AND a.is_published = 1
+        ORDER BY a.created_at DESC`
+    );
 
-// 2. Start the HTTP listener only during local development
+    const latest = bookArtworks.slice(0, 9);
+    const heroArtwork = bookArtworks[0] || null;
+    const heroArtworkIndex = heroArtwork ? bookArtworks.indexOf(heroArtwork) : 0;
+
+    const artistRows = await db.execute(
+      `SELECT u.username, u.display_name, u.avatar, u.bio, COUNT(a.id) AS art_count
+         FROM users u
+         LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
+         GROUP BY u.id
+         ORDER BY art_count DESC
+         LIMIT 1`
+    );
+    const artistSpotlight = artistRows[0] || null;
+
+    const categoryRows = await db.execute(
+      `SELECT c.slug, c.name, COUNT(a.id) AS count
+         FROM categories c
+         LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
+         GROUP BY c.id
+         ORDER BY c.sort_order`
+    );
+    const visibleCategories = categoryRows.map((category) => ({
+      slug: category.slug,
+      name: category.name,
+      count: Number(category.count) || 0
+    }));
+
+    const homeArtistCount = new Set(bookArtworks.map((artwork) => artwork.username)).size;
+
+    const currentUser = (req.session && req.session.user) || null;
+    const isAuthenticated = Boolean(currentUser);
+
+    res.render('pages/home', {
+      pageTitle: 'ArtSpace | Discover original artwork',
+      isAuthenticated,
+      currentUser,
+      unreadNotifications: 0,
+      totalArtworks,
+      heroArtwork,
+      heroArtworkImageUrl: heroArtwork ? (heroArtwork.image_url || heroArtwork.thumbnail_url) : null,
+      heroArtworkIndex,
+      bookArtworks,
+      latest,
+      artistSpotlight,
+      visibleCategories,
+      homeArtistCount,
+      liveCategoryCount: visibleCategories.filter((category) => Number(category.count) > 0).length
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.use((req, res, next) => {
+  res.status(404).render('pages/error', {
+    message: 'The page you requested could not be found.',
+    pageTitle: 'ArtSpace | Page not found',
+    isAuthenticated: false,
+    currentUser: null,
+    unreadNotifications: 0
+  });
+});
+
+// Start the HTTP listener only during local development
 if (!IS_VERCEL) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server running locally on http://localhost:${PORT}`);
   });
 }
+
+// Export the app instance for Vercel Serverless Functions
+module.exports = app;
