@@ -28,7 +28,10 @@ ArtSpace is a modern art-focused social platform built with Express, EJS, SQLite
 2. Start the app:
    npm start
 3. Visit:
-   http://localhost:3000
+   http://localhost
+   http://192.168.1.32
+
+The server listens on all interfaces. If port 80 is unavailable, set `PORT=3000` in `.env` and append `:3000` to both URLs.
 
 ## Demo credentials
 

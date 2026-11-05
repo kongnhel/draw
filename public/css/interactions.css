@@ -1,0 +1,108 @@
+/* ==========================================================================
+   Sketchbook Interactions — Artwork Magnifier + Global Sound Toggle
+   ========================================================================== */
+
+/* ---------- Artwork magnifying lens ---------- */
+
+.art-magnifier {
+  position: fixed;
+  z-index: 9000;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-color: rgba(239, 233, 219, 0.35);
+  border: 2px solid rgba(58, 56, 51, 0.55);
+  box-shadow:
+    0 18px 40px rgba(41, 40, 36, 0.35),
+    0 0 0 6px rgba(248, 245, 237, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    inset 0 0 26px rgba(255, 255, 255, 0.45);
+  opacity: 0;
+  transform: scale(0.82);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  will-change: left, top, opacity, transform;
+}
+
+.art-magnifier.is-visible { opacity: 1; transform: scale(1); }
+
+:root[data-theme='dark'] .art-magnifier {
+  background-color: rgba(41, 40, 36, 0.35);
+  border-color: rgba(248, 245, 237, 0.38);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.55),
+    0 0 0 5px rgba(41, 40, 36, 0.55),
+    inset 0 0 0 1px rgba(248, 245, 237, 0.18),
+    inset 0 0 26px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- "Inspect Details +" handwritten hint ---------- */
+
+.magnifier-hint {
+  position: fixed;
+  z-index: 9000;
+  padding: 3px 16px 5px;
+  color: #fbf8f0;
+  background: rgba(41, 40, 36, 0.82);
+  border: 1px dashed rgba(251, 248, 240, 0.4);
+  border-radius: 999px;
+  font-family: 'Caveat', 'Kantumruy Pro', cursive;
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 6px) rotate(-1.2deg);
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+.magnifier-hint.is-visible { opacity: 1; transform: translate(-50%, 0) rotate(-1.2deg); }
+
+/* ---------- Global sound toggle (footer) ---------- */
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--ad-line-soft, rgba(41, 40, 36, 0.35));
+  border-radius: 999px;
+  font-family: 'Kantumruy Pro', 'Noto Sans Khmer', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.sound-toggle:hover { color: var(--text); border-color: var(--text); transform: translateY(-1px) rotate(-0.3deg); }
+.sound-toggle:focus-visible { outline: 2px dashed var(--secondary); outline-offset: 2px; }
+.sound-toggle[aria-pressed='true'] { color: var(--secondary); border-color: var(--secondary); background: rgba(154, 128, 102, 0.12); }
+
+.sound-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.sound-toggle .sound-toggle-mute { display: none; }
+.sound-toggle[aria-pressed='false'] .sound-toggle-waves { display: none; }
+.sound-toggle[aria-pressed='false'] .sound-toggle-mute { display: block; }
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .art-magnifier,
+  .magnifier-hint,
+  .sound-toggle {
+    transition: none !important;
+  }
+}
+
+/* ---------- Coarse pointers never show the lens ---------- */
+
+@media (pointer: coarse) {
+  .art-magnifier,
+  .magnifier-hint {
+    display: none !important;
+  }
+}

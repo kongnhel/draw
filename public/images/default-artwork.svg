@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Artwork preview unavailable">
+  <defs>
+    <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7f2e6" />
+      <stop offset="100%" stop-color="#ece4d3" />
+    </linearGradient>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n" />
+      <feColorMatrix in="n" type="saturate" values="0" />
+      <feComponentTransfer><feFuncA type="linear" slope="0.045" /></feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="400" height="500" fill="url(#paper)" />
+  <rect width="400" height="500" filter="url(#grain)" opacity="0.6" />
+  <path d="M22 24c118-6 236-6 356 0 4 150 4 302 0 452-118 6-238 6-356 0-4-150-4-302 0-452Z" fill="none" stroke="#b9ad93" stroke-width="3" stroke-dasharray="4 7" stroke-linecap="round" />
+  <g fill="none" stroke="#7d7361" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+    <path d="M200 322c-3-40-4-78-3-116" stroke-width="4.5" />
+    <path d="M199 244c-24-6-40-26-38-50 24-2 44 14 48 38" stroke-width="4" />
+    <path d="M201 268c26-4 44-22 44-46-24-4-44 12-50 34" stroke-width="4" />
+    <path d="M159 200c-6-14-2-30 10-40 10 12 12 28 4 42" stroke-width="3.5" />
+    <path d="M244 214c10-12 26-16 38-8-4 14-18 24-32 22" stroke-width="3.5" />
+    <path d="M172 322c18 8 38 8 56 0" stroke-width="4" />
+    <path d="M154 372c30 10 62 10 92 0" stroke-width="3" opacity="0.6" />
+  </g>
+  <circle cx="200" cy="160" r="7" fill="#7d7361" opacity="0.85" />
+  <text x="200" y="430" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="15" letter-spacing="3" fill="#9a8f7a">IMAGE UNAVAILABLE</text>
+</svg>

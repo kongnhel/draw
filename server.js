@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const express = require('express');
@@ -44,6 +45,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       connectSrc: ["'self'"],
+      upgradeInsecureRequests: null,
     }
   }
 }));
@@ -119,11 +121,21 @@ function redirectBack(req, res) {
   return res.redirect(referer || '/');
 }
 
+const DEFAULT_AVATAR = '/uploads/avatars/default-avatar.svg';
+const DEFAULT_COVER = '/uploads/covers/default-cover.svg';
+
+function resolveUploadAsset(value, fallback) {
+  if (!value || typeof value !== 'string') return fallback;
+  if (!value.startsWith('/uploads/')) return value;
+  const filePath = path.join(uploadsDir, value.replace(/^\/uploads\//, ''));
+  return fs.existsSync(filePath) ? value : fallback;
+}
+
 function formatUser(user) {
   return {
     ...user,
     display_name: user.display_name || user.username,
-    avatar: user.avatar || '/uploads/avatars/default-avatar.png'
+    avatar: resolveUploadAsset(user.avatar, DEFAULT_AVATAR)
   };
 }
 
@@ -137,8 +149,9 @@ function calculateArtStats(userId) {
   `).get(userId).count;
   const followers = db.prepare('SELECT COUNT(*) AS count FROM follows WHERE following_id = ?').get(userId).count;
   const following = db.prepare('SELECT COUNT(*) AS count FROM follows WHERE follower_id = ?').get(userId).count;
+  const totalViews = db.prepare('SELECT COALESCE(SUM(views), 0) AS count FROM artworks WHERE user_id = ? AND is_published = 1').get(userId).count;
 
-  return { totalArtworks, totalLikes, followers, following };
+  return { totalArtworks, totalLikes, followers, following, totalViews };
 }
 
 function getArtworkCardData(artwork) {
@@ -155,7 +168,7 @@ function getArtworkCardData(artwork) {
 
 function formatDate(value) {
   if (!value) return 'Just now';
-  return new Date(value).toLocaleDateString('en-US', {
+  return new Date(toTimestamp(value)).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
@@ -313,7 +326,7 @@ app.get('/', (req, res) => {
     FROM artworks a
     INNER JOIN users u ON u.id = a.user_id
     INNER JOIN categories c ON c.id = a.category_id
-    WHERE a.is_published = 1
+    WHERE a.is_published = 1 AND a.visibility = 'public'
     ORDER BY a.created_at DESC, a.id DESC
   `).all(userId, userId).map(getArtworkCardData);
 
@@ -346,6 +359,19 @@ app.get('/', (req, res) => {
     LIMIT 1
   `).get();
 
+  const categoryCounts = db.prepare(`
+    SELECT c.id, COUNT(a.id) AS count
+    FROM categories c
+    LEFT JOIN artworks a ON a.category_id = c.id AND a.is_published = 1 AND a.visibility = 'public'
+    GROUP BY c.id
+    ORDER BY c.sort_order ASC
+  `).all();
+  const countById = new Map(categoryCounts.map((row) => [row.id, Number(row.count || 0)]));
+  const visibleCategories = categoryRows.map((category) => ({
+    ...category,
+    count: countById.get(category.id) || 0
+  }));
+
   res.render('pages/home', {
     bookArtworks,
     heroArtwork,
@@ -353,6 +379,8 @@ app.get('/', (req, res) => {
     heroArtworkIndex,
     latest,
     artistSpotlight,
+    visibleCategories,
+    totalArtworks: bookArtworks.length,
     pageTitle: 'ArtSpace | Discover original artwork'
   });
 });
@@ -829,6 +857,8 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res) => {
 
 app.get('/profile/edit', requireAuth, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
+  user.avatar = resolveUploadAsset(user.avatar, DEFAULT_AVATAR);
+  user.cover_image = resolveUploadAsset(user.cover_image, DEFAULT_COVER);
   res.render('pages/profile-edit', { user, pageTitle: 'Edit profile' });
 });
 
@@ -888,21 +918,33 @@ app.get('/profile/:username', (req, res) => {
     return res.status(404).render('pages/error', { message: 'Profile not found.' });
   }
 
+  profileUser.avatar = resolveUploadAsset(profileUser.avatar, DEFAULT_AVATAR);
+  profileUser.cover_image = resolveUploadAsset(profileUser.cover_image, DEFAULT_COVER);
+
   const tab = (req.query.tab || 'artworks').toLowerCase();
   const activeTab = ['artworks', 'liked', 'saved'].includes(tab) ? tab : 'artworks';
 
+  const currentUserId = req.session.user?.id || 0;
+
   const artworks = db.prepare(`
-    SELECT a.*, c.name AS category_name,
+    SELECT a.*, c.name AS category_name, u.username, u.display_name, u.avatar,
       COALESCE((SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id), 0) AS likes_count,
-      COALESCE((SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id), 0) AS comments_count
+      COALESCE((SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id), 0) AS comments_count,
+      CASE WHEN EXISTS (SELECT 1 FROM likes l2 WHERE l2.artwork_id = a.id AND l2.user_id = ?) THEN 1 ELSE 0 END AS is_liked,
+      CASE WHEN EXISTS (SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) THEN 1 ELSE 0 END AS is_bookmarked
     FROM artworks a
+    INNER JOIN users u ON u.id = a.user_id
     INNER JOIN categories c ON c.id = a.category_id
     WHERE a.user_id = ? AND a.is_published = 1
     ORDER BY a.created_at DESC
-  `).all(profileUser.id);
+  `).all(currentUserId, currentUserId, profileUser.id).map(getArtworkCardData);
 
   const likedArtworks = db.prepare(`
-    SELECT a.*, c.name AS category_name, u.username, u.display_name
+    SELECT a.*, c.name AS category_name, u.username, u.display_name, u.avatar,
+      COALESCE((SELECT COUNT(*) FROM likes l2 WHERE l2.artwork_id = a.id), 0) AS likes_count,
+      COALESCE((SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id), 0) AS comments_count,
+      1 AS is_liked,
+      CASE WHEN EXISTS (SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) THEN 1 ELSE 0 END AS is_bookmarked
     FROM likes l
     INNER JOIN artworks a ON a.id = l.artwork_id
     INNER JOIN users u ON u.id = a.user_id
@@ -910,10 +952,14 @@ app.get('/profile/:username', (req, res) => {
     WHERE l.user_id = ? AND a.is_published = 1
     ORDER BY l.created_at DESC
     LIMIT 6
-  `).all(profileUser.id);
+  `).all(currentUserId, profileUser.id).map(getArtworkCardData);
 
   const savedArtworks = db.prepare(`
-    SELECT a.*, c.name AS category_name, u.username, u.display_name
+    SELECT a.*, c.name AS category_name, u.username, u.display_name, u.avatar,
+      COALESCE((SELECT COUNT(*) FROM likes l2 WHERE l2.artwork_id = a.id), 0) AS likes_count,
+      COALESCE((SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id), 0) AS comments_count,
+      CASE WHEN EXISTS (SELECT 1 FROM likes l2 WHERE l2.artwork_id = a.id AND l2.user_id = ?) THEN 1 ELSE 0 END AS is_liked,
+      1 AS is_bookmarked
     FROM bookmarks b
     INNER JOIN artworks a ON a.id = b.artwork_id
     INNER JOIN users u ON u.id = a.user_id
@@ -921,7 +967,7 @@ app.get('/profile/:username', (req, res) => {
     WHERE b.user_id = ? AND a.is_published = 1
     ORDER BY b.created_at DESC
     LIMIT 12
-  `).all(profileUser.id);
+  `).all(currentUserId, profileUser.id).map(getArtworkCardData);
 
   const isFollowing = req.session.user && db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(req.session.user.id, profileUser.id);
   const stats = calculateArtStats(profileUser.id);
@@ -934,6 +980,7 @@ app.get('/profile/:username', (req, res) => {
     activeTab,
     isFollowing: !!isFollowing,
     stats,
+    memberSinceLabel: formatDate(profileUser.created_at),
     pageTitle: `${profileUser.display_name} | ArtSpace`
   });
 });
@@ -1126,6 +1173,20 @@ app.get('/dashboard', requireAuth, (req, res) => {
     INNER JOIN artworks a ON a.id = l.artwork_id
     WHERE a.user_id = ? AND a.is_published = 1
   `).get(userId).count);
+  const commentsReceived = Number(db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM comments cm
+    INNER JOIN artworks a ON a.id = cm.artwork_id
+    WHERE a.user_id = ? AND a.is_published = 1
+  `).get(userId).count);
+  const bookmarksReceived = Number(db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM bookmarks b
+    INNER JOIN artworks a ON a.id = b.artwork_id
+    WHERE a.user_id = ? AND a.is_published = 1
+  `).get(userId).count);
+  const mostViewed = uploaded.reduce((top, artwork) => (artwork.views > (top ? top.views : -1) ? artwork : top), null);
+  const mostLiked = uploaded.reduce((top, artwork) => (artwork.likes_count > (top ? top.likes_count : -1) ? artwork : top), null);
 
   res.render('pages/dashboard', {
     uploaded,
@@ -1140,8 +1201,12 @@ app.get('/dashboard', requireAuth, (req, res) => {
       ...baseStats,
       totalViews,
       favoritesReceived,
-      collectionsCount: collections.length
+      collectionsCount: collections.length,
+      totalComments: commentsReceived,
+      bookmarksReceived
     },
+    mostViewed,
+    mostLiked,
     todayLabel: new Date().toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
@@ -1339,5 +1404,18 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(`ArtSpace is running at http://${HOST}:${PORT}`);
+  const portSuffix = Number(PORT) === 80 ? '' : `:${PORT}`;
+  const localUrl = `http://localhost${portSuffix}`;
+  console.log(`ArtSpace is running at ${localUrl}`);
+
+  if (HOST === '0.0.0.0') {
+    const lanAddresses = Object.values(os.networkInterfaces())
+      .flat()
+      .filter((network) => network && (network.family === 'IPv4' || network.family === 4) && !network.internal)
+      .map((network) => network.address);
+
+    [...new Set(lanAddresses)].forEach((address) => {
+      console.log(`LAN: http://${address}${portSuffix}`);
+    });
+  }
 });

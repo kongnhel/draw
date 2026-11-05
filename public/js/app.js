@@ -18,10 +18,20 @@ const applyTheme = (theme) => {
 
 applyTheme(localStorage.getItem(themeStorageKey) || 'light');
 
+const setActionLabel = (button, text) => {
+  const label = button?.querySelector('[data-action-label]');
+  if (label) label.textContent = text;
+  else if (button) button.textContent = text;
+};
+
 const updateLikeButton = (button, liked) => {
   if (!button) return;
   button.classList.toggle('active', liked);
-  button.textContent = liked ? 'Unlike' : 'Like';
+  setActionLabel(button, liked ? 'Unlike' : 'Like');
+  button.setAttribute('aria-pressed', String(Boolean(liked)));
+  if (button.classList.contains('ad-tool')) {
+    button.setAttribute('aria-label', liked ? 'Unlike this artwork' : 'Like this artwork');
+  }
 
   if (liked && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     button.classList.remove('like-pop');
@@ -34,16 +44,19 @@ const updateLikeButton = (button, liked) => {
 const updateSavedButton = (button, saved) => {
   if (!button) return;
   button.classList.toggle('active', saved);
-  button.textContent = saved ? 'Saved' : 'Save';
+  setActionLabel(button, saved ? 'Saved' : 'Save');
   button.setAttribute('aria-pressed', String(saved));
+  if (button.classList.contains('ad-tool')) {
+    button.setAttribute('aria-label', saved ? 'Remove from saved artwork' : 'Save this artwork');
+  }
 };
 
 const updateLikeCounter = (card, likesCount) => {
-  const likeCounter = card?.querySelector('.metric-inline span') || document.querySelector('[data-viewer-like-count]');
+  const likeCounter = card?.querySelector('.metric-inline span') || document.querySelector('[data-detail-likes-count]') || document.querySelector('[data-viewer-like-count]');
   if (!likeCounter) return;
   const value = Number.parseInt(likeCounter.textContent.replace(/[^\d]/g, ''), 10) || 0;
   const nextCount = Math.max(0, likesCount ?? value);
-  likeCounter.textContent = likeCounter.hasAttribute('data-viewer-like-count') ? String(nextCount) : `❤ ${nextCount}`;
+  likeCounter.textContent = (likeCounter.hasAttribute('data-viewer-like-count') || likeCounter.hasAttribute('data-detail-likes-count')) ? String(nextCount) : `❤ ${nextCount}`;
 };
 
 const bindQuickActions = () => {
@@ -188,6 +201,88 @@ const bindCommentForms = () => {
   });
 };
 
+const bindShareButtons = () => {
+  document.querySelectorAll('[data-share-artwork]').forEach((button) => {
+    if (button.dataset.shareBound === 'true') return;
+    button.dataset.shareBound = 'true';
+
+    button.addEventListener('click', async () => {
+      const label = button.querySelector('[data-share-label]') || button.querySelector('[data-action-label]');
+      const originalText = label ? label.textContent : 'Share';
+      const shareUrl = new URL(button.dataset.shareUrl || window.location.pathname, window.location.origin).toString();
+      const shareData = {
+        title: button.dataset.shareTitle || 'ArtSpace artwork',
+        text: button.dataset.shareText || 'Artwork on ArtSpace',
+        url: shareUrl
+      };
+
+      const flashLabel = (text) => {
+        if (!label) return;
+        label.textContent = text;
+        window.clearTimeout(button._shareTimer);
+        button._shareTimer = window.setTimeout(() => { if (button.isConnected) label.textContent = originalText; }, 1800);
+      };
+
+      try {
+        if (navigator.share) {
+          await navigator.share(shareData);
+          return;
+        }
+        await navigator.clipboard.writeText(shareData.url);
+        flashLabel('Copied!');
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        try {
+          const field = document.createElement('textarea');
+          field.value = shareData.url;
+          field.setAttribute('readonly', '');
+          field.style.position = 'fixed';
+          field.style.opacity = '0';
+          document.body.appendChild(field);
+          field.select();
+          document.execCommand('copy');
+          document.body.removeChild(field);
+          flashLabel('Copied!');
+        } catch {
+          flashLabel('Share unavailable');
+        }
+      }
+    });
+  });
+};
+
+const bindScrollReveal = () => {
+  const targets = document.querySelectorAll('.ad-reveal');
+  if (!targets.length) return;
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+    targets.forEach((target) => target.classList.add('is-visible'));
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries, currentObserver) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      currentObserver.unobserve(entry.target);
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px 48px 0px' });
+
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  targets.forEach((target, index) => {
+    const rect = target.getBoundingClientRect();
+    if (rect.top < viewportHeight && rect.bottom > 0) {
+      target.classList.add('is-visible');
+      return;
+    }
+
+    target.classList.add('ad-reveal-pending');
+    target.style.transitionDelay = `${(index % 5) * 70}ms`;
+    observer.observe(target);
+  });
+};
+
 const markCurrentNavigation = () => {
   const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
 
@@ -234,7 +329,8 @@ const revealArtworkCards = () => {
 };
 
 const bindArtworkImageFallback = (image, container) => {
-  if (!image) return;
+  if (!image || image.dataset.imageFallbackBound === 'true') return;
+  image.dataset.imageFallbackBound = 'true';
 
   const handleError = () => {
     const fallback = image.dataset.fallbackSrc;
@@ -264,6 +360,7 @@ const bindFlipbook = () => {
   const nextButton = experience.querySelector('[data-book-next]');
   const currentLabel = experience.querySelector('[data-book-current]');
   const liveLabel = experience.querySelector('[data-book-live]');
+  const closeBookButton = experience.querySelector('[data-book-close]');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   if (!pages.length || !artworkPages.length) return;
@@ -288,6 +385,165 @@ const bindFlipbook = () => {
     swipeDistance: 28,
     disableFlipByClick: false
   });
+
+  const bookSoundCues = new Map();
+  const bookCueKinds = ['open', 'page', 'reveal', 'close'];
+  let bookAudioContext = null;
+  let bookPageTimer = 0;
+  let bookRevealTimer = 0;
+  let bookCloseTimer = 0;
+  let bookResetTimer = 0;
+
+  const getBookAudioContext = () => {
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) return null;
+    if (!bookAudioContext || bookAudioContext.state === 'closed') bookAudioContext = new AudioContextConstructor();
+    if (bookAudioContext.state === 'suspended') bookAudioContext.resume().catch(() => {});
+    return bookAudioContext;
+  };
+
+  const playBookSynthCue = (kind) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    try {
+      const audioContext = getBookAudioContext();
+      if (!audioContext) return;
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const volume = audioContext.createGain();
+      const shape = kind === 'close'
+        ? { start: 520, end: 260, duration: 0.28 }
+        : kind === 'page'
+          ? { start: 330, end: 440, duration: 0.2 }
+          : { start: 180, end: 620, duration: 0.5 };
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(shape.start, now);
+      oscillator.frequency.exponentialRampToValueAtTime(shape.end, now + shape.duration);
+      volume.gain.setValueAtTime(0.0001, now);
+      volume.gain.exponentialRampToValueAtTime(kind === 'open' || kind === 'close' ? 0.02 : 0.014, now + 0.04);
+      volume.gain.exponentialRampToValueAtTime(0.0001, now + shape.duration);
+      oscillator.connect(volume);
+      volume.connect(audioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + shape.duration);
+    } catch {
+    }
+  };
+
+  const createBookCue = (kind) => {
+    const cue = new Audio(`/audio/art-${kind}.wav`);
+    cue.preload = 'auto';
+    cue.volume = kind === 'reveal' ? 0.12 : 0.16;
+    cue.addEventListener('error', () => {
+      cue.dataset.unavailable = 'true';
+    }, { once: true });
+    cue.load();
+    bookSoundCues.set(kind, cue);
+    return cue;
+  };
+
+  const playBookCue = (kind) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let soundPref = 'on';
+    try { soundPref = localStorage.getItem('artspace-art-sound') || 'on'; } catch { /* private mode */ }
+    if (soundPref === 'off') return;
+
+    try {
+      let cue = bookSoundCues.get(kind);
+      if (!cue) cue = createBookCue(kind);
+
+      if (cue.dataset.unavailable) {
+        playBookSynthCue(kind);
+        return;
+      }
+
+      cue.pause();
+      cue.currentTime = 0;
+      cue.play().catch(() => playBookSynthCue(kind));
+    } catch {
+      playBookSynthCue(kind);
+    }
+  };
+
+  const resetBookAudioCues = () => {
+    bookSoundCues.forEach((cue) => {
+      cue.pause();
+      cue.currentTime = 0;
+    });
+  };
+
+  const clearBookAudioCues = () => {
+    resetBookAudioCues();
+    bookSoundCues.forEach((cue) => {
+      cue.removeAttribute('src');
+      cue.load();
+    });
+    bookSoundCues.clear();
+
+    if (bookAudioContext && bookAudioContext.state !== 'closed') {
+      bookAudioContext.close().catch(() => {});
+    }
+    bookAudioContext = null;
+  };
+
+  bookCueKinds.forEach((kind) => {
+    if (!bookSoundCues.has(kind)) createBookCue(kind);
+  });
+  window.addEventListener('pagehide', clearBookAudioCues, { once: true });
+
+  let bookOpenState = false;
+  const setBookOpenState = (next) => {
+    bookOpenState = next;
+    experience.dataset.open = String(next);
+    book.classList.toggle('is-open', next);
+    if (closeBookButton) closeBookButton.hidden = !next;
+  };
+
+  const syncBookOpenState = (pageIndex) => {
+    const next = pageIndex > 0;
+    setBookOpenState(next);
+    if (!next) {
+      book.classList.remove('is-opening', 'is-open');
+      window.clearTimeout(bookRevealTimer);
+    }
+  };
+
+  const openBook = (flip = false) => {
+    if (!pageFlip || bookOpenState) return;
+    setBookOpenState(true);
+    book.classList.add('is-opening');
+    book.classList.remove('is-closing');
+    playBookCue('open');
+    window.clearTimeout(bookPageTimer);
+    window.clearTimeout(bookRevealTimer);
+    window.clearTimeout(bookCloseTimer);
+    window.clearTimeout(bookResetTimer);
+    bookPageTimer = window.setTimeout(() => playBookCue('page'), reducedMotion ? 0 : 220);
+    bookRevealTimer = window.setTimeout(() => {
+      if (bookOpenState) {
+        book.classList.remove('is-opening');
+        book.classList.add('is-open');
+        playBookCue('reveal');
+      }
+    }, reducedMotion ? 0 : 1000);
+    if (flip) pageFlip.flipNext();
+  };
+
+  const closeBook = () => {
+    if (!pageFlip || !bookOpenState) return;
+    setBookOpenState(false);
+    book.classList.add('is-closing');
+    playBookCue('close');
+    pageFlip.flip(0);
+    window.clearTimeout(bookPageTimer);
+    window.clearTimeout(bookRevealTimer);
+    bookPageTimer = window.setTimeout(() => playBookCue('page'), reducedMotion ? 0 : 220);
+    bookResetTimer = window.setTimeout(resetBookAudioCues, reducedMotion ? 0 : 1800);
+    bookCloseTimer = window.setTimeout(() => {
+      book.classList.remove('is-closing');
+    }, reducedMotion ? 0 : 1000);
+  };
 
   const loadNearbyImages = (pageIndex) => {
     const firstArtworkIndex = Math.max(0, Math.min(artworkPages.length - 1, pageIndex - 1));
@@ -338,22 +594,57 @@ const bindFlipbook = () => {
 
   pageFlip.loadFromHTML(pages);
   loadNearbyImages(0);
+  experience.addEventListener('mousedown', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const interactive = target?.closest('a[href], button, form, input, textarea, select, [contenteditable], .book-controls, [data-book-close]');
+    if (interactive || event.defaultPrevented) return;
+    if (bookOpenState) return;
+    openBook();
+  }, true);
+
   pageFlip.on('flip', (event) => {
     loadNearbyImages(event.data);
     updateBookControls(event.data);
+    syncBookOpenState(event.data);
   });
   pageFlip.on('changeOrientation', () => updateBookControls());
 
-  previousButton?.addEventListener('click', () => pageFlip.flipPrev());
-  nextButton?.addEventListener('click', () => pageFlip.flipNext());
+  closeBookButton?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeBook();
+  });
+
+  previousButton?.addEventListener('click', () => {
+    playBookCue('page');
+    pageFlip.flipPrev();
+  });
+  nextButton?.addEventListener('click', () => {
+    if (!bookOpenState) {
+      openBook(true);
+      return;
+    }
+    playBookCue('page');
+    pageFlip.flipNext();
+  });
   book.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
+      playBookCue('page');
       pageFlip.flipPrev();
     }
     if (event.key === 'ArrowRight') {
       event.preventDefault();
-      pageFlip.flipNext();
+      if (!bookOpenState) {
+        openBook(true);
+      } else {
+        playBookCue('page');
+        pageFlip.flipNext();
+      }
+    }
+    if (event.key === 'Escape' && bookOpenState) {
+      event.preventDefault();
+      closeBook();
     }
   });
 
@@ -412,7 +703,7 @@ const bindArtViewer = () => {
   let parallaxFrame = 0;
   let frameResizeObserver = null;
   let loadSequence = 0;
-  let soundEnabled = localStorage.getItem('artspace-art-sound') === 'on';
+  let soundEnabled = localStorage.getItem('artspace-art-sound') !== 'off';
   let visualEffectsEnabled = localStorage.getItem('artspace-art-effects') !== 'off';
   let audioContext = null;
   let isZoomed = false;
@@ -1152,8 +1443,13 @@ document.addEventListener('keydown', (event) => {
 
 bindQuickActions();
 bindCommentForms();
+bindShareButtons();
+bindScrollReveal();
 const heroArtwork = document.querySelector('[data-home-feature-image]');
 bindArtworkImageFallback(heroArtwork, heroArtwork?.closest('.home-hero-feature'));
+document.querySelectorAll('img[data-fallback-src]').forEach((image) => {
+  bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature'));
+});
 bindFlipbook();
 bindArtViewer();
 markCurrentNavigation();
@@ -1222,7 +1518,7 @@ if (studioDashboard) {
   updateStudioSectionFromScroll();
 
   const studioRevealTargets = [
-    ...studioDashboard.querySelectorAll('[data-doodle], .studio-art-card'),
+    ...studioDashboard.querySelectorAll('[data-doodle], .studio-art-card, .studio-stat-card, .studio-quick-card'),
     ...(studioCollectionDialog ? studioCollectionDialog.querySelectorAll('[data-doodle]') : [])
   ];
 
@@ -2045,4 +2341,91 @@ if (explorePage) {
 
   bindExploreMedia();
   syncExploreControls();
+}
+
+const homePage = document.querySelector('[data-sketch-home]');
+
+if (homePage) {
+  const intro = document.querySelector('[data-sketch-intro]');
+  const introSkip = intro?.querySelector('[data-sketch-intro-skip]');
+  const homeReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const introStorageKey = 'artspace-home-intro';
+  let introTimer = null;
+
+  const readIntroStorage = () => {
+    try {
+      return window.sessionStorage.getItem(introStorageKey) === 'seen';
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const hideIntro = (reason) => {
+    if (!intro || intro.classList.contains('is-hidden')) return;
+    window.clearTimeout(introTimer);
+    intro.classList.add('is-hidden');
+    document.body.classList.remove('home-intro-locked');
+    try {
+      window.sessionStorage.setItem(introStorageKey, 'seen');
+    } catch (error) {
+      void error;
+    }
+    window.setTimeout(() => intro.remove(), 720);
+    if (reason === 'skip') introSkip?.blur();
+  };
+
+  if (intro) {
+    if (homeReducedMotion.matches || readIntroStorage()) {
+      intro.remove();
+    } else {
+      document.body.classList.add('home-intro-active');
+      document.body.classList.add('home-intro-locked');
+      window.setTimeout(() => intro.classList.add('is-drawn'), 240);
+      introSkip?.addEventListener('click', () => hideIntro('skip'));
+      intro.addEventListener('click', (event) => {
+        if (event.target.closest('a, button')) return;
+        hideIntro('click');
+      });
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && intro.isConnected) hideIntro('escape');
+      });
+      introTimer = window.setTimeout(() => hideIntro('auto'), 2100);
+    }
+  }
+
+  const motionTargets = [...homePage.querySelectorAll('[data-motion]')];
+  if (motionTargets.length && !homeReducedMotion.matches && 'IntersectionObserver' in window) {
+    motionTargets.forEach((target, index) => {
+      target.classList.add('motion-pending');
+      target.style.setProperty('--motion-delay', `${(index % 4) * 70}ms`);
+    });
+
+    const motionObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.remove('motion-pending');
+        entry.target.classList.add('is-motion-visible');
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+
+    motionTargets.forEach((target) => motionObserver.observe(target));
+  } else {
+    motionTargets.forEach((target) => target.classList.remove('motion-pending'));
+  }
+
+  homePage.querySelectorAll('a[href^="#"]').forEach((link) => {
+    const hash = link.getAttribute('href');
+    if (!hash || hash === '#') return;
+    const destination = document.querySelector(hash);
+    if (!destination) return;
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      destination.scrollIntoView({
+        behavior: homeReducedMotion.matches ? 'auto' : 'smooth',
+        block: 'start'
+      });
+      window.history.replaceState(null, '', hash);
+    });
+  });
 }

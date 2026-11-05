@@ -1,122 +1,257 @@
 <%- include('../partials/header') %>
 
-<div class="profile-hero">
-  <div class="cover-banner" style="background-image: url('<%= profileUser.cover_image || '/uploads/covers/default-cover.svg' %>')">
-    <div class="cover-banner-shade" aria-hidden="true"></div>
-    <span class="profile-cover-label">FIELD NOTES <span>NO. <%= String(profileUser.id).padStart(2, '0') %></span></span>
-    <div class="profile-cover-identity">
-      <span class="profile-avatar-frame">
-        <img src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= profileUser.display_name %>" />
-      </span>
-      <div class="profile-cover-name">
-        <h1><%= profileUser.display_name %></h1>
-        <p>@<%= profileUser.username %></p>
-      </div>
-    </div>
-    <svg class="profile-cover-doodle" viewBox="0 0 120 90" aria-hidden="true"><path d="M15 66c14-20 23 14 38-2s18-31 31-20 17 20 24 6M67 18c0 8-7 12-15 12 8 0 15 5 15 13 0-8 7-13 15-13-8 0-15-4-15-12ZM21 20c0 5-4 8-9 8 5 0 9 3 9 8 0-5 4-8 9-8-5 0-9-3-9-8Z" /></svg>
-  </div>
-</div>
+<%
+  const memberSince = typeof memberSinceLabel !== 'undefined' ? memberSinceLabel : '';
+  const canFollow = isAuthenticated && currentUser.id !== profileUser.id;
+  const isOwner = isAuthenticated && currentUser.id === profileUser.id;
+  const latest = artworks[0] || null;
+  const profileUrl = '/profile/' + profileUser.username;
+  const numeral = (v) => Number(v || 0).toLocaleString('en-US');
+%>
 
-<div class="grid-3 profile-stats">
-  <div class="dashboard-card">
-    <h3>Artworks</h3>
-    <div class="profile-stat-value"><%= stats.totalArtworks %></div>
-  </div>
-  <div class="dashboard-card">
-    <h3>Followers</h3>
-    <div class="profile-stat-value"><%= stats.followers %></div>
-  </div>
-  <div class="dashboard-card">
-    <h3>Following</h3>
-    <div class="profile-stat-value"><%= stats.following %></div>
-  </div>
-</div>
+<div class="pf-page">
 
-<div class="detail-layout">
-  <div>
-      <div class="sidebar-card profile-notebook-card">
-      <h2>About</h2>
-      <p class="profile-bio"><%= profileUser.bio || 'This artist is ready to share new ideas and experiments with the community.' %></p>
-      <div class="info-list profile-social-links">
-        <% if (profileUser.website) { %><div class="info-item"><span>Website</span><a href="<%= profileUser.website %>" target="_blank" rel="noreferrer"><%= profileUser.website %></a></div><% } %>
-        <% if (profileUser.instagram) { %><div class="info-item"><span>Instagram</span><strong><%= profileUser.instagram %></strong></div><% } %>
-        <% if (profileUser.twitter) { %><div class="info-item"><span>Twitter</span><strong><%= profileUser.twitter %></strong></div><% } %>
-      </div>
-      <div class="profile-studio-notes">
-        <h3>In this notebook</h3>
-        <% if (artworks.length) { %>
-          <% artworks.slice(0, 3).forEach((artwork, index) => { %>
-            <a href="/art/<%= artwork.id %>"><span><%= String(index + 1).padStart(2, '0') %> / <%= artwork.category_name || 'Artwork' %></span><strong><%= artwork.title %></strong></a>
-          <% }) %>
-        <% } else { %>
-          <p>New pages are waiting to be added.</p>
-        <% } %>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-head" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
-        <h2>Portfolio</h2>
-        <div class="filter-row" style="margin: 0;">
-          <a href="/profile/<%= profileUser.username %>?tab=artworks" class="btn <%= activeTab === 'artworks' ? 'btn-primary' : 'btn-secondary' %>">Artworks</a>
-          <a href="/profile/<%= profileUser.username %>?tab=liked" class="btn <%= activeTab === 'liked' ? 'btn-primary' : 'btn-secondary' %>">Liked</a>
-          <a href="/profile/<%= profileUser.username %>?tab=saved" class="btn <%= activeTab === 'saved' ? 'btn-primary' : 'btn-secondary' %>">Saved</a>
-        </div>
-      </div>
-
-      <% if (activeTab === 'liked') { %>
-        <% if (likedArtworks.length) { %>
-          <div class="masonry-grid">
-            <% likedArtworks.forEach((artwork) => { %>
-              <%- include('../partials/art-card', { artwork: { ...artwork, likes_count: artwork.likes_count || 0, comments_count: artwork.comments_count || 0, is_liked: true, is_bookmarked: false } }) %>
-            <% }) %>
-          </div>
-        <% } else { %>
-          <div class="empty-state">No liked artwork yet.</div>
-        <% } %>
-      <% } else if (activeTab === 'saved') { %>
-        <% if (savedArtworks.length) { %>
-          <div class="masonry-grid">
-            <% savedArtworks.forEach((artwork) => { %>
-              <%- include('../partials/art-card', { artwork: { ...artwork, likes_count: artwork.likes_count || 0, comments_count: artwork.comments_count || 0, is_liked: false, is_bookmarked: true } }) %>
-            <% }) %>
-          </div>
-        <% } else { %>
-          <div class="empty-state">No saved artwork yet.</div>
-        <% } %>
-      <% } else if (artworks.length) { %>
-        <div class="masonry-grid">
-          <% artworks.forEach((artwork) => { %>
-            <%- include('../partials/art-card', { artwork }) %>
-          <% }) %>
-        </div>
-      <% } else { %>
-        <div class="empty-state">This artist has not published any public artwork yet.</div>
+  <!-- ============ Hero / cover ============ -->
+  <header class="pf-hero">
+    <div class="pf-cover" role="img" aria-label="Cover artwork for <%= profileUser.display_name %>" style="background-image: url('<%= profileUser.cover_image || '/uploads/covers/default-cover.svg' %>')">
+      <div class="pf-cover-shade" aria-hidden="true"></div>
+      <span class="pf-cover-kicker">FIELD NOTES <em>NO. <%= String(profileUser.id).padStart(2, '0') %></em></span>
+      <% if (profileUser.is_verified) { %>
+        <span class="pf-verified" title="Verified ArtSpace artist">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.5 2.3 3.2-.4 1.5 2.9 3 1.2-1.2 3 1.2 3-3 1.2-1.5 2.9-3.2-.4L12 21.5 9.5 19.2l-3.2.4-1.5-2.9-3-1.2 1.2-3-1.2-3 3-1.2 1.5-2.9 3.2.4L12 2.5Z" /><path d="M9.2 12.2l2 2 3.6-4.4" /></svg>
+          Verified Artist
+        </span>
       <% } %>
+      <svg class="pf-cover-doodle" viewBox="0 0 120 90" aria-hidden="true"><path d="M15 66c14-20 23 14 38-2s18-31 31-20 17 20 24 6M67 18c0 8-7 12-15 12 8 0 15 5 15 13 0-8 7-13 15-13-8 0-15-4-15-12ZM21 20c0 5-4 8-9 8 5 0 9 3 9 8 0-5 4-8 9-8-5 0-9-3-9-8Z" /></svg>
     </div>
+
+    <div class="pf-identity">
+      <div class="pf-avatar-wrap">
+        <img class="pf-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= profileUser.display_name %>" />
+        <span class="pf-tape" aria-hidden="true"></span>
+      </div>
+
+      <div class="pf-identity-copy">
+        <h1 class="pf-name"><%= profileUser.display_name %></h1>
+        <p class="pf-handle">@<%= profileUser.username %><% if (memberSince) { %><span class="pf-dot" aria-hidden="true">·</span>Sketching since <%= memberSince %><% } %></p>
+      </div>
+
+      <div class="pf-hero-actions">
+        <% if (canFollow) { %>
+          <form method="POST" action="/follow/<%= profileUser.id %>">
+            <button type="submit" class="pf-follow <%= isFollowing ? 'is-following' : '' %>" aria-pressed="<%= isFollowing ? 'true' : 'false' %>">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><% if (isFollowing) { %><path d="M5 12.5l4.5 4.5L19 7.5" /><% } else { %><path d="M12 5v14M5 12h14" /><% } %></svg>
+              <%= isFollowing ? 'Following artist' : 'Follow artist' %>
+            </button>
+          </form>
+        <% } else if (isOwner) { %>
+          <a class="pf-follow pf-edit-link" href="/profile/edit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17l-1 3Z" /><path d="M13.5 7.5l3 3" /></svg>
+            Edit profile
+          </a>
+        <% } %>
+        <button class="pf-share" type="button" data-share-artwork data-share-title="<%= profileUser.display_name %> on ArtSpace" data-share-text="Sketchbook of <%= profileUser.display_name %> (@<%= profileUser.username %>) on ArtSpace" data-share-url="<%= profileUrl %>" aria-label="Share this profile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.4" /><circle cx="17.5" cy="5.5" r="2.4" /><circle cx="17.5" cy="18.5" r="2.4" /><path d="M8.3 10.9l7-4.2M8.3 13.1l7 4.2" /></svg>
+          <span data-share-label>Share</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ Pinned stat notes ============ -->
+  <dl class="pf-stats" aria-label="Artist statistics">
+    <div class="pf-note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.2-4.2L14.5 6.5a2.12 2.12 0 0 1 3 3L8.2 18.8 4 20Z" /><path d="M12.5 8.5l3 3" /></svg>
+      <dd><%= numeral(stats.totalArtworks) %></dd>
+      <dt>Artworks</dt>
+    </div>
+    <div class="pf-note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
+      <dd><%= numeral(stats.totalLikes) %></dd>
+      <dt>Likes received</dt>
+    </div>
+    <div class="pf-note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19.5c.8-3.4 3-5.2 5.5-5.2s4.7 1.8 5.5 5.2M16 5.5a3.2 3.2 0 0 1 0 6.1M18.5 14.6c1.6 1 2.6 2.7 3 4.9" /></svg>
+      <dd><%= numeral(stats.followers) %></dd>
+      <dt>Followers</dt>
+    </div>
+    <div class="pf-note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3.2" /></svg>
+      <dd><%= numeral(stats.totalViews) %></dd>
+      <dt>Total views</dt>
+    </div>
+  </dl>
+
+  <div class="pf-layout">
+
+    <!-- ============ Main column ============ -->
+    <div class="pf-main">
+
+      <section class="pf-card pf-about" aria-labelledby="pf-about-heading">
+        <div class="pf-card-head">
+          <h2 id="pf-about-heading">About the artist</h2>
+          <svg viewBox="0 0 60 60" aria-hidden="true"><path d="M8 44 14 30 38 8l8 8L24 40 8 44Z" /><path d="M33 13l8 8" /><path d="M12 36l6 6" /></svg>
+        </div>
+
+        <p class="pf-bio"><%= profileUser.bio && profileUser.bio.trim() ? profileUser.bio : 'This artist is sketching their way into the community — fresh pages, honest lines, everyday wonder.' %></p>
+
+        <% if (profileUser.website || profileUser.instagram || profileUser.twitter) { %>
+          <ul class="pf-socials">
+            <% if (profileUser.website) { %>
+              <li>
+                <a class="pf-social" href="<%= profileUser.website %>" target="_blank" rel="noreferrer">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 3.5a13 13 0 0 1 0 17M3.5 12h17" /></svg>
+                  <span class="pf-social-label">Website</span>
+                  <span class="pf-social-value"><%= profileUser.website.replace(/^https?:\/\//, '') %></span>
+                </a>
+              </li>
+            <% } %>
+            <% if (profileUser.instagram) { %>
+              <li>
+                <span class="pf-social pf-social-static">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" /><circle cx="12" cy="12" r="3.6" /><circle cx="17.2" cy="6.8" r="0.9" fill="currentColor" stroke="none" /></svg>
+                  <span class="pf-social-label">Instagram</span>
+                  <span class="pf-social-value"><%= profileUser.instagram %></span>
+                </span>
+              </li>
+            <% } %>
+            <% if (profileUser.twitter) { %>
+              <li>
+                <span class="pf-social pf-social-static">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5l6.6 8.4L4.3 19h2.6l3.9-3.6L12.5 19H20l-6.5-8.3L19.4 5h-2.6l-3.6 3.4L11.6 5H4Z" /></svg>
+                  <span class="pf-social-label">Twitter</span>
+                  <span class="pf-social-value"><%= profileUser.twitter %></span>
+                </span>
+              </li>
+            <% } %>
+          </ul>
+        <% } %>
+
+        <div class="pf-notebook">
+          <h3>In this notebook</h3>
+          <% if (artworks.length) { %>
+            <% artworks.slice(0, 3).forEach((artwork, index) => { %>
+              <a class="pf-notebook-row" href="/art/<%= artwork.id %>">
+                <span class="pf-notebook-index"><%= String(index + 1).padStart(2, '0') %></span>
+                <span class="pf-notebook-meta">
+                  <span><%= artwork.category_name || 'Artwork' %></span>
+                  <strong><%= artwork.title %></strong>
+                </span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+              </a>
+            <% }) %>
+          <% } else { %>
+            <p class="pf-notebook-empty">New pages are waiting to be drawn.</p>
+          <% } %>
+        </div>
+      </section>
+
+      <section class="pf-portfolio" aria-labelledby="pf-portfolio-heading">
+        <div class="pf-portfolio-head">
+          <div>
+            <h2 id="pf-portfolio-heading">Portfolio</h2>
+            <p><%= numeral(stats.totalArtworks) %> pieces pinned on the table</p>
+          </div>
+          <nav class="pf-tabs" aria-label="Portfolio collections">
+            <a class="pf-tab <%= activeTab === 'artworks' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=artworks" aria-current="<%= activeTab === 'artworks' ? 'page' : 'false' %>">Artworks</a>
+            <a class="pf-tab <%= activeTab === 'liked' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=liked" aria-current="<%= activeTab === 'liked' ? 'page' : 'false' %>">Liked</a>
+            <a class="pf-tab <%= activeTab === 'saved' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=saved" aria-current="<%= activeTab === 'saved' ? 'page' : 'false' %>">Saved</a>
+          </nav>
+        </div>
+
+        <% if (activeTab === 'liked') { %>
+          <% if (likedArtworks.length) { %>
+            <div class="masonry-grid pf-gallery">
+              <% likedArtworks.forEach((artwork) => { %>
+                <%- include('../partials/art-card', { artwork }) %>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="empty-state pf-empty">
+              <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M20 58l5-17 24-24 11 11-24 24-16 6Z" /><path d="M44 22l11 11" /><path d="M14 66c8-2 16-2 24 0" /></svg>
+              <p>No liked artwork yet — go pin some inspiration.</p>
+            </div>
+          <% } %>
+        <% } else if (activeTab === 'saved') { %>
+          <% if (savedArtworks.length) { %>
+            <div class="masonry-grid pf-gallery">
+              <% savedArtworks.forEach((artwork) => { %>
+                <%- include('../partials/art-card', { artwork }) %>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="empty-state pf-empty">
+              <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M28 12h24v56l-12-9-12 9V12Z" /><path d="M35 26h10M35 33h10" /></svg>
+              <p>Nothing saved yet — bookmark pages you want to revisit.</p>
+            </div>
+          <% } %>
+        <% } else if (artworks.length) { %>
+          <div class="masonry-grid pf-gallery">
+            <% artworks.forEach((artwork) => { %>
+              <%- include('../partials/art-card', { artwork }) %>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="empty-state pf-empty">
+            <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M20 58l5-17 24-24 11 11-24 24-16 6Z" /><path d="M44 22l11 11" /></svg>
+            <p>This artist has not published any public artwork yet.</p>
+          </div>
+        <% } %>
+      </section>
+    </div>
+
+    <!-- ============ Sidebar ============ -->
+    <aside class="pf-side">
+
+      <section class="pf-card pf-specimen" aria-label="Artist card">
+        <span class="pf-specimen-label" aria-hidden="true">The Artist's Table</span>
+        <div class="pf-specimen-top">
+          <img class="pf-specimen-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= profileUser.display_name %>" loading="lazy" />
+          <div class="pf-specimen-copy">
+            <h3><%= profileUser.display_name %></h3>
+            <p>@<%= profileUser.username %></p>
+            <span class="pf-role"><%= profileUser.role === 'admin' ? 'Studio keeper' : (profileUser.is_verified ? 'Verified artist' : 'Artist on ArtSpace') %></span>
+          </div>
+        </div>
+        <dl class="pf-ledger">
+          <div><dt>Behind this work</dt><dd><%= numeral(artworks.length) %> public pages</dd></div>
+          <div><dt>Appreciation</dt><dd><%= numeral(stats.totalLikes) %> likes</dd></div>
+          <div><dt>People following</dt><dd><%= numeral(stats.followers) %></dd></div>
+          <div><dt>Views collected</dt><dd><%= numeral(stats.totalViews) %></dd></div>
+        </dl>
+      </section>
+
+      <% if (latest) { %>
+        <section class="pf-card pf-pinned" aria-label="Latest artwork">
+          <span class="pf-side-label" aria-hidden="true">Pinned latest</span>
+          <a class="pf-pinned-link" href="/art/<%= latest.id %>">
+            <img src="<%= latest.thumbnail_url || latest.image_url %>" alt="<%= latest.title %>" loading="lazy" decoding="async" />
+            <span class="pf-pinned-meta">
+              <span><%= latest.category_name || 'Artwork' %></span>
+              <strong><%= latest.title %></strong>
+            </span>
+          </a>
+        </section>
+      <% } %>
+
+      <section class="pf-card pf-clippings" aria-label="Saved and liked clippings">
+        <span class="pf-side-label" aria-hidden="true">Clipped from the gallery</span>
+        <div class="pf-clipping-grid">
+          <a class="pf-clipping-item" href="/profile/<%= profileUser.username %>?tab=liked">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
+            <strong><%= likedArtworks.length %></strong>
+            <span>Liked works</span>
+          </a>
+          <a class="pf-clipping-item" href="/profile/<%= profileUser.username %>?tab=saved">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4V4Z" /></svg>
+            <strong><%= savedArtworks.length %></strong>
+            <span>Saved works</span>
+          </a>
+        </div>
+      </section>
+
+    </aside>
   </div>
-
-  <aside class="sidebar-card">
-    <% if (isAuthenticated && currentUser.id !== profileUser.id) { %>
-      <form method="POST" action="/follow/<%= profileUser.id %>">
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 18px;"><%= isFollowing ? 'Unfollow' : 'Follow' %> artist</button>
-      </form>
-    <% } else if (isAuthenticated && currentUser.id === profileUser.id) { %>
-      <a href="/profile/edit" class="btn btn-primary" style="width: 100%; margin-bottom: 18px; display: inline-flex;">Edit profile</a>
-    <% } %>
-
-    <h3>Quick highlights</h3>
-    <div style="display: grid; gap: 12px; margin-top: 14px;">
-      <div class="user-card" style="display: block;">
-        <strong>Saved works</strong>
-        <p style="margin: 6px 0 0; color: var(--muted);"><%= savedArtworks.length %> items</p>
-      </div>
-      <div class="user-card" style="display: block;">
-        <strong>Liked works</strong>
-        <p style="margin: 6px 0 0; color: var(--muted);"><%= likedArtworks.length %> items</p>
-      </div>
-    </div>
-  </aside>
 </div>
 
 <%- include('../partials/footer') %>

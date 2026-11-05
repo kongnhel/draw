@@ -1,0 +1,29 @@
+/* ==========================================================================
+   Background animation - falling art supplies
+   ========================================================================== */
+
+.bg-falling {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg-falling-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.bg-falling[data-bg-motion='off'] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-falling {
+    display: none;
+  }
+}

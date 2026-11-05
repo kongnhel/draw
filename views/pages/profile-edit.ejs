@@ -1,53 +1,179 @@
 <%- include('../partials/header') %>
 
-<div class="page-header">
-  <div>
-    <h1>Edit profile</h1>
-    <div class="page-subtitle">Refine your bio and social links.</div>
-  </div>
-</div>
+<%
+  const avatarSrc = user.avatar || '/uploads/avatars/default-avatar.svg';
+  const coverSrc = user.cover_image || '/uploads/covers/default-cover.svg';
+  const displayName = user.display_name || user.username;
+  const previewBio = user.bio && user.bio.trim() ? user.bio : 'Your bio will appear here.';
+  const hasLinks = user.website || user.instagram || user.twitter;
+  const bioDone = user.bio && user.bio.trim().length >= 12;
+%>
 
-<div class="form-card" style="max-width: 720px; margin: 0 auto;">
-  <form action="/profile/edit" method="POST" enctype="multipart/form-data">
-    <div class="form-grid">
-      <div class="form-block">
-        <label for="avatar">Profile image</label>
-        <input id="avatar" name="avatar" type="file" accept="image/png, image/jpeg, image/webp" />
+<div class="pf-page pe-page">
+  <header class="pe-head">
+    <div class="pe-head-copy">
+      <span class="pe-kicker">Studio settings <em>/</em> Profile</span>
+      <h1>Edit your profile</h1>
+      <p class="pe-sub">Refresh your portrait, tune your bio, and keep your links current.</p>
+    </div>
+    <a class="pe-back" href="/profile/<%= currentUser.username %>">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5 8 12l6.5 7" /><path d="M8 12h12" /></svg>
+      Back to profile
+    </a>
+  </header>
+
+  <form class="pe-form" action="/profile/edit" method="POST" enctype="multipart/form-data" data-pe-form data-has-avatar="<%= user.avatar ? 'true' : 'false' %>" data-has-cover="<%= user.cover_image ? 'true' : 'false' %>">
+    <div class="pe-layout">
+
+      <!-- ============ Main column ============ -->
+      <div class="pe-main">
+
+        <section class="pf-card pe-card" aria-labelledby="pe-identity-heading">
+          <div class="pe-card-head">
+            <span class="pe-step" aria-hidden="true">01</span>
+            <div>
+              <h2 id="pe-identity-heading">Your portrait</h2>
+              <p>Swap the photo and cover that greet visitors.</p>
+            </div>
+            <span class="pe-badge">Images</span>
+          </div>
+
+          <div class="pe-media">
+            <div class="pe-avatar-field">
+              <span class="pe-label" id="pe-avatar-label">Profile image</span>
+              <label class="pe-avatar-drop" data-pe-drop aria-labelledby="pe-avatar-label">
+                <img data-pe-avatar-preview src="<%= avatarSrc %>" alt="Current profile image for <%= displayName %>" />
+                <span class="pe-drop-action">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.6-2.2h6.8L17 8.5h3V19H4Z" /><circle cx="12" cy="13.4" r="3.2" /></svg>
+                  Change
+                </span>
+                <input class="pe-file" id="avatar" name="avatar" type="file" accept="image/jpeg, image/png, image/webp" data-pe-file="avatar" />
+              </label>
+              <p class="pe-hint" data-pe-file-note="avatar">JPG, PNG or WebP &middot; up to 3 MB. Square works best.</p>
+            </div>
+
+            <div class="pe-cover-field">
+              <span class="pe-label" id="pe-cover-label">Cover image</span>
+              <label class="pe-cover-drop" data-pe-drop aria-labelledby="pe-cover-label">
+                <img data-pe-cover-preview src="<%= coverSrc %>" alt="" />
+                <span class="pe-drop-action">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 4.6-6 3.4 4 3-3.6L20 17" /><rect x="4" y="5" width="16" height="14" rx="1.6" /><circle cx="9" cy="9.4" r="1.3" /></svg>
+                  Upload cover
+                </span>
+                <input class="pe-file" id="cover_image" name="cover_image" type="file" accept="image/jpeg, image/png, image/webp" data-pe-file="cover" />
+              </label>
+              <p class="pe-hint" data-pe-file-note="cover">A wide banner (roughly 16:6) looks best &middot; up to 3 MB.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="pf-card pe-card" aria-labelledby="pe-about-heading">
+          <div class="pe-card-head">
+            <span class="pe-step" aria-hidden="true">02</span>
+            <div>
+              <h2 id="pe-about-heading">About you</h2>
+              <p>A few honest lines about your practice.</p>
+            </div>
+            <span class="pe-badge" data-pe-counter><%= (user.bio || '').length %> / 600</span>
+          </div>
+
+          <div class="pe-field">
+            <label class="pe-label" for="bio">Bio</label>
+            <textarea id="bio" name="bio" rows="6" maxlength="600" placeholder="Tell the community what inspires your art." data-pe-bio><%= user.bio || '' %></textarea>
+          </div>
+        </section>
+
+        <section class="pf-card pe-card" aria-labelledby="pe-links-heading">
+          <div class="pe-card-head">
+            <span class="pe-step" aria-hidden="true">03</span>
+            <div>
+              <h2 id="pe-links-heading">Links</h2>
+              <p>Where can people find more of your work?</p>
+            </div>
+            <span class="pe-badge">Optional</span>
+          </div>
+
+          <div class="pe-fields">
+            <div class="pe-field pe-field--wide">
+              <label class="pe-label" for="website">Website</label>
+              <div class="pe-input-wrap">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 3.5a13 13 0 0 1 0 17M3.5 12h17" /></svg>
+                <input id="website" name="website" type="url" value="<%= user.website || '' %>" placeholder="https://your-studio.com" data-pe-link="website" />
+              </div>
+            </div>
+
+            <div class="pe-field">
+              <label class="pe-label" for="instagram">Instagram</label>
+              <div class="pe-input-wrap">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" /><circle cx="12" cy="12" r="3.6" /><circle cx="17.2" cy="6.8" r="0.9" fill="currentColor" stroke="none" /></svg>
+                <input id="instagram" name="instagram" type="text" value="<%= user.instagram || '' %>" placeholder="yourhandle" data-pe-link="instagram" />
+              </div>
+            </div>
+
+            <div class="pe-field">
+              <label class="pe-label" for="twitter">Twitter</label>
+              <div class="pe-input-wrap">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5l6.6 8.4L4.3 19h2.6l3.9-3.6L12.5 19H20l-6.5-8.3L19.4 5h-2.6l-3.6 3.4L11.6 5H4Z" /></svg>
+                <input id="twitter" name="twitter" type="text" value="<%= user.twitter || '' %>" placeholder="yourhandle" data-pe-link="twitter" />
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div class="form-block">
-        <label for="cover_image">Cover image</label>
-        <input id="cover_image" name="cover_image" type="file" accept="image/png, image/jpeg, image/webp" />
-      </div>
-    </div>
+      <!-- ============ Side column ============ -->
+      <aside class="pe-side">
+        <section class="pf-card pe-preview" aria-labelledby="pe-preview-heading">
+          <span class="pe-tape" aria-hidden="true"></span>
+          <div class="pe-preview-head">
+            <h2 id="pe-preview-heading">Live preview</h2>
+            <span class="pe-live"><i aria-hidden="true"></i> Updating</span>
+          </div>
 
-    <div class="form-block">
-      <label for="bio">Bio</label>
-      <textarea id="bio" name="bio" rows="5" placeholder="Tell the community what inspires your art."><%= user.bio || '' %></textarea>
-    </div>
+          <div class="pe-preview-card">
+            <div class="pe-preview-cover<%= user.cover_image ? '' : ' is-default' %>" data-pe-cover-bg style="background-image: url('<%= coverSrc %>')">
+              <span class="pe-preview-sticker">Field notes</span>
+            </div>
+            <div class="pe-preview-id">
+              <img class="pe-preview-avatar" data-pe-avatar-preview src="<%= avatarSrc %>" alt="" />
+              <div>
+                <strong><%= displayName %></strong>
+                <span>@<%= user.username %></span>
+              </div>
+            </div>
+            <p class="pe-preview-bio" data-pe-bio-preview><%= previewBio %></p>
+            <div class="pe-preview-links" data-pe-links-preview>
+              <% if (user.website) { %><span class="pe-preview-chip">Website &middot; <%= user.website.replace(/^https?:\/\//, '').replace(/\/$/, '') %></span><% } %>
+              <% if (user.instagram) { %><span class="pe-preview-chip">Instagram &middot; <%= user.instagram.replace(/^@/, '') %></span><% } %>
+              <% if (user.twitter) { %><span class="pe-preview-chip">Twitter &middot; <%= user.twitter.replace(/^@/, '') %></span><% } %>
+              <% if (!hasLinks) { %><span class="pe-preview-empty">No links yet.</span><% } %>
+            </div>
+          </div>
+        </section>
 
-    <div class="form-grid">
-      <div class="form-block">
-        <label for="website">Website</label>
-        <input id="website" name="website" type="url" value="<%= user.website || '' %>" />
-      </div>
+        <section class="pf-card pe-checklist" aria-labelledby="pe-checklist-heading">
+          <h2 id="pe-checklist-heading">Profile checklist</h2>
+          <ul class="pe-checklist-list">
+            <li data-pe-check="photo" class="<%= user.avatar ? 'is-done' : '' %>"><span class="pe-check-box" aria-hidden="true"></span>Portrait added</li>
+            <li data-pe-check="cover" class="<%= user.cover_image ? 'is-done' : '' %>"><span class="pe-check-box" aria-hidden="true"></span>Cover chosen</li>
+            <li data-pe-check="bio" class="<%= bioDone ? 'is-done' : '' %>"><span class="pe-check-box" aria-hidden="true"></span>Bio written (12+ characters)</li>
+            <li data-pe-check="links" class="<%= hasLinks ? 'is-done' : '' %>"><span class="pe-check-box" aria-hidden="true"></span>At least one link</li>
+          </ul>
+        </section>
 
-      <div class="form-block">
-        <label for="instagram">Instagram</label>
-        <input id="instagram" name="instagram" type="text" value="<%= user.instagram || '' %>" />
-      </div>
-    </div>
-
-    <div class="form-block">
-      <label for="twitter">Twitter</label>
-      <input id="twitter" name="twitter" type="text" value="<%= user.twitter || '' %>" />
-    </div>
-
-    <div class="submit-row">
-      <button type="submit" class="btn btn-primary">Save changes</button>
-      <a href="/profile/<%= currentUser.username %>" class="btn btn-ghost">Cancel</a>
+        <div class="pe-actions">
+          <button type="submit" class="btn pe-save">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+            Save changes
+          </button>
+          <a class="btn pe-cancel" href="/profile/<%= currentUser.username %>">Cancel</a>
+          <p class="pe-unsaved" data-pe-unsaved hidden>Unsaved changes</p>
+        </div>
+      </aside>
     </div>
   </form>
 </div>
+
+<script src="/js/profile-edit.js" defer></script>
 
 <%- include('../partials/footer') %>

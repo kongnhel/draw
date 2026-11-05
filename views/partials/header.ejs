@@ -4,13 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><%= pageTitle || 'ArtSpace' %></title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a312b'/%3E%3Cpath d='M9 23l2-6 9-9 4 4-9 9-6 2Z' fill='none' stroke='%23f7f1e6' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E" />
     <meta name="description" content="ArtSpace is a premium art and drawing social platform for artists and art lovers." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/cursor.css" />
+    <link rel="stylesheet" href="/css/interactions.css" />
+    <link rel="stylesheet" href="/css/background-falling.css" />
+    <link rel="stylesheet" href="/css/mobile.css" />
   </head>
+  <%
+    const bgSceneSource = (typeof artwork !== 'undefined' && artwork && (artwork.category_name || artwork.category))
+      || (typeof filter !== 'undefined' && filter)
+      || (typeof activeCategory !== 'undefined' && activeCategory && (activeCategory.slug || activeCategory))
+      || '';
+    const bgSceneValue = String(bgSceneSource || '').trim().toLowerCase();
+  %>
   <body data-theme="light" class="<%= pageTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Dashboard') ? 'dashboard-body' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Upload') ? 'upload-body' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Explore') ? 'explore-body' : '' %>">
+    <div class="bg-falling" aria-hidden="true">
+      <canvas class="bg-falling-canvas" data-bg-falling data-scene="<%= bgSceneValue %>"></canvas>
+    </div>
     <div class="page-shell">
       <header class="topbar">
         <div class="container nav-wrap">

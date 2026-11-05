@@ -1,0 +1,141 @@
+/* ==========================================================================
+   Pencil Cursor — The Living Sketchbook
+   Custom pencil cursor, graphite trail canvas and click burst styling.
+   Enabled by JS (body.pencil-on) on fine pointers only.
+   ========================================================================== */
+
+.pen-cursor-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pencil-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9995;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  will-change: transform;
+}
+
+.pencil-cursor.is-visible { opacity: 1; }
+
+.pencil-cursor svg {
+  position: absolute;
+  display: block;
+  overflow: visible;
+}
+
+/* Pencil graphic — tip sits at the local origin */
+.pencil-art {
+  left: -59px;
+  top: -8px;
+  width: 60px;
+  height: 16px;
+  filter: drop-shadow(1px 2px 2px rgba(41, 40, 36, 0.4));
+  transform-origin: 59px 8px;
+  transition: transform 180ms ease;
+}
+
+/* Hand-drawn circular highlight for buttons */
+.pencil-cursor-ring {
+  left: -19px;
+  top: -19px;
+  width: 38px;
+  height: 38px;
+  opacity: 0;
+  transform: scale(0.6) rotate(-10deg);
+  transform-origin: 50% 50%;
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+/* Zoom badge for artwork images */
+.pencil-cursor-zoom {
+  left: 12px;
+  top: 12px;
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+  transform: scale(0.5);
+  transform-origin: 50% 50%;
+  transition: opacity 180ms ease, transform 200ms cubic-bezier(0.2, 0.9, 0.3, 1.35);
+}
+
+/* Sketch-style corner ticks for artwork cards */
+.pencil-cursor-frame {
+  left: -21px;
+  top: -21px;
+  width: 42px;
+  height: 42px;
+  opacity: 0;
+  transform: scale(0.7) rotate(2deg);
+  transform-origin: 50% 50%;
+  transition: opacity 180ms ease, transform 200ms cubic-bezier(0.2, 0.9, 0.3, 1.35);
+}
+
+/* --- Interactive states --- */
+
+.pencil-cursor.is-link .pencil-art { transform: scale(1.22) rotate(-2deg); }
+
+.pencil-cursor.is-button .pencil-art { transform: scale(1.14); }
+.pencil-cursor.is-button .pencil-cursor-ring { opacity: 1; transform: scale(1) rotate(0deg); }
+
+.pencil-cursor.is-artwork .pencil-art { transform: scale(1.14); }
+.pencil-cursor.is-artwork .pencil-cursor-frame { opacity: 1; transform: scale(1) rotate(0deg); }
+
+.pencil-cursor.is-image .pencil-art { transform: scale(1.18); }
+.pencil-cursor.is-image .pencil-cursor-zoom { opacity: 1; transform: scale(1); }
+
+/* Hidden while typing or over the immersive viewer (native cursors there) */
+.pencil-cursor.is-hidden { opacity: 0 !important; }
+
+/* --- Native cursor management (fine pointers only, added by JS) --- */
+
+body.pencil-on,
+body.pencil-on * {
+  cursor: none !important;
+}
+
+body.pencil-on :is(input, textarea, select, option, [contenteditable="true"], [contenteditable=""]) {
+  cursor: text !important;
+}
+
+body.pencil-on :is(select, option) { cursor: pointer !important; }
+
+body.pencil-on [data-native-cursor],
+body.pencil-on [data-native-cursor] * {
+  cursor: auto !important;
+}
+
+body.pencil-on .art-viewer,
+body.pencil-on .art-viewer * {
+  cursor: auto !important;
+}
+
+body.pencil-on .art-viewer-image { cursor: zoom-in !important; }
+body.pencil-on .art-viewer-image.is-zoomed { cursor: zoom-out !important; }
+body.pencil-on .art-viewer-image.is-panning { cursor: grabbing !important; }
+body.pencil-on .art-viewer-tool,
+body.pencil-on .art-viewer-step,
+body.pencil-on .art-viewer-action,
+body.pencil-on .art-viewer-close { cursor: pointer !important; }
+
+/* --- Reduced motion: keep pencil static, no ring pop --- */
+
+@media (prefers-reduced-motion: reduce) {
+  .pencil-art,
+  .pencil-cursor-ring,
+  .pencil-cursor-zoom,
+  .pencil-cursor-frame {
+    transition: none !important;
+  }
+}

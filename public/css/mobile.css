@@ -1,0 +1,994 @@
+/* Mobile-first refinements for small screens.
+   Loaded after styles.css and background-falling.css; desktop is untouched. */
+
+@media (max-width: 900px) {
+  .main-content {
+    padding-top: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .container {
+    width: calc(100% - 24px);
+  }
+
+  /* ---------- Top navigation ----------------------------------------- */
+  /* Keep the notebook panel opaque and draw the ruled lines on a behind-text
+     layer so Caveat strokes are not clipped by the gradient compositing. */
+  .nav-links {
+    background-color: #fbf8f0;
+    background-image: none;
+    isolation: isolate;
+  }
+
+  .nav-links::before {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    content: "";
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent 0, transparent 24px, rgba(154, 128, 102, 0.15) 25px, transparent 26px);
+  }
+
+  .nav-links a {
+    position: relative;
+    z-index: 1;
+  }
+
+  .nav-wrap {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand actions"
+      "search search";
+    gap: 6px 8px;
+    min-height: 0;
+    padding: 8px 0 0;
+  }
+
+  .brand {
+    min-width: 0;
+    gap: 6px;
+    overflow: hidden;
+    font-size: 1.7rem;
+  }
+
+  .brand-mark {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .brand-mark svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .brand > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .nav-search {
+    border-radius: 11px;
+  }
+
+  .nav-search input {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 16px;
+  }
+
+  .nav-search button {
+    padding: 0 12px;
+    font-size: 0.82rem;
+  }
+
+  .nav-actions {
+    grid-area: actions;
+    gap: 5px;
+  }
+
+  .nav-actions .btn {
+    min-height: 38px;
+    padding: 7px 10px;
+    font-size: 0.82rem;
+  }
+
+  .theme-toggle,
+  .nav-menu-toggle {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .theme-toggle svg,
+  .nav-menu-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .nav-menu-toggle {
+    display: grid;
+  }
+
+  .theme-toggle {
+    font-size: 0.9rem;
+  }
+
+  .profile-chip {
+    max-width: 38px;
+    padding: 4px;
+  }
+
+  .profile-chip img {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* Sketchbook header variant */
+  body.home-body .nav-wrap {
+    min-height: 0;
+  }
+
+  body.home-body .brand {
+    font-size: 1.35rem;
+  }
+
+  body.home-body .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  body.home-body .brand-mark svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  body.home-body .btn,
+  body.home-body .btn-primary,
+  body.home-body .btn-secondary,
+  body.home-body .btn-ghost {
+    font-size: 0.92rem;
+  }
+
+  /* ---------- Category chips ------------------------------------------ */
+  .category-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    padding: 9px 0;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .category-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-pill {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+    font-size: 0.74rem;
+  }
+
+  /* ---------- Global form controls ------------------------------------ */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  button,
+  .btn,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---------- Home: hero & book gallery -------------------------------- */
+  .hs-page {
+    width: calc(100% - 24px);
+  }
+
+  .hs-hero {
+    gap: 24px;
+    padding: 20px 0 40px;
+  }
+
+  .hs-hero h1 {
+    font-size: clamp(2.15rem, 10.5vw, 2.9rem);
+    line-height: 1;
+  }
+
+  .hs-eyebrow {
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+  }
+
+  .hs-lede {
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  .hs-hero-actions {
+    gap: 10px;
+  }
+
+  .hs-btn {
+    min-height: 44px;
+    padding: 12px 18px;
+    font-size: 0.86rem;
+  }
+
+  .hs-stats {
+    gap: 14px 20px;
+  }
+
+  .hs-stats dt {
+    font-size: 0.58rem;
+  }
+
+  .hs-stats dd {
+    font-size: 1.45rem;
+  }
+
+  .hs-hero-art {
+    width: min(100%, 260px);
+  }
+
+  .hs-hero-note {
+    font-size: 0.82rem;
+  }
+
+  .hs-section-head {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .hs-section-title h2 {
+    font-size: clamp(1.35rem, 6.4vw, 1.75rem);
+    line-height: 1.08;
+  }
+
+  .hs-section-aside p {
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .hs-book-count {
+    font-size: 0.66rem;
+  }
+
+  .hs-book {
+    padding: 16px 10px 18px;
+  }
+
+  .hs-book::before {
+    inset: 6px;
+  }
+
+  .book-stage {
+    min-height: 372px;
+    perspective: 1400px;
+  }
+
+  .book-stage::before,
+  .book-stage::after {
+    width: 92%;
+    height: 78%;
+  }
+
+  .art-book {
+    width: 100%;
+    height: 356px;
+  }
+
+  .book-page-content {
+    padding: 8px 8px 6px;
+  }
+
+  .book-page-details {
+    min-height: 62px;
+    padding-top: 6px;
+  }
+
+  .book-page-number {
+    font-size: 0.72rem;
+  }
+
+  .book-category,
+  .book-page-details time {
+    font-size: 0.6rem;
+  }
+
+  .book-artwork-title {
+    font-size: 0.86rem;
+    line-height: 1.25;
+  }
+
+  .book-artwork-artist {
+    font-size: 0.7rem;
+  }
+
+  .book-cover-design {
+    width: calc(100% - 14px);
+    height: calc(100% - 14px);
+    margin: 7px;
+    padding: 14px 12px;
+  }
+
+  .book-cover-title {
+    font-size: clamp(1.7rem, 9.5vw, 2.2rem);
+    line-height: 1.05;
+  }
+
+  .book-cover-note {
+    font-size: 0.66rem;
+    line-height: 1.4;
+  }
+
+  .book-cover-ornament {
+    width: 54px;
+    font-size: 2rem;
+    line-height: 1.1;
+  }
+
+  .book-cover-mark {
+    font-size: 0.55rem;
+  }
+
+  .book-cover-year {
+    font-size: 0.5rem;
+  }
+
+  .book-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .book-page-counter {
+    font-size: 0.82rem;
+  }
+
+  .book-page-total,
+  .book-counter-divider {
+    font-size: 0.72rem;
+  }
+
+  .book-current-work {
+    font-size: 0.76rem;
+    line-height: 1.35;
+  }
+
+  .book-nav-button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .book-nav-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .hs-wall .art-card-body {
+    padding: 12px 12px 12px;
+  }
+
+  .hs-wall .art-card h3 {
+    font-size: 0.98rem;
+    line-height: 1.3;
+  }
+
+  .hs-wall .art-card > .art-card-media img {
+    object-fit: cover;
+  }
+
+  .hs-final-poster {
+    padding: 24px 18px 34px;
+  }
+
+  .hs-final-poster h2 {
+    font-size: clamp(1.6rem, 8vw, 2.3rem);
+    line-height: 1.05;
+  }
+
+  .hs-category-row {
+    gap: 10px;
+    padding: 13px 12px;
+  }
+
+  .hs-cat-name {
+    font-size: 0.94rem;
+  }
+
+  .hs-category-row .hs-cat-count {
+    font-size: 0.7rem;
+  }
+
+  /* ---------- Explore ------------------------------------------------- */
+  .studio-explore-hero h1 {
+    font-size: clamp(2.5rem, 11vw, 3.4rem);
+    line-height: 0.95;
+  }
+
+  .studio-explore-intro {
+    font-size: 0.86rem;
+    line-height: 1.6;
+  }
+
+  .studio-explore-kicker {
+    font-size: 0.6rem;
+  }
+
+  .studio-explore-search {
+    margin-top: 20px;
+    padding: 5px;
+  }
+
+  .studio-explore-search-label input {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .studio-explore-search-submit {
+    min-height: 44px;
+    font-size: 0.82rem;
+  }
+
+  .studio-explore-card h3 {
+    font-size: 1.15rem;
+  }
+
+  .studio-explore-masonry {
+    column-gap: 12px;
+  }
+
+  /* ---------- Artwork viewer ------------------------------------------ */
+  .art-viewer-shell {
+    padding: 10px 10px 14px;
+  }
+
+  .art-viewer-brand {
+    font-size: 0.56rem;
+    line-height: 1.25;
+  }
+
+  .art-viewer-brand span {
+    display: none;
+  }
+
+  .art-viewer-tools {
+    gap: 4px;
+  }
+
+  .art-viewer-tool,
+  .art-viewer-step {
+    width: 44px;
+    height: 44px;
+  }
+
+  .art-viewer-stage {
+    height: min(58vh, calc(100dvh - 245px));
+    min-height: 200px;
+  }
+
+  .art-viewer-caption {
+    gap: 10px;
+    min-height: 0;
+    padding-top: 10px;
+  }
+
+  .art-viewer-description h2 {
+    font-size: 1.05rem;
+  }
+
+  .art-viewer-description p,
+  .art-viewer-description .art-viewer-description-text {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .art-viewer-social-actions {
+    gap: 6px;
+  }
+
+  .art-viewer-action {
+    min-height: 38px;
+    padding: 7px 9px;
+    font-size: 0.68rem;
+  }
+
+  .art-viewer-count,
+  .art-viewer-details {
+    font-size: 0.7rem;
+  }
+
+  /* ---------- Auth pages ---------------------------------------------- */
+  .auth-visual {
+    min-height: 128px;
+    max-height: 148px;
+  }
+
+  .auth-frame .auth-visual-copy {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+  }
+
+  .auth-frame .auth-visual-copy p {
+    max-width: none;
+    margin: 2px 0;
+    font-size: 0.98rem;
+    line-height: 1.3;
+  }
+
+  .auth-frame .auth-visual-copy .auth-kicker,
+  .auth-frame .auth-visual-copy .auth-caption {
+    font-size: 0.52rem;
+  }
+
+  .auth-content {
+    padding: 20px 16px 24px;
+  }
+
+  .auth-content h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .auth-form .btn-primary {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* ---------- Upload --------------------------------------------------- */
+  .studio-upload-hero h1 {
+    font-size: clamp(1.9rem, 9.5vw, 2.6rem);
+    max-width: none;
+  }
+
+  .studio-dropzone {
+    min-height: 240px;
+  }
+
+  .studio-upload-notebook {
+    padding: 20px 16px 18px 26px;
+  }
+
+  .studio-upload-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* ---------- Dashboard / profile -------------------------------------- */
+  .studio-welcome h1 {
+    font-size: 1.9rem;
+  }
+
+  .studio-section-heading h2 {
+    font-size: 1.35rem;
+  }
+
+  .studio-art-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px 10px;
+  }
+}
+
+@media (max-width: 430px) {
+  .nav-wrap {
+    gap: 5px 6px;
+  }
+
+  .brand {
+    font-size: 1.5rem;
+  }
+
+  body.home-body .brand {
+    font-size: 1.2rem;
+  }
+
+  .nav-actions .btn {
+    padding: 7px 8px;
+    font-size: 0.76rem;
+  }
+
+  .hs-hero h1 {
+    font-size: clamp(1.95rem, 10vw, 2.5rem);
+  }
+
+  .hs-hero-art {
+    width: min(100%, 230px);
+  }
+
+  .art-book {
+    height: 320px;
+  }
+
+  .book-stage {
+    min-height: 336px;
+    perspective: 1100px;
+  }
+
+  .book-cover-title {
+    font-size: clamp(1.5rem, 9vw, 2rem);
+  }
+
+  .book-controls {
+    gap: 6px;
+  }
+
+  .studio-explore-hero h1 {
+    font-size: clamp(2.1rem, 10.5vw, 2.8rem);
+  }
+}
+
+@media (max-width: 374px) {
+  .container {
+    width: calc(100% - 18px);
+  }
+
+  .brand {
+    font-size: 1.35rem;
+    gap: 5px;
+  }
+
+  body.home-body .brand {
+    font-size: 1.1rem;
+  }
+
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .brand-mark svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .nav-search button {
+    padding: 0 10px;
+    font-size: 0.78rem;
+  }
+
+  .nav-actions {
+    gap: 4px;
+  }
+
+  .nav-actions .btn {
+    padding: 6px 7px;
+    font-size: 0.7rem;
+  }
+
+  .theme-toggle,
+  .nav-menu-toggle {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .hs-hero h1 {
+    font-size: clamp(1.8rem, 9.6vw, 2.2rem);
+  }
+
+  .hs-lede {
+    font-size: 0.86rem;
+  }
+
+  .hs-stats dd {
+    font-size: 1.25rem;
+  }
+
+  .art-book {
+    height: 292px;
+  }
+
+  .book-stage {
+    min-height: 308px;
+  }
+}
+
+@media (min-width: 431px) and (max-width: 600px) {
+  .art-book {
+    height: 340px;
+  }
+
+  .book-stage {
+    min-height: 356px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-book-reset {
+    transition: none !important;
+  }
+}
+
+/* ========================================================================== */
+/* Dashboard — premium blackboard & paper (mobile)                             */
+/* ========================================================================== */
+
+@media (max-width: 640px) {
+  body.dashboard-body .main-content {
+    width: calc(100% - 16px);
+    padding-top: 14px;
+    padding-bottom: 44px;
+  }
+
+  .studio-dashboard {
+    gap: 16px;
+  }
+
+  .studio-sidebar {
+    position: static;
+    max-height: none;
+    padding: 16px 14px 14px;
+    overflow: visible;
+    border-radius: 16px 18px 14px 20px;
+  }
+
+  .studio-sidebar-label,
+  .studio-sidebar-note,
+  .studio-sidebar-clip {
+    display: none;
+  }
+
+  .studio-sidebar-profile {
+    padding-bottom: 10px;
+  }
+
+  .studio-mini-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .studio-sidebar-profile strong {
+    font-size: 20px;
+  }
+
+  .studio-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    padding: 2px 1px 4px;
+    scrollbar-width: none;
+  }
+
+  .studio-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .studio-nav-link {
+    flex: 0 0 auto;
+    gap: 7px;
+    padding: 7px 11px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .studio-nav-link .studio-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .studio-nav-link::after {
+    display: none;
+  }
+
+  .studio-sound-toggle {
+    width: auto;
+    margin-top: 2px;
+    align-self: flex-start;
+  }
+
+  .studio-welcome {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 22px 18px 20px;
+    border-radius: 18px 14px 20px 12px;
+  }
+
+  .studio-welcome h1 {
+    font-size: 2.05rem;
+    line-height: 0.96;
+  }
+
+  .studio-welcome-note {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .studio-quote {
+    font-size: 16px;
+    margin-bottom: 14px;
+  }
+
+  .studio-welcome-actions {
+    gap: 8px;
+  }
+
+  .studio-welcome-actions .studio-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+
+  .studio-welcome-profile {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .studio-avatar-frame {
+    width: 78px;
+    height: 78px;
+    padding: 7px;
+  }
+
+  .studio-profile-caption {
+    font-size: 18px;
+  }
+
+  .studio-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .studio-stat-card {
+    min-height: 112px;
+    padding: 12px 11px 10px;
+    border-radius: 14px 17px 12px 18px;
+  }
+
+  .studio-stat-value {
+    font-size: 33px;
+  }
+
+  .studio-stat-label {
+    font-size: 8.5px;
+    margin-bottom: 2px;
+  }
+
+  .studio-stat-doodle {
+    width: 44px;
+    right: 8px;
+    bottom: 10px;
+  }
+
+  .studio-pin {
+    top: 9px;
+    right: 9px;
+    width: 10px;
+    height: 10px;
+  }
+
+  .studio-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .studio-quick-card {
+    min-height: 96px;
+    gap: 10px;
+    padding: 12px 11px;
+  }
+
+  .studio-quick-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .studio-quick-icon svg {
+    width: 25px;
+    height: 25px;
+  }
+
+  .studio-quick-card strong {
+    font-size: 17px;
+  }
+
+  .studio-quick-arrow {
+    font-size: 18px;
+  }
+
+  .studio-performance {
+    padding-left: 6px;
+  }
+
+  .studio-performance-label {
+    flex-basis: 62px;
+    font-size: 7.5px;
+  }
+
+  .studio-performance-item {
+    padding: 4px 6px;
+  }
+
+  .studio-performance-item img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .studio-performance-item strong {
+    max-width: 128px;
+    font-size: 16px;
+  }
+
+  .studio-art-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 10px;
+  }
+
+  .studio-art-ribbon {
+    top: 10px;
+    left: -7px;
+    font-size: 12px;
+    padding: 2px 8px 2px 7px;
+  }
+
+  .studio-art-frame-hover {
+    display: none !important;
+  }
+
+  .studio-notebook-page {
+    padding: 20px 12px 22px;
+  }
+
+  .studio-page-heading {
+    margin-bottom: 12px;
+  }
+
+  .studio-page-heading h3 {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 430px) {
+  .studio-quick-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .studio-quick-card {
+    min-height: 72px;
+  }
+
+  .studio-welcome h1 {
+    font-size: 1.74rem;
+  }
+
+  .studio-welcome-actions .studio-btn {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .studio-stat-value {
+    font-size: 28px;
+  }
+
+  .studio-stat-card {
+    min-height: 100px;
+    padding: 10px 9px 9px;
+  }
+
+  .studio-performance-item strong {
+    max-width: 96px;
+  }
+}
