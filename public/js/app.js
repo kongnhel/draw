@@ -1,6 +1,13 @@
 const root = document.documentElement;
 const toggleButton = document.querySelector('.theme-toggle');
 const themeStorageKey = 'artspace-sketchbook-theme';
+
+try {
+  ['artspace-mood-v1', 'artspace-mood-volume-v1', 'artspace-mood-started-v1'].forEach((key) => localStorage.removeItem(key));
+  root.removeAttribute('data-mood');
+  root.classList.remove('mood-start-open');
+} catch (error) {
+}
 const pageCleanups = [];
 
 const registerPageCleanup = (cleanup) => {
