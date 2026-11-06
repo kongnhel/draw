@@ -2,7 +2,6 @@
   'use strict';
 
   const READY_KEY = 'artspace-intro-seen-v1';
-  const SOUND_KEY = 'artspace-intro-sound';
   const DURATION = 3600;
   const ENTRY = 520;
 
@@ -25,8 +24,6 @@
   const welcome = overlay.querySelector('[data-intro-welcome]');
   const progressFill = overlay.querySelector('[data-intro-progress]');
   const particles = overlay.querySelector('[data-intro-particles]');
-  const soundButton = overlay.querySelector('[data-intro-sound]');
-  const soundLabel = overlay.querySelector('[data-intro-sound-label]');
   const skipButton = overlay.querySelector('[data-intro-skip]');
   const enterButton = overlay.querySelector('[data-intro-enter]');
   const replayButton = document.querySelector('[data-intro-replay]');
@@ -46,13 +43,14 @@
   let leaveTimer = null;
   let lastParticleAt = 0;
   let previousFocus = null;
-  let soundEnabled = readSoundPref();
   let audioCtx = null;
   let noiseBuffer = null;
   let scratchSource = null;
   let scratchGain = null;
   let scratchTimer = null;
   let audioCloseTimer = null;
+  let introStartedByUser = false;
+  let tapToStartOverlay = null;
 
   const trackLength = track.getTotalLength();
   const startPoint = track.getPointAtLength(0);
@@ -72,29 +70,6 @@
     } catch (error) {
       /* private browsing */
     }
-  }
-
-  function readSoundPref() {
-    try {
-      return window.localStorage.getItem(SOUND_KEY) === 'on';
-    } catch (error) {
-      return false;
-    }
-  }
-
-  function writeSoundPref() {
-    try {
-      window.localStorage.setItem(SOUND_KEY, soundEnabled ? 'on' : 'off');
-    } catch (error) {
-      /* private browsing */
-    }
-  }
-
-  function setSoundUI() {
-    if (!soundButton) return;
-    soundButton.setAttribute('aria-pressed', String(soundEnabled));
-    soundButton.setAttribute('aria-label', soundEnabled ? 'Disable intro sound' : 'Enable intro sound');
-    if (soundLabel) soundLabel.textContent = soundEnabled ? 'Sound on' : 'Sound off';
   }
 
   function ensureAudio() {
@@ -123,13 +98,7 @@
     return buffer;
   }
 
-  function startScratch() {
-    if (!soundEnabled || !active || completed || reduceQuery.matches) return;
-    if (scratchSource) return;
-
-    const ctx = ensureAudio();
-    if (!ctx) return;
-
+  function createScratchSource(ctx) {
     const source = ctx.createBufferSource();
     source.buffer = getNoiseBuffer(ctx);
     source.loop = true;
@@ -151,8 +120,18 @@
     highpass.connect(bandpass);
     bandpass.connect(gain);
     gain.connect(ctx.destination);
-    source.start();
 
+    return { source, gain };
+  }
+
+  function startScratch() {
+    if (!active || completed || reduceQuery.matches) return;
+    if (scratchSource) return;
+
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    const { source, gain } = createScratchSource(ctx);
     scratchSource = source;
     scratchGain = gain;
 
@@ -194,7 +173,6 @@
   }
 
   function playFinishChime() {
-    if (!soundEnabled || reduceQuery.matches) return;
     const ctx = ensureAudio();
     if (!ctx) return;
 
@@ -206,14 +184,14 @@
 
     notes.forEach((note) => {
       const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const gainNode = ctx.createGain();
       oscillator.type = note.type;
       oscillator.frequency.setValueAtTime(note.frequency, now + note.start);
-      gain.gain.setValueAtTime(0.0001, now + note.start);
-      gain.gain.exponentialRampToValueAtTime(note.gain, now + note.start + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + note.start + note.duration);
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
+      gainNode.gain.setValueAtTime(0.0001, now + note.start);
+      gainNode.gain.exponentialRampToValueAtTime(note.gain, now + note.start + 0.03);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + note.start + note.duration);
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
       oscillator.start(now + note.start);
       oscillator.stop(now + note.start + note.duration + 0.03);
     });
@@ -235,23 +213,40 @@
     }, delay);
   }
 
-  function toggleSound() {
-    soundEnabled = !soundEnabled;
-    writeSoundPref();
-    setSoundUI();
+  function createTapToStartOverlay() {
+    if (tapToStartOverlay) return tapToStartOverlay;
 
-    if (!soundEnabled) {
-      stopScratch();
-      closeAudioSoon(260);
-      return;
-    }
+    tapToStartOverlay = document.createElement('div');
+    tapToStartOverlay.className = 'tap-to-start-overlay';
+    tapToStartOverlay.setAttribute('role', 'status');
+    tapToStartOverlay.setAttribute('aria-live', 'polite');
+    tapToStartOverlay.innerHTML = `
+      <div class="tap-to-start-content">
+        <span>Tap to Start</span>
+        <p>Draw your first line to hear the pencil sound</p>
+      </div>
+    `;
 
-    ensureAudio();
-    startScratch();
+    tapToStartOverlay.addEventListener('click', handleTapToStart);
+    tapToStartOverlay.addEventListener('touchstart', handleTapToStart);
+
+    overlay.parentElement.appendChild(tapToStartOverlay);
+    return tapToStartOverlay;
   }
 
-  function setBackgroundInert(value) {
-    if (pageShell) pageShell.inert = value;
+  function removeTapToStartOverlay() {
+    if (tapToStartOverlay && tapToStartOverlay.parentElement) {
+      tapToStartOverlay.parentElement.removeChild(tapToStartOverlay);
+    }
+    tapToStartOverlay = null;
+  }
+
+  function handleTapToStart(e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    removeTapToStartOverlay();
+    introStartedByUser = true;
+    beginIntro(false);
   }
 
   function setPencilAt(x, y, angle) {
@@ -447,6 +442,19 @@
       return;
     }
 
+    // Check if autoplay is blocked - if so, show tap-to-start overlay
+    const ctx = ensureAudio();
+    const autoplayAllowed = ctx && ctx.state !== 'suspended';
+
+    if (!autoplayAllowed) {
+      // Autoplay blocked - show tap to start overlay
+      removeTapToStartOverlay();
+      createTapToStartOverlay();
+      introStartedByUser = true;
+      // Wait for user tap
+      return;
+    }
+
     welcome.inert = true;
     welcome.setAttribute('aria-hidden', 'true');
     revealRect.setAttribute('x', '60');
@@ -459,11 +467,7 @@
 
     if (isReplay && soundEnabled) startScratch();
     else {
-      const unlock = () => {
-        if (active && soundEnabled) startScratch();
-      };
-      overlay.addEventListener('pointerdown', unlock, { once: true });
-      overlay.addEventListener('keydown', unlock, { once: true });
+      startScratch();
     }
 
     skipButton?.focus({ preventScroll: true });
@@ -483,8 +487,6 @@
 
   function replayIntro() {
     if (active || leaving) return;
-    soundEnabled = readSoundPref();
-    setSoundUI();
     if (reduceQuery.matches) {
       active = true;
       completed = true;
@@ -496,43 +498,6 @@
     }
     beginIntro(true);
   }
-
-  soundButton?.addEventListener('click', toggleSound);
-  skipButton?.addEventListener('click', () => finishIntro('skip'));
-  enterButton?.addEventListener('click', () => finishIntro('enter'));
-  replayButton?.addEventListener('click', replayIntro);
-
-  document.addEventListener('keydown', (event) => {
-    if (!active) return;
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      finishIntro('escape');
-      return;
-    }
-
-    if (event.key !== 'Tab') return;
-
-    const focusable = Array.from(overlay.querySelectorAll('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'))
-      .filter((element) => element.tabIndex >= 0
-        && !element.disabled
-        && element.getClientRects().length > 0
-        && !element.closest('[inert]'));
-
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  });
-
-  setSoundUI();
 
   const shouldShow = root.classList.contains('intro-pending') && !readSeen();
 

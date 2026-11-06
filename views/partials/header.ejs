@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/css/mobile.css" />
     <link rel="stylesheet" href="/css/navbar-sketch.css" />
     <link rel="stylesheet" href="/css/intro.css" />
+    <link rel="stylesheet" href="/css/mood.css" />
     <script>
       (function () {
         try {
@@ -143,71 +144,62 @@
             </button>
 
             <% if (isAuthenticated) { %>
-              <a href="/notifications" class="nav-icon-btn nav-notify" aria-label="Notifications<%= typeof unreadNotifications !== 'undefined' && unreadNotifications > 0 ? ` (${unreadNotifications} unread)` : '' %>">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10.2a5.5 5.5 0 0 1 11 0c0 4 1.4 5.4 2 6.1.3.4 0 .9-.5.9H5c-.5 0-.8-.5-.5-.9.6-.7 2-2.1 2-6.1Z" /><path d="M10.2 20a2 2 0 0 0 3.6 0" /></svg>
-                <% if (typeof unreadNotifications !== 'undefined' && unreadNotifications > 0) { %>
-                  <span class="nav-badge" aria-hidden="true"><%= unreadNotifications > 9 ? '9+' : unreadNotifications %></span>
-                <% } %>
-              </a>
+              <button type="button" id="profile-menu-button" class="profile-chip" data-profile-menu-button aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" aria-label="Open account menu">
+                <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" data-fallback-src="/uploads/avatars/default-avatar.svg" />
+                <span class="profile-chip-name"><%= currentUser.display_name %></span>
+                <svg class="profile-chip-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
 
-              <div class="nav-profile" data-profile-menu-wrap>
-                <button type="button" id="profile-menu-button" class="profile-chip" data-profile-menu-button aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" aria-label="Open account menu">
+              <div class="profile-menu" id="profile-menu" role="menu" aria-labelledby="profile-menu-button" aria-hidden="true" data-profile-menu>
+                <div class="profile-menu-head">
                   <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" data-fallback-src="/uploads/avatars/default-avatar.svg" />
-                  <span class="profile-chip-name"><%= currentUser.display_name %></span>
-                  <svg class="profile-chip-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-                </button>
-
-                <div class="profile-menu" id="profile-menu" role="menu" aria-labelledby="profile-menu-button" aria-hidden="true" data-profile-menu>
-                  <div class="profile-menu-head">
-                    <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" data-fallback-src="/uploads/avatars/default-avatar.svg" />
-                    <span>
-                      <strong><%= currentUser.display_name %></strong>
-                      <small>@<%= currentUser.username %></small>
-                    </span>
-                    <% if (currentUser.role) { %><em><%= currentUser.role %></em><% } %>
-                  </div>
-                  <div class="profile-menu-items">
-                    <a role="menuitem" href="/profile/<%= currentUser.username %>">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4" /><path d="M5.5 19.5c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5" /></svg>
-                      Profile
-                    </a>
-                    <a role="menuitem" href="/dashboard">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z" /></svg>
-                      My Dashboard
-                    </a>
-                    <a role="menuitem" href="/profile/<%= currentUser.username %>?tab=artworks">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.6" /><path d="m4.8 16 4.2-4.4 3 2.7 3.1-3.6 4.1 5.1" /><circle cx="9" cy="9.2" r="1.2" /></svg>
-                      My Artworks
-                    </a>
-                    <a role="menuitem" href="/profile/edit">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 3.8v2M12 18.2v2M3.8 12h2M18.2 12h2M6.2 6.2l1.4 1.4M16.4 16.4l1.4 1.4M17.8 6.2l-1.4 1.4M7.6 16.4l-1.4 1.4" /></svg>
-                      Settings
-                    </a>
-                    <a role="menuitem" href="/notifications">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10.2a5.5 5.5 0 0 1 11 0c0 4 1.4 5.4 2 6.1.3.4 0 .9-.5.9H5c-.5 0-.8-.5-.5-.9.6-.7 2-2.1 2-6.1Z" /><path d="M10.2 20a2 2 0 0 0 3.6 0" /></svg>
-                      Notifications
-                    </a>
-                    <% if (currentUser.role === 'admin') { %>
-                      <a role="menuitem" href="/admin">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 7 3v5c0 4.3-2.9 7.3-7 9-4.1-1.7-7-4.7-7-9v-5l7-3Z" /><path d="m9 12 2 2 4-4.5" /></svg>
-                        Admin studio
-                      </a>
-                    <% } %>
-                  </div>
-                  <div class="profile-menu-sep" role="separator"></div>
-                  <a role="menuitem" class="profile-menu-logout" href="/logout">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5.5H6.5v13H14M10.5 12h9.5m-3-3 3 3-3 3" /></svg>
-                    Log out
-                  </a>
+                  <span>
+                    <strong><%= currentUser.display_name %></strong>
+                    <small>@<%= currentUser.username %></small>
+                  </span>
+                  <% if (currentUser.role) { %><em><%= currentUser.role %></em><% } %>
                 </div>
+                <div class="profile-menu-items">
+                  <a role="menuitem" href="/profile/<%= currentUser.username %>">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4" /><path d="M5.5 19.5c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5" /></svg>
+                    Profile
+                  </a>
+                  <a role="menuitem" href="/dashboard">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z" /></svg>
+                    My Dashboard
+                  </a>
+                  <a role="menuitem" href="/profile/<%= currentUser.username %>?tab=artworks">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.6" /><path d="m4.8 16 4.2-4.4 3 2.7 3.1-3.6 4.1 5.1" /><circle cx="9" cy="9.2" r="1.2" /></svg>
+                    My Artworks
+                  </a>
+                  <a role="menuitem" href="/profile/edit">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 3.8v2M12 18.2v2M3.8 12h2M18.2 12h2M6.2 6.2l1.4 1.4M16.4 16.4l1.4 1.4M17.8 6.2l-1.4 1.4M7.6 16.4l-1.4 1.4" /></svg>
+                    Settings
+                  </a>
+                  <a role="menuitem" href="/notifications">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10.2a5.5 5.5 0 0 1 11 0c0 4 1.4 5.4 2 6.1.3.4 0 .9-.5.9H5c-.5 0-.8-.5-.5-.9.6-.7 2-2.1 2-6.1Z" /><path d="M10.2 20a2 2 0 0 0 3.6 0" /></svg>
+                    Notifications
+                  </a>
+                  <% if (currentUser.role === 'admin') { %>
+                    <a role="menuitem" href="/admin">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 7 3v5c0 4.3-2.9 7.3-7 9-4.1-1.7-7-4.7-7-9v-5l7-3Z" /><path d="m9 12 2 2 4-4.5" /></svg>
+                      Admin studio
+                    </a>
+                  <% } %>
+                </div>
+                <div class="profile-menu-sep" role="separator"></div>
+                <a role="menuitem" class="profile-menu-logout" href="/logout">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5.5H6.5v13H14M10.5 12h9.5m-3-3 3 3-3 3" /></svg>
+                  Log out
+                </a>
               </div>
             <% } else { %>
               <a href="/login" class="nav-auth-link">Login</a>
               <a href="/register" class="nav-auth-join">Join</a>
             <% } %>
 
-            <button class="nav-menu-toggle nav-icon-btn" type="button" data-nav-toggle aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.2c4.5-1 9.5-1.2 14-.4M5 12c4.6-.7 9.4-.8 14-.1M5 16.8c4.4-.9 9.4-1 14-.2" /></svg>
+            <button class="nav-icon-btn nav-mood-toggle" type="button" data-mood-toggle aria-label="Open mood selector" aria-expanded="false" aria-controls="mood-panel">
+              <span class="nav-mood-emoji" data-mood-current-icon aria-hidden="true">❄️</span>
             </button>
           </div>
         </div>
