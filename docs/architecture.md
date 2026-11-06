@@ -14,7 +14,8 @@ ArtSpace is a server-rendered social media platform focused on visual art. The a
 
 ### 2. Persistence layer
 
-- SQLite database with relational tables for users, content, engagement, and moderation
+- Aiven MySQL database with relational tables for users, content, engagement, and moderation
+- Tables are created automatically with `CREATE TABLE IF NOT EXISTS` on app startup
 - Seed data creates categories and a demo artist/admin setup
 
 ### 3. Media upload layer
@@ -34,31 +35,30 @@ ArtSpace is a server-rendered social media platform focused on visual art. The a
 
 ```sql
 users (
-  id, username, email, password_hash, display_name, bio,
-  avatar, cover_image, website, instagram, twitter,
-  role, is_verified, created_at
+  id, name, username, email, password, avatar, bio,
+  role, status, email_verified_at, created_at, updated_at
 )
 
 categories (
-  id, name, slug, sort_order
+  id, name, slug, description, sort_order, created_at, updated_at
 )
 
 artworks (
   id, user_id, category_id, title, description, tags,
-  image_url, thumbnail_url, visibility, is_published,
+  image_url, thumbnail_url, visibility, is_published, status,
   created_at, updated_at
 )
 
 comments (
-  id, artwork_id, user_id, parent_id, body, created_at
+  id, user_id, artwork_id, body, created_at, updated_at
 )
 
 likes (
-  id, artwork_id, user_id, created_at
+  id, user_id, artwork_id, created_at
 )
 
 bookmarks (
-  id, artwork_id, user_id, created_at
+  id, user_id, artwork_id, created_at
 )
 
 follows (
@@ -66,11 +66,11 @@ follows (
 )
 
 notifications (
-  id, recipient_id, actor_id, type, message, link, is_read, created_at
+  id, user_id, actor_id, type, artwork_id, message, is_read, created_at
 )
 
-reports (
-  id, reporter_id, target_type, target_id, reason, created_at
+password_reset_tokens (
+  id, user_id, token_hash, expires_at, used_at, created_at
 )
 ```
 

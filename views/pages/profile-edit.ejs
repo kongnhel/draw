@@ -9,6 +9,12 @@
   const bioDone = user.bio && user.bio.trim().length >= 12;
 %>
 
+<% if (typeof error !== 'undefined' && error) { %>
+<div class="studio-upload-alert" role="alert">
+  <span><%= error %></span>
+</div>
+<% } %>
+
 <div class="pf-page pe-page">
   <header class="pe-head">
     <div class="pe-head-copy">

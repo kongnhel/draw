@@ -1,6 +1,6 @@
 # ArtSpace
 
-ArtSpace is a modern art-focused social platform built with Express, EJS, SQLite, and a responsive design system. The goal is to help artists showcase work, build portfolios, discover creators, and interact with a community centered on visual creativity.
+ArtSpace is a modern art-focused social platform built with Express, EJS, Aiven MySQL, and a responsive design system. The goal is to help artists showcase work, build portfolios, discover creators, and interact with a community centered on visual creativity.
 
 ## Features
 
@@ -25,18 +25,24 @@ ArtSpace is a modern art-focused social platform built with Express, EJS, SQLite
 
 1. Install dependencies:
    npm install
-2. Start the app:
+2. Configure `.env` from `.env.example` (Aiven MySQL + ImageKit + session secret)
+3. Create the dedicated database and verify the schema:
+   npm run db:create
+   npm run db:verify
+4. Optionally seed categories and demo content:
+   npm run seed
+5. Start the app:
    npm start
-3. Visit:
-   http://localhost
-   http://192.168.1.32
-
-The server listens on all interfaces. If port 80 is unavailable, set `PORT=3000` in `.env` and append `:3000` to both URLs.
+6. Visit http://localhost:3000 (or the `PORT` set in `.env`)
 
 ## Demo credentials
 
+Available only after `npm run seed`:
+
 - Admin: admin@artspace.local / admin123
 - Artist: mira@artspace.local / artist123
+
+Change or remove these demo accounts before production use.
 
 ## Design and architecture summary
 
@@ -63,7 +69,7 @@ This supports a lightweight but scalable social network model for creator discov
 ### Application architecture
 
 - Presentation: Express + EJS + responsive CSS
-- Data layer: SQLite for relational metadata and content tracking
+- Data layer: Aiven MySQL for relational metadata and content tracking
 - File handling: Multer + Sharp for uploads and thumbnail generation
 - Security: bcrypt password hashing, session middleware, rate limiting, and validation
 - Deployment: Node.js app running behind standard web server or container

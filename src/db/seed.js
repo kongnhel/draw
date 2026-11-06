@@ -16,52 +16,53 @@ const categories = [
   { name: 'Other Art', slug: 'other-art', sort_order: 12 }
 ];
 
+function toMysqlDate(value) {
+  return new Date(value).toISOString().slice(0, 19).replace('T', ' ');
+}
+
 async function ensureSeeded() {
-  const [existingCategories] = await db.execute('SELECT COUNT(*) AS count FROM categories');
-  if (existingCategories[0].count === 0) {
+  const categoryRows = await db.execute('SELECT COUNT(*) AS count FROM categories');
+  if (Number(categoryRows[0].count) === 0) {
     const insertCategory = 'INSERT INTO categories (name, slug, sort_order) VALUES (?, ?, ?)';
     for (const category of categories) {
       await db.execute(insertCategory, [category.name, category.slug, category.sort_order]);
     }
   }
 
-  const [userCount] = await db.execute('SELECT COUNT(*) AS count FROM users');
-  if (userCount[0].count === 0) {
+  const userRows = await db.execute('SELECT COUNT(*) AS count FROM users');
+  if (Number(userRows[0].count) === 0) {
     const adminPassword = bcrypt.hashSync('admin123', 10);
     const artistPassword = bcrypt.hashSync('artist123', 10);
 
-    const insertUser = 'INSERT INTO users (username, email, password_hash, display_name, bio, avatar, cover_image, website, instagram, twitter, role, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const insertUser = 'INSERT INTO users (username, email, password, name, bio, avatar, role, status, email_verified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())';
 
     await db.execute(insertUser, [
       'admin', 'admin@artspace.local', adminPassword,
       'ArtSpace Admin', 'Curating a space for artwork, creativity, and discovery.',
-      '/uploads/avatars/default-avatar.png', '/uploads/covers/default-cover.jpg',
-      'https://artspace.local', '@artspace', '@artspace', 'admin', 1
+      '/uploads/avatars/default-avatar.png', 'admin', 'active'
     ]);
 
     await db.execute(insertUser, [
       'mira', 'mira@artspace.local', artistPassword,
       'Mira Sol', 'Illustrator blending soft color stories and expressive portraits.',
       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
-      'https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1200&q=80',
-      'https://behance.net', '@miraart', '@mira_art', 'artist', 1
+      'artist', 'active'
     ]);
 
     await db.execute(insertUser, [
       'glen', 'glen@artspace.local', artistPassword,
       'Glen Hart', 'Sketchbook-driven designer focusing on character and world-building.',
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
-      'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1200&q=80',
-      'https://instagram.com', '@glenhart', '@glenhart', 'artist', 1
+      'artist', 'active'
     ]);
   }
 
-  const [artworkCount] = await db.execute('SELECT COUNT(*) AS count FROM artworks');
-  if (artworkCount[0].count === 0) {
-    const [users] = await db.execute('SELECT id, username FROM users ORDER BY id');
-    const [[categoriesMap]] = await db.execute('SELECT id, slug FROM categories');
+  const artworkRows = await db.execute('SELECT COUNT(*) AS count FROM artworks');
+  if (Number(artworkRows[0].count) === 0) {
+    const users = await db.execute('SELECT id, username FROM users ORDER BY id');
+    const categoryRowsAll = await db.execute('SELECT id, slug FROM categories');
     const mapCat = {};
-    for (const row of categoriesMap) {
+    for (const row of categoryRowsAll) {
       mapCat[row.slug] = row.id;
     }
 
@@ -112,7 +113,7 @@ async function ensureSeeded() {
       }
     ];
 
-    const now = new Date().toISOString();
+    const now = new Date();
 
     for (const [index, artwork] of sampleArtworks.entries()) {
       const user = users.find((entry) => entry.username === artwork.user);
@@ -120,28 +121,35 @@ async function ensureSeeded() {
       await db.execute(insertArtwork, [
         user.id, mapCat[artwork.category], artwork.title, artwork.description,
         artwork.tags, artwork.image_url, artwork.thumbnail_url, 'public', 1,
-        new Date(Date.now() - index * 86400000).toISOString(), now
+        toMysqlDate(new Date(Date.now() - index * 86400000)), toMysqlDate(now)
       ]);
     }
 
-    const followSql = 'INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)';
-    await db.execute(followSql, [users[1].id, users[2].id]);
-    await db.execute(followSql, [users[2].id, users[1].id]);
+    const artworkIds = await db.execute('SELECT id FROM artworks ORDER BY id');
+    const mira = users.find((entry) => entry.username === 'mira');
+    const glen = users.find((entry) => entry.username === 'glen');
 
-    const likeSql = 'INSERT OR IGNORE INTO likes (artwork_id, user_id) VALUES (?, ?)';
-    const [artworkIds] = await db.execute('SELECT id FROM artworks ORDER BY id');
-    for (let i = 0; i < Math.min(artworkIds.length, 4); i += 1) {
-      await db.execute(likeSql, [artworkIds[i].id, users[1].id]);
-      await db.execute(likeSql, [artworkIds[i].id, users[2].id]);
+    if (mira && glen) {
+      const followSql = 'INSERT IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)';
+      await db.execute(followSql, [mira.id, glen.id]);
+      await db.execute(followSql, [glen.id, mira.id]);
     }
 
-    const commentSql = 'INSERT INTO comments (artwork_id, user_id, body, created_at) VALUES (?, ?, ?, ?)';
-    const sampleComments = [
-      [artworkIds[0].id, users[1].id, 'This composition has an incredible sense of atmosphere.', new Date().toISOString()],
-      [artworkIds[1].id, users[2].id, 'The color and silhouette feel really premium.', new Date().toISOString()]
-    ];
-    for (const [artworkId, userId, body, created_at] of sampleComments) {
-      await db.execute(commentSql, [artworkId, userId, body, created_at]);
+    const likeSql = 'INSERT IGNORE INTO likes (user_id, artwork_id) VALUES (?, ?)';
+    for (let i = 0; i < Math.min(artworkIds.length, 4); i += 1) {
+      if (mira) await db.execute(likeSql, [mira.id, artworkIds[i].id]);
+      if (glen) await db.execute(likeSql, [glen.id, artworkIds[i].id]);
+    }
+
+    const bookmarkSql = 'INSERT IGNORE INTO bookmarks (user_id, artwork_id) VALUES (?, ?)';
+    if (mira && artworkIds[0]) await db.execute(bookmarkSql, [mira.id, artworkIds[0].id]);
+
+    const commentSql = 'INSERT INTO comments (artwork_id, user_id, body) VALUES (?, ?, ?)';
+    if (artworkIds[0] && glen) {
+      await db.execute(commentSql, [artworkIds[0].id, glen.id, 'This composition has an incredible sense of atmosphere.']);
+    }
+    if (artworkIds[1] && mira) {
+      await db.execute(commentSql, [artworkIds[1].id, mira.id, 'The color and silhouette feel really premium.']);
     }
   }
 }
