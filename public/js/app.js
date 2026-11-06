@@ -1,6 +1,21 @@
 const root = document.documentElement;
 const toggleButton = document.querySelector('.theme-toggle');
 const themeStorageKey = 'artspace-sketchbook-theme';
+const pageCleanups = [];
+
+const registerPageCleanup = (cleanup) => {
+  if (typeof cleanup === 'function') pageCleanups.push(cleanup);
+};
+
+const runPageCleanups = () => {
+  while (pageCleanups.length) {
+    const cleanup = pageCleanups.pop();
+    try {
+      cleanup();
+    } catch (error) {
+    }
+  }
+};
 
 const applyTheme = (theme) => {
   const safeTheme = theme === 'light' ? 'light' : 'dark';
@@ -343,7 +358,7 @@ const bindArtworkDeleteDialog = () => {
   openButton?.addEventListener('click', open);
   cancelButtons.forEach((button) => button.addEventListener('click', close));
 
-  document.addEventListener('keydown', (event) => {
+  const handleDeleteKeydown = (event) => {
     if (modal.hidden) return;
 
     if (event.key === 'Escape') {
@@ -366,7 +381,9 @@ const bindArtworkDeleteDialog = () => {
       event.preventDefault();
       first.focus();
     }
-  });
+  };
+  document.addEventListener('keydown', handleDeleteKeydown);
+  registerPageCleanup(() => document.removeEventListener('keydown', handleDeleteKeydown));
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -573,6 +590,7 @@ const bindScrollReveal = () => {
       currentObserver.unobserve(entry.target);
     });
   }, { threshold: 0.08, rootMargin: '0px 0px 48px 0px' });
+  registerPageCleanup(() => observer.disconnect());
 
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
@@ -618,6 +636,7 @@ const revealArtworkCards = () => {
       currentObserver.unobserve(entry.target);
     });
   }, { threshold: 0.08, rootMargin: '0px 0px 40px 0px' });
+  registerPageCleanup(() => observer.disconnect());
 
   cards.forEach((card, index) => {
     card.classList.add('motion-pending');
@@ -891,6 +910,18 @@ const bindFlipbook = () => {
   };
 
   pageFlip.loadFromHTML(pages);
+  registerPageCleanup(() => {
+    window.clearTimeout(bookPageTimer);
+    window.clearTimeout(bookRevealTimer);
+    window.clearTimeout(bookCloseTimer);
+    window.clearTimeout(bookResetTimer);
+    window.removeEventListener('pagehide', clearBookAudioCues);
+    clearBookAudioCues();
+    try {
+      pageFlip.destroy();
+    } catch (error) {
+    }
+  });
   loadNearbyImages(0);
   experience.addEventListener('mousedown', (event) => {
     const target = event.target instanceof Element ? event.target : null;
@@ -1663,7 +1694,10 @@ const bindArtViewer = () => {
   detailLink?.addEventListener('click', (event) => {
     const destination = detailLink.href;
     event.preventDefault();
-    closeViewer().then(() => window.location.assign(destination));
+    closeViewer().then(() => {
+      if (window.ArtSpaceNavigation?.navigate) window.ArtSpaceNavigation.navigate(destination);
+      else window.location.assign(destination);
+    });
   });
 
   zoomButton?.addEventListener('click', () => {
@@ -1723,27 +1757,12 @@ if (toggleButton) {
   });
 }
 
-bindQuickActions();
-bindPortfolioCollection();
-bindArtworkEditPreview();
-bindArtworkDeleteDialog();
-bindProfileFlash();
-bindCommentForms();
-bindShareButtons();
-bindScrollReveal();
-const heroArtwork = document.querySelector('[data-home-feature-image]');
-bindArtworkImageFallback(heroArtwork, heroArtwork?.closest('.home-hero-feature'));
-document.querySelectorAll('img[data-fallback-src]').forEach((image) => {
-  bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature, .pf-art-image'));
-});
-bindFlipbook();
 bindArtViewer();
-markCurrentNavigation();
-revealArtworkCards();
 
-const studioDashboard = document.querySelector('[data-studio-dashboard]');
+const initStudioDashboard = () => {
+  const studioDashboard = document.querySelector('[data-studio-dashboard]');
+  if (!studioDashboard) return;
 
-if (studioDashboard) {
   const studioCollectionDialog = document.querySelector('[data-collection-dialog]');
   const studioMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const studioSoundStorageKey = 'artspace-pencil-sound';
@@ -1819,6 +1838,7 @@ if (studioDashboard) {
         studioRevealObserver.unobserve(entry.target);
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -4% 0px' });
+    registerPageCleanup(() => studioRevealObserver.disconnect());
 
     studioDashboard.classList.add('is-enhanced');
     studioCollectionDialog?.classList.add('is-enhanced');
@@ -1932,9 +1952,16 @@ if (studioDashboard) {
       }
     }, { passive: true });
   });
-}
 
-(() => {
+  registerPageCleanup(() => {
+    window.removeEventListener('scroll', requestStudioSectionUpdate);
+    window.removeEventListener('resize', requestStudioSectionUpdate);
+    if (studioScrollFrame !== null) window.cancelAnimationFrame(studioScrollFrame);
+    if (studioAudioContext && studioAudioContext.state !== 'closed') studioAudioContext.close().catch(() => {});
+  });
+};
+
+const initUploadPage = () => {
   const uploadPage = document.querySelector('[data-upload-studio]');
   if (!uploadPage) return;
 
@@ -2147,6 +2174,7 @@ if (studioDashboard) {
   const restoreActions = () => {
     isUploading = false;
     activeRequest = null;
+    window.__artspaceUploading = false;
     form.removeAttribute('aria-busy');
     publishButton.classList.remove('is-loading');
     if (publishLabel) publishLabel.textContent = 'Publish Artwork';
@@ -2164,6 +2192,7 @@ if (studioDashboard) {
   const showSuccess = (payload) => {
     isUploading = false;
     activeRequest = null;
+    window.__artspaceUploading = false;
     form.removeAttribute('aria-busy');
     publishButton.classList.remove('is-loading');
     if (progressPercent) progressPercent.textContent = '100%';
@@ -2242,6 +2271,7 @@ if (studioDashboard) {
     clearFileError();
     clearFormError();
     isUploading = true;
+    window.__artspaceUploading = true;
     uploadMode = mode;
     form.setAttribute('aria-busy', 'true');
     publishButton.disabled = true;
@@ -2369,20 +2399,35 @@ if (studioDashboard) {
     startUpload(isDraft ? 'draft' : 'publish');
   });
 
-  window.addEventListener('beforeunload', (event) => {
+  const handleUploadBeforeUnload = (event) => {
     if (!isUploading) return;
     event.preventDefault();
     event.returnValue = '';
+  };
+  window.addEventListener('beforeunload', handleUploadBeforeUnload);
+  registerPageCleanup(() => {
+    window.removeEventListener('beforeunload', handleUploadBeforeUnload);
+    if (activeRequest && typeof activeRequest.abort === 'function') activeRequest.abort();
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    window.__artspaceUploading = false;
   });
 
   if (fileError) fileError.hidden = true;
   if (progressPanel) progressPanel.hidden = true;
   updateReadiness();
-})();
+};
 
-const explorePage = document.querySelector('[data-explore-page]');
+const initExplorePage = () => {
+  const explorePage = document.querySelector('[data-explore-page]');
+  if (!explorePage) return;
 
-if (explorePage) {
+  const pageController = new AbortController();
+  const pageSignal = pageController.signal;
+  registerPageCleanup(() => {
+    pageController.abort();
+    if (exploreRequest) exploreRequest.abort();
+  });
+
   const exploreForm = explorePage.querySelector('[data-explore-form]');
   const exploreGallery = document.getElementById('explore-gallery');
   const exploreQueryInput = explorePage.querySelector('[data-explore-query]');
@@ -2542,7 +2587,7 @@ if (explorePage) {
       category: String(formData.get('category') || 'all'),
       sort: String(formData.get('sort') || 'latest')
     }));
-  });
+  }, { signal: pageSignal });
 
   explorePage.addEventListener('click', async (event) => {
     const target = event.target instanceof Element ? event.target : null;
@@ -2616,13 +2661,13 @@ if (explorePage) {
     if (url.origin !== window.location.origin || url.pathname !== '/explore') return;
     event.preventDefault();
     loadExplore(url);
-  });
+  }, { signal: pageSignal });
 
   document.addEventListener('artwork:like-changed', (event) => {
     explorePage.querySelectorAll('[data-explore-likes-for]').forEach((label) => {
       if (label.dataset.exploreLikesFor === String(event.detail.id)) label.textContent = String(event.detail.likes);
     });
-  });
+  }, { signal: pageSignal });
 
   document.addEventListener('artwork:bookmark-changed', (event) => {
     explorePage.querySelectorAll('[data-explore-card]').forEach((card) => {
@@ -2630,19 +2675,16 @@ if (explorePage) {
       const button = card.querySelector('.studio-explore-save button');
       if (button) button.setAttribute('aria-label', event.detail.saved ? 'Remove from saved artworks' : 'Save artwork');
     });
-  });
-
-  window.addEventListener('popstate', () => {
-    loadExplore(new URL(window.location.href), { push: false, scroll: false });
-  });
+  }, { signal: pageSignal });
 
   bindExploreMedia();
   syncExploreControls();
-}
+};
 
-const homePage = document.querySelector('[data-sketch-home]');
+const initHomePage = () => {
+  const homePage = document.querySelector('[data-sketch-home]');
+  if (!homePage) return;
 
-if (homePage) {
   const homeReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const motionTargets = [...homePage.querySelectorAll('[data-motion]')];
   if (motionTargets.length && !homeReducedMotion.matches && 'IntersectionObserver' in window) {
@@ -2659,6 +2701,7 @@ if (homePage) {
         observer.unobserve(entry.target);
       });
     }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+    registerPageCleanup(() => motionObserver.disconnect());
 
     motionTargets.forEach((target) => motionObserver.observe(target));
   } else {
@@ -2679,4 +2722,36 @@ if (homePage) {
       window.history.replaceState(null, '', hash);
     });
   });
-}
+};
+
+const initPage = () => {
+  bindQuickActions();
+  bindPortfolioCollection();
+  bindArtworkEditPreview();
+  bindArtworkDeleteDialog();
+  bindProfileFlash();
+  bindCommentForms();
+  bindShareButtons();
+  bindScrollReveal();
+
+  const heroArtwork = document.querySelector('[data-home-feature-image]');
+  bindArtworkImageFallback(heroArtwork, heroArtwork?.closest('.home-hero-feature'));
+  document.querySelectorAll('img[data-fallback-src]').forEach((image) => {
+    bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature, .pf-art-image'));
+  });
+
+  bindFlipbook();
+  markCurrentNavigation();
+  revealArtworkCards();
+  initStudioDashboard();
+  initUploadPage();
+  initExplorePage();
+  initHomePage();
+};
+
+initPage();
+window.ArtSpacePage = {
+  init: initPage,
+  cleanup: runPageCleanups,
+  markCurrentNavigation
+};

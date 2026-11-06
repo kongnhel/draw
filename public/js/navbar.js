@@ -14,8 +14,21 @@
   const searchInput = topbar.querySelector('#nav-search-input');
   const searchToggle = topbar.querySelector('[data-search-toggle]');
   const searchClear = topbar.querySelector('[data-search-clear]');
+  const navInk = topbar.querySelector('[data-nav-ink]');
 
   let lastFocused = null;
+
+  const updateNavIndicator = () => {
+    if (!navInk) return;
+    const currentLink = nav?.querySelector('.nav-link-group a.is-current');
+    if (!currentLink || mobileQuery.matches || nav?.classList.contains('is-open')) {
+      navInk.classList.remove('is-visible');
+      return;
+    }
+    navInk.style.left = `${currentLink.offsetLeft}px`;
+    navInk.style.width = `${currentLink.offsetWidth}px`;
+    navInk.classList.add('is-visible');
+  };
 
   const setDrawerState = (open, restoreFocus = true) => {
     if (!nav || !navToggle) return;
@@ -24,6 +37,7 @@
     navToggle.setAttribute('aria-expanded', String(open));
     navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     document.body.classList.toggle('nav-open', open && mobileQuery.matches);
+    updateNavIndicator();
 
     if (open) {
       closeProfileMenu(false);
@@ -224,6 +238,7 @@
       searchToggle?.setAttribute('aria-expanded', 'false');
       searchToggle?.setAttribute('aria-label', 'Open search');
     }
+    updateNavIndicator();
   };
 
   if (typeof mobileQuery.addEventListener === 'function') {
@@ -238,4 +253,7 @@
 
   handleScroll();
   window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('resize', updateNavIndicator, { passive: true });
+  window.addEventListener('artspace:navigation', () => window.requestAnimationFrame(updateNavIndicator));
+  updateNavIndicator();
 })();

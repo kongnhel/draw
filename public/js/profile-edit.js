@@ -1,6 +1,7 @@
 (() => {
   const form = document.querySelector('[data-pe-form]');
   if (!form) return;
+  window.__artspaceUnsavedChanges = false;
 
   const MAX_FILE_BYTES = 3 * 1024 * 1024;
   const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -27,6 +28,7 @@
   const markDirty = () => {
     if (dirty) return;
     dirty = true;
+    window.__artspaceUnsavedChanges = true;
     if (unsavedNote) unsavedNote.hidden = false;
   };
 
@@ -169,7 +171,7 @@
 
   form.addEventListener('input', markDirty);
   form.addEventListener('change', markDirty);
-  form.addEventListener('submit', () => { submitting = true; });
+  form.addEventListener('submit', () => { submitting = true; window.__artspaceUnsavedChanges = false; });
 
   bioInput?.addEventListener('input', updateCounter);
   $$('[data-pe-link]').forEach((input) => input.addEventListener('input', updateLinkPreview));

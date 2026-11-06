@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/css/background-falling.css" />
     <link rel="stylesheet" href="/css/mobile.css" />
     <link rel="stylesheet" href="/css/navbar-sketch.css" />
+    <link rel="stylesheet" href="/css/spa-nav.css" />
     <link rel="stylesheet" href="/css/intro.css" />
     <link rel="stylesheet" href="/css/mood.css" />
     <script>
@@ -49,6 +50,10 @@
       <canvas class="bg-falling-canvas" data-bg-falling data-scene="<%= bgSceneValue %>"></canvas>
     </div>
     <div class="page-shell">
+      <div class="route-loader" data-route-loader aria-hidden="true" hidden>
+        <span class="route-loader-track"><span class="route-loader-fill"></span><span class="route-loader-pencil"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 20l2.5-7L16 3.5l4.5 4.5L11 17.5 4 20Z" /><path d="M14 6l4 4M6.5 17.5l2 2" /></svg></span></span>
+      </div>
+      <p class="route-announcer" data-route-announcer role="status" aria-live="polite"></p>
       <header class="topbar" data-topbar>
         <div class="container nav-wrap">
           <a href="/" class="brand" aria-label="ArtSpace home">
@@ -84,6 +89,7 @@
                   <a href="/admin">Admin</a>
                 <% } %>
               <% } %>
+              <span class="nav-ink" data-nav-ink aria-hidden="true"></span>
             </div>
 
             <% if (typeof categories !== 'undefined' && categories.length) { %>
@@ -134,6 +140,9 @@
           </form>
 
           <div class="nav-actions">
+            <button class="nav-menu-toggle" type="button" data-nav-toggle aria-controls="primary-nav" aria-expanded="false" aria-label="Open menu">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path class="nav-toggle-line nav-toggle-line-top" d="M5 7h14" /><path class="nav-toggle-line nav-toggle-line-middle" d="M5 12h14" /><path class="nav-toggle-line nav-toggle-line-bottom" d="M5 17h14" /></svg>
+            </button>
             <button class="nav-icon-btn nav-search-toggle" type="button" data-search-toggle aria-expanded="false" aria-controls="nav-search-input" aria-label="Open search">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" /><path d="m15.6 15.6 4.4 4.4" /></svg>
             </button>
@@ -144,7 +153,8 @@
             </button>
 
             <% if (isAuthenticated) { %>
-              <button type="button" id="profile-menu-button" class="profile-chip" data-profile-menu-button aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" aria-label="Open account menu">
+              <div class="nav-profile" data-profile-menu-wrap>
+                <button type="button" id="profile-menu-button" class="profile-chip" data-profile-menu-button aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" aria-label="Open account menu">
                 <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" data-fallback-src="/uploads/avatars/default-avatar.svg" />
                 <span class="profile-chip-name"><%= currentUser.display_name %></span>
                 <svg class="profile-chip-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
@@ -193,6 +203,7 @@
                   Log out
                 </a>
               </div>
+              </div>
             <% } else { %>
               <a href="/login" class="nav-auth-link">Login</a>
               <a href="/register" class="nav-auth-join">Join</a>
@@ -207,6 +218,7 @@
         <button class="nav-backdrop" type="button" data-nav-backdrop tabindex="-1" aria-label="Close menu"></button>
       </header>
 
+      <div class="route-view" data-route-view tabindex="-1" aria-label="Page content">
       <% if (typeof categories !== 'undefined' && categories.length) { %>
         <div class="category-bar">
           <div class="container category-list">
