@@ -180,16 +180,22 @@
         </div>
 
         <div class="studio-upload-row">
-          <div class="studio-upload-field">
-            <label for="tags">Tags</label>
-            <input type="text" id="tags" name="tags" maxlength="180" placeholder="#portrait #ink #quiet" value="<%= typeof formValues !== 'undefined' && formValues.tags ? formValues.tags : '' %>" />
-            <span class="studio-field-help">Separate tags with spaces.</span>
-          </div>
+<div class="studio-upload-field">
+              <label for="tags">Tags</label>
+              <input type="text" id="tags" name="tags" maxlength="180" placeholder="#portrait #ink #quiet" value="<%= typeof formValues !== 'undefined' && formValues.tags ? formValues.tags : '' %>" />
+              <span class="studio-field-help">Separate tags with spaces.</span>
+            </div>
 
-          <div class="studio-upload-field">
-            <label for="created_at">Created on <span class="studio-field-hint">optional</span></label>
-            <input type="date" id="created_at" name="created_at" value="<%= typeof formValues !== 'undefined' && formValues.created_at ? String(formValues.created_at).slice(0, 10) : '' %>" />
-          </div>
+            <div class="studio-upload-field">
+              <label for="is_featured">Feature on home page</label>
+              <input type="checkbox" id="is_featured" name="is_featured" <%= typeof formValues !== 'undefined' && formValues.is_featured ? 'checked' : '' %> />
+              <span class="studio-field-help">Check to showcase this artwork at the top of the home page.</span>
+            </div>
+
+            <div class="studio-upload-field">
+              <label for="created_at">Created on <span class="studio-field-hint">optional</span></label>
+              <input type="date" id="created_at" name="created_at" value="<%= typeof formValues !== 'undefined' && formValues.created_at ? String(formValues.created_at).slice(0, 10) : '' %>" />
+            </div>
         </div>
 
         <fieldset class="studio-visibility">

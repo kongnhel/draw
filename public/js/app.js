@@ -28,6 +28,9 @@ const updateLikeButton = (button, liked) => {
   button.setAttribute('aria-pressed', String(Boolean(liked)));
   if (button.classList.contains('ad-tool')) {
     button.setAttribute('aria-label', liked ? 'Unlike this artwork' : 'Like this artwork');
+  } else if (button.classList.contains('pf-art-action')) {
+    button.setAttribute('aria-label', liked ? 'Unlike this artwork' : 'Like this artwork');
+    button.title = liked ? 'Unlike' : 'Like';
   }
 
   if (liked && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -45,15 +48,22 @@ const updateSavedButton = (button, saved) => {
   button.setAttribute('aria-pressed', String(saved));
   if (button.classList.contains('ad-tool')) {
     button.setAttribute('aria-label', saved ? 'Remove from saved artwork' : 'Save this artwork');
+  } else if (button.classList.contains('pf-art-action')) {
+    button.setAttribute('aria-label', saved ? 'Remove from saved artwork' : 'Save this artwork');
+    button.title = saved ? 'Remove from saved artwork' : 'Save this artwork';
   }
 };
 
 const updateLikeCounter = (card, likesCount) => {
-  const likeCounter = card?.querySelector('.metric-inline span') || document.querySelector('[data-detail-likes-count]') || document.querySelector('[data-viewer-like-count]');
+  const likeCounter = card?.querySelector('[data-portfolio-likes]') || card?.querySelector('.metric-inline span') || document.querySelector('[data-detail-likes-count]') || document.querySelector('[data-viewer-like-count]');
   if (!likeCounter) return;
   const value = Number.parseInt(likeCounter.textContent.replace(/[^\d]/g, ''), 10) || 0;
   const nextCount = Math.max(0, likesCount ?? value);
-  likeCounter.textContent = (likeCounter.hasAttribute('data-viewer-like-count') || likeCounter.hasAttribute('data-detail-likes-count')) ? String(nextCount) : `❤ ${nextCount}`;
+  const isPlainCounter = likeCounter.hasAttribute('data-portfolio-likes')
+    || likeCounter.hasAttribute('data-viewer-like-count')
+    || likeCounter.hasAttribute('data-detail-likes-count');
+  likeCounter.textContent = isPlainCounter ? String(nextCount) : `❤ ${nextCount}`;
+  if (card?.hasAttribute('data-portfolio-card')) card.dataset.likes = String(nextCount);
 };
 
 const bindQuickActions = () => {
@@ -63,7 +73,7 @@ const bindQuickActions = () => {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const button = form.querySelector('button');
-      const card = form.closest('.art-card');
+      const card = form.closest('.art-card, [data-portfolio-card]');
 
       try {
         const response = await fetch(form.action, {
@@ -113,6 +123,305 @@ const bindQuickActions = () => {
         form.submit();
       }
     });
+  });
+};
+
+const bindPortfolioCollection = () => {
+  const collection = document.querySelector('[data-portfolio]');
+  const gallery = collection?.querySelector('[data-portfolio-gallery]');
+  if (!collection || !gallery) return;
+
+  const cards = Array.from(gallery.querySelectorAll('[data-portfolio-card]'));
+  if (!cards.length) return;
+
+  const searchInput = collection.querySelector('[data-portfolio-search]');
+  const searchClear = collection.querySelector('[data-portfolio-search-clear]');
+  const sortButtons = Array.from(collection.querySelectorAll('[data-portfolio-sort]'));
+  const categoryButtons = Array.from(collection.querySelectorAll('[data-portfolio-category]'));
+  const resetButtons = Array.from(collection.querySelectorAll('[data-portfolio-reset]'));
+  const statusLabel = collection.querySelector('[data-portfolio-status]');
+  const noResults = collection.querySelector('[data-portfolio-no-results]');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const originalOrder = cards.slice();
+  let activeSort = 'all';
+  let activeCategory = 'all';
+  let filterTimer = null;
+
+  const normalize = (value) => String(value || '').trim().toLowerCase();
+
+  const setPressed = (buttons, current) => {
+    buttons.forEach((button) => {
+      const isActive = button === current;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
+  };
+
+  const applyFilters = (animate = true) => {
+    const term = normalize(searchInput?.value);
+    const visibleCards = cards.filter((card) => {
+      const matchesCategory = activeCategory === 'all'
+        || normalize(card.dataset.category) === activeCategory;
+      const searchText = normalize(`${card.dataset.title} ${card.dataset.tags} ${card.dataset.category} ${card.dataset.artist}`);
+      return matchesCategory && (!term || searchText.includes(term));
+    });
+
+    if (activeSort === 'popular') {
+      visibleCards.sort((a, b) => Number(b.dataset.likes || 0) - Number(a.dataset.likes || 0));
+    } else if (activeSort === 'recent') {
+      visibleCards.sort((a, b) => Number(b.dataset.created || 0) - Number(a.dataset.created || 0));
+    } else {
+      visibleCards.sort((a, b) => originalOrder.indexOf(a) - originalOrder.indexOf(b));
+    }
+
+    cards.forEach((card) => {
+      card.hidden = !visibleCards.includes(card);
+    });
+    visibleCards.forEach((card) => gallery.appendChild(card));
+
+    if (statusLabel) {
+      statusLabel.innerHTML = visibleCards.length === 1
+        ? 'Showing <strong>1</strong> piece'
+        : `Showing <strong>${visibleCards.length}</strong> of <strong>${cards.length}</strong> pieces`;
+    }
+
+    if (noResults) noResults.hidden = visibleCards.length !== 0;
+
+    const hasActiveFilters = Boolean(term) || activeCategory !== 'all';
+    resetButtons.forEach((button) => {
+      button.hidden = !hasActiveFilters;
+    });
+
+    if (searchClear) searchClear.hidden = !(searchInput && searchInput.value);
+
+    if (!animate || reducedMotion.matches) return;
+
+    gallery.classList.remove('is-filtering');
+    void gallery.offsetWidth;
+    gallery.classList.add('is-filtering');
+    window.clearTimeout(filterTimer);
+    filterTimer = window.setTimeout(() => gallery.classList.remove('is-filtering'), 340);
+  };
+
+  const resetFilters = () => {
+    activeSort = 'all';
+    activeCategory = 'all';
+    if (searchInput) searchInput.value = '';
+    setPressed(sortButtons, sortButtons.find((button) => button.dataset.portfolioSort === 'all'));
+    setPressed(categoryButtons, categoryButtons.find((button) => button.dataset.portfolioCategory === 'all'));
+    applyFilters();
+  };
+
+  sortButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      activeSort = button.dataset.portfolioSort || 'all';
+      setPressed(sortButtons, button);
+      applyFilters();
+    });
+  });
+
+  categoryButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const nextCategory = normalize(button.dataset.portfolioCategory || 'all');
+      activeCategory = activeCategory === nextCategory && nextCategory !== 'all' ? 'all' : nextCategory;
+      setPressed(
+        categoryButtons,
+        categoryButtons.find((item) => normalize(item.dataset.portfolioCategory) === activeCategory)
+      );
+      applyFilters();
+    });
+  });
+
+  searchInput?.addEventListener('input', () => applyFilters());
+
+  searchInput?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !searchInput.value) return;
+    searchInput.value = '';
+    applyFilters();
+    searchInput.focus();
+  });
+
+  searchClear?.addEventListener('click', () => {
+    if (!searchInput) return;
+    searchInput.value = '';
+    applyFilters();
+    searchInput.focus();
+  });
+
+  resetButtons.forEach((button) => button.addEventListener('click', resetFilters));
+
+  applyFilters(false);
+};
+
+const bindArtworkEditPreview = () => {
+  const form = document.querySelector('[data-artwork-edit-form]');
+  if (!form) return;
+
+  const titleInput = form.querySelector('[data-ae-title]');
+  const descriptionInput = form.querySelector('[data-ae-description]');
+  const categoryInput = form.querySelector('[data-ae-category]');
+  const previewTitle = document.querySelector('[data-ae-preview-title]');
+  const previewCategory = document.querySelector('[data-ae-preview-category]');
+  const titleCount = document.querySelector('[data-ae-title-count]');
+  const descriptionCount = document.querySelector('[data-ae-description-count]');
+
+  const update = () => {
+    if (previewTitle && titleInput) {
+      previewTitle.textContent = titleInput.value.trim() || 'Untitled artwork';
+    }
+    if (previewCategory && categoryInput) {
+      previewCategory.textContent = categoryInput.selectedOptions[0]?.textContent.trim() || 'Artwork';
+    }
+    if (titleCount && titleInput) {
+      titleCount.textContent = `${titleInput.value.length}/120`;
+    }
+    if (descriptionCount && descriptionInput) {
+      descriptionCount.textContent = `${descriptionInput.value.length}/1200`;
+    }
+  };
+
+  form.addEventListener('input', update);
+  form.addEventListener('change', update);
+  update();
+};
+
+const bindArtworkDeleteDialog = () => {
+  const modal = document.querySelector('[data-delete-modal]');
+  if (!modal) return;
+
+  const openButton = document.querySelector('[data-delete-open]');
+  const card = modal.querySelector('[data-delete-card]');
+  const form = modal.querySelector('[data-delete-form]');
+  const submitButton = modal.querySelector('[data-delete-submit]');
+  const status = modal.querySelector('[data-delete-status]');
+  const cancelButtons = Array.from(modal.querySelectorAll('[data-delete-cancel]'));
+  const focusableSelector = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  let lastTrigger = null;
+  let isDeleting = false;
+
+  const setStatus = (message, type = '') => {
+    if (!status) return;
+    status.textContent = message;
+    status.hidden = !message;
+    status.classList.toggle('is-error', type === 'error');
+    status.classList.toggle('is-success', type === 'success');
+  };
+
+  const getFocusable = () => Array
+    .from(modal.querySelectorAll(focusableSelector))
+    .filter((element) => element.tabIndex >= 0 && !element.disabled);
+
+  const resetButtons = () => {
+    card?.setAttribute('aria-busy', 'false');
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Delete artwork';
+    }
+    cancelButtons.forEach((button) => {
+      button.disabled = false;
+    });
+  };
+
+  const open = () => {
+    lastTrigger = document.activeElement;
+    isDeleting = false;
+    setStatus('');
+    resetButtons();
+    modal.hidden = false;
+    document.body.classList.add('ae-modal-open');
+    modal.querySelector('.ae-modal-cancel')?.focus();
+  };
+
+  const close = () => {
+    if (isDeleting) return;
+    modal.hidden = true;
+    document.body.classList.remove('ae-modal-open');
+    setStatus('');
+    if (lastTrigger && typeof lastTrigger.focus === 'function') lastTrigger.focus();
+  };
+
+  openButton?.addEventListener('click', open);
+  cancelButtons.forEach((button) => button.addEventListener('click', close));
+
+  document.addEventListener('keydown', (event) => {
+    if (modal.hidden) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+
+    if (event.key !== 'Tab') return;
+
+    const focusable = getFocusable();
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (isDeleting) return;
+
+    isDeleting = true;
+    card?.setAttribute('aria-busy', 'true');
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'Deleting…';
+    }
+    cancelButtons.forEach((button) => {
+      button.disabled = true;
+    });
+    setStatus('Deleting this page…');
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        }
+      });
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = null;
+      }
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'We could not delete this artwork. Please try again.');
+      }
+
+      setStatus('Artwork deleted. Returning to your collection…', 'success');
+      const redirectUrl = payload.redirectUrl || form.dataset.deleteRedirect || '/';
+      window.setTimeout(() => window.location.assign(redirectUrl), 650);
+    } catch (error) {
+      isDeleting = false;
+      resetButtons();
+      setStatus(error.message || 'We could not delete this artwork. Please try again.', 'error');
+    }
+  });
+};
+
+const bindProfileFlash = () => {
+  const flash = document.querySelector('[data-profile-flash]');
+  if (!flash) return;
+
+  flash.querySelector('[data-profile-flash-close]')?.addEventListener('click', () => {
+    flash.hidden = true;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('deleted');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   });
 };
 
@@ -1415,13 +1724,17 @@ if (toggleButton) {
 }
 
 bindQuickActions();
+bindPortfolioCollection();
+bindArtworkEditPreview();
+bindArtworkDeleteDialog();
+bindProfileFlash();
 bindCommentForms();
 bindShareButtons();
 bindScrollReveal();
 const heroArtwork = document.querySelector('[data-home-feature-image]');
 bindArtworkImageFallback(heroArtwork, heroArtwork?.closest('.home-hero-feature'));
 document.querySelectorAll('img[data-fallback-src]').forEach((image) => {
-  bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature'));
+  bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature, .pf-art-image'));
 });
 bindFlipbook();
 bindArtViewer();
@@ -2330,53 +2643,7 @@ if (explorePage) {
 const homePage = document.querySelector('[data-sketch-home]');
 
 if (homePage) {
-  const intro = document.querySelector('[data-sketch-intro]');
-  const introSkip = intro?.querySelector('[data-sketch-intro-skip]');
   const homeReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const introStorageKey = 'artspace-home-intro';
-  let introTimer = null;
-
-  const readIntroStorage = () => {
-    try {
-      return window.sessionStorage.getItem(introStorageKey) === 'seen';
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const hideIntro = (reason) => {
-    if (!intro || intro.classList.contains('is-hidden')) return;
-    window.clearTimeout(introTimer);
-    intro.classList.add('is-hidden');
-    document.body.classList.remove('home-intro-locked');
-    try {
-      window.sessionStorage.setItem(introStorageKey, 'seen');
-    } catch (error) {
-      void error;
-    }
-    window.setTimeout(() => intro.remove(), 720);
-    if (reason === 'skip') introSkip?.blur();
-  };
-
-  if (intro) {
-    if (homeReducedMotion.matches || readIntroStorage()) {
-      intro.remove();
-    } else {
-      document.body.classList.add('home-intro-active');
-      document.body.classList.add('home-intro-locked');
-      window.setTimeout(() => intro.classList.add('is-drawn'), 240);
-      introSkip?.addEventListener('click', () => hideIntro('skip'));
-      intro.addEventListener('click', (event) => {
-        if (event.target.closest('a, button')) return;
-        hideIntro('click');
-      });
-      window.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && intro.isConnected) hideIntro('escape');
-      });
-      introTimer = window.setTimeout(() => hideIntro('auto'), 2100);
-    }
-  }
-
   const motionTargets = [...homePage.querySelectorAll('[data-motion]')];
   if (motionTargets.length && !homeReducedMotion.matches && 'IntersectionObserver' in window) {
     motionTargets.forEach((target, index) => {

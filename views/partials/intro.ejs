@@ -1,0 +1,71 @@
+<div class="intro-overlay" data-intro-overlay role="dialog" aria-modal="true" aria-label="ArtSpace pencil drawing intro" aria-hidden="true">
+  <div class="intro-paper-lines" aria-hidden="true"></div>
+  <div class="intro-grain" aria-hidden="true"></div>
+
+  <div class="intro-topbar">
+    <button type="button" class="intro-sound" data-intro-sound aria-pressed="false" aria-label="Enable intro sound">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 10v4h4l5 4V6l-5 4H4Z" />
+        <path class="intro-sound-waves" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12" />
+        <path class="intro-sound-mute" d="m16.5 9.5 5 5m0-5-5 5" />
+      </svg>
+      <span data-intro-sound-label>Sound off</span>
+    </button>
+
+    <button type="button" class="intro-skip" data-intro-skip>
+      <span>Skip intro</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+    </button>
+  </div>
+
+  <div class="intro-stage">
+    <svg class="intro-logo-svg" viewBox="0 0 1000 520" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="intro-rough-filter" x="-6%" y="-12%" width="112%" height="134%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.014 0.055" numOctaves="2" seed="7" result="intro-noise" />
+          <feDisplacementMap in="SourceGraphic" in2="intro-noise" scale="2.6" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <mask id="intro-reveal-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="520">
+          <rect data-intro-reveal x="0" y="0" width="0" height="520" fill="#ffffff" />
+        </mask>
+        <path id="intro-pencil-path" d="M76 312 C 195 282, 300 334, 438 302 S 700 276, 906 312" fill="none" />
+      </defs>
+
+      <g class="intro-drawing" mask="url(#intro-reveal-mask)" filter="url(#intro-rough-filter)">
+        <g class="intro-brand-mark" transform="translate(68 102) scale(2.5)">
+          <path d="m11 29 3-9L26 8l6 6-12 12-9 3Z" />
+          <path d="m14 20 6 6M25 9l6 6M10 31l9-3M8 34l2-3" />
+          <path d="M7.5 8.5c2.2-2 4.4-2 6.5.2" />
+          <path d="M8 36.5c7.5-1.8 15.5-2 24.5-1.2" />
+        </g>
+        <text class="intro-word" x="520" y="332" text-anchor="middle">ArtSpace</text>
+        <path class="intro-underline" d="M196 376 C 348 352, 510 388, 660 366 S 792 346, 894 364" pathLength="1" />
+      </g>
+
+      <g class="intro-pencil" data-intro-pencil aria-hidden="true">
+        <g>
+          <path class="intro-pencil-tip" d="M0 0 L-4.5 -11 L4.5 -11Z" />
+          <path class="intro-pencil-wood" d="M0 0 L-12 -28 L0 -38 L12 -28Z" />
+          <rect class="intro-pencil-body" x="-12" y="-158" width="24" height="120" rx="1.5" />
+          <rect class="intro-pencil-band" x="-12" y="-146" width="24" height="7" />
+          <rect class="intro-pencil-eraser" x="-12" y="-180" width="24" height="22" rx="3" />
+          <path class="intro-pencil-edge" d="M-12 -158V-38M12 -158V-38M-12 -158h24" />
+        </g>
+      </g>
+    </svg>
+
+    <div class="intro-welcome" data-intro-welcome>
+      <span class="intro-welcome-kicker">Welcome to the studio</span>
+      <p class="intro-welcome-title">Every artwork begins with a pencil stroke.</p>
+      <span class="intro-welcome-hint">A living sketchbook for original work and the people who make it.</span>
+      <button type="button" class="intro-enter" data-intro-enter>
+        Enter the studio
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="intro-progress" aria-hidden="true"><span data-intro-progress></span></div>
+  <p class="intro-footnote" aria-hidden="true">Graphite &amp; paper · ArtSpace</p>
+  <div class="intro-particles" data-intro-particles aria-hidden="true"></div>
+</div>

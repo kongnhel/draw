@@ -15,6 +15,24 @@
     <link rel="stylesheet" href="/css/background-falling.css" />
     <link rel="stylesheet" href="/css/mobile.css" />
     <link rel="stylesheet" href="/css/navbar-sketch.css" />
+    <link rel="stylesheet" href="/css/intro.css" />
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('artspace-sketchbook-theme');
+          if (theme === 'dark' || theme === 'light') document.documentElement.setAttribute('data-theme', theme);
+          var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          var seen = localStorage.getItem('artspace-intro-seen-v1') === '1';
+          if (!seen && !reduced) {
+            document.documentElement.classList.add('intro-pending');
+            window.__introFallback = window.setTimeout(function () {
+              if (!window.__introReady) document.documentElement.classList.remove('intro-pending');
+            }, 10000);
+          }
+        } catch (error) {}
+      })();
+    </script>
+    <script src="/js/intro.js" defer></script>
   </head>
   <%
     const bgSceneSource = (typeof artwork !== 'undefined' && artwork && (artwork.category_name || artwork.category))
@@ -24,7 +42,8 @@
     const bgSceneValue = String(bgSceneSource || '').trim().toLowerCase();
     const bodyTitle = typeof pageTitle === 'string' ? pageTitle : '';
   %>
-  <body data-theme="light" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %>">
+  <body data-theme="light" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %> <%= bodyTitle.includes('Edit artwork') ? 'edit-body' : '' %>">
+    <%- include('./intro') %>
     <div class="bg-falling" aria-hidden="true">
       <canvas class="bg-falling-canvas" data-bg-falling data-scene="<%= bgSceneValue %>"></canvas>
     </div>
@@ -207,4 +226,4 @@
         </div>
       <% } %>
 
-      <main class="container main-content <%= pageTitle === 'ArtSpace | Discover original artwork' ? 'home-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Explore') ? 'explore-main' : '' %>">
+      <main class="container main-content <%= pageTitle === 'ArtSpace | Discover original artwork' ? 'home-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Explore') ? 'explore-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.includes('Edit artwork') ? 'edit-main' : '' %>">

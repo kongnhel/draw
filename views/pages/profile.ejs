@@ -66,6 +66,16 @@
 
 <div class="pf-page">
 
+  <% if (typeof deletedNotice !== 'undefined' && deletedNotice && isOwner) { %>
+    <div class="pf-flash" role="status" data-profile-flash>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+      <p><strong>Artwork deleted.</strong> The page has been removed from your collection.</p>
+      <button type="button" class="pf-flash-close" data-profile-flash-close aria-label="Dismiss message">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+      </button>
+    </div>
+  <% } %>
+
   <!-- ============ Hero / cover ============ -->
   <header class="pf-hero">
     <div class="pf-cover" role="img" aria-label="Cover artwork for <%= profileUser.display_name %>" style="background-image: url('<%= profileUser.cover_image || '/uploads/covers/default-cover.svg' %>')">
@@ -82,7 +92,7 @@
 
     <div class="pf-identity">
       <div class="pf-avatar-wrap">
-        <img class="pf-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= profileUser.display_name %>" />
+        <img class="pf-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" />
         <span class="pf-tape" aria-hidden="true"></span>
       </div>
 
@@ -276,8 +286,8 @@
           </div>
 
           <div class="pf-art-grid" data-portfolio-gallery>
-            <% portfolioItems.forEach((artwork) => { %>
-              <%- include('../partials/portfolio-art-card', { artwork, showArtist: activeTab !== 'artworks' }) %>
+            <% portfolioItems.forEach((artwork, index) => { %>
+              <%- include('../partials/portfolio-art-card', { artwork, showArtist: activeTab !== 'artworks', eager: index < 4 }) %>
             <% }) %>
           </div>
 
@@ -328,7 +338,7 @@
       <section class="pf-card pf-specimen" aria-label="Artist card">
         <span class="pf-specimen-label" aria-hidden="true">The Artist's Table</span>
         <div class="pf-specimen-top">
-          <img class="pf-specimen-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= profileUser.display_name %>" loading="lazy" />
+          <img class="pf-specimen-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" loading="lazy" />
           <div class="pf-specimen-copy">
             <h3><%= profileUser.display_name %></h3>
             <p>@<%= profileUser.username %></p>
@@ -347,7 +357,7 @@
         <section class="pf-card pf-pinned" aria-label="Latest artwork">
           <span class="pf-side-label" aria-hidden="true">Pinned latest</span>
           <a class="pf-pinned-link" href="/art/<%= latest.id %>">
-            <img src="<%= latest.thumbnail_url || latest.image_url %>" alt="<%= latest.title %>" loading="lazy" decoding="async" />
+            <img src="<%= latest.thumbnail_url || latest.image_url %>" data-fallback-src="/images/default-artwork.svg" alt="<%= latest.title %>" loading="lazy" decoding="async" />
             <span class="pf-pinned-meta">
               <span><%= latest.category_name || 'Artwork' %></span>
               <strong><%= latest.title %></strong>
@@ -358,17 +368,19 @@
 
       <section class="pf-card pf-clippings" aria-label="Saved and liked clippings">
         <span class="pf-side-label" aria-hidden="true">Clipped from the gallery</span>
-        <div class="pf-clipping-grid">
+        <div class="pf-clipping-grid <%= isOwner ? '' : 'pf-clipping-grid--single' %>">
           <a class="pf-clipping-item" href="/profile/<%= profileUser.username %>?tab=liked">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
             <strong><%= likedArtworks.length %></strong>
             <span>Liked works</span>
           </a>
-          <a class="pf-clipping-item" href="/profile/<%= profileUser.username %>?tab=saved">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4V4Z" /></svg>
-            <strong><%= savedArtworks.length %></strong>
-            <span>Saved works</span>
-          </a>
+          <% if (isOwner) { %>
+            <a class="pf-clipping-item" href="/profile/<%= profileUser.username %>?tab=saved">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4V4Z" /></svg>
+              <strong><%= savedArtworks.length %></strong>
+              <span>Saved works</span>
+            </a>
+          <% } %>
         </div>
       </section>
 

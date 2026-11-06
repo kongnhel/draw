@@ -468,7 +468,7 @@ app.get('/', async (req, res, next) => {
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
               u.avatar,
               c.name AS category_name, c.slug AS category_slug,
-              a.created_at, a.visibility, a.is_published,
+              a.created_at, a.visibility, a.is_published, a.is_featured,
               (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
               (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
               EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
@@ -477,7 +477,7 @@ app.get('/', async (req, res, next) => {
          INNER JOIN users u ON u.id = a.user_id
          INNER JOIN categories c ON c.id = a.category_id
         WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
-        ORDER BY a.created_at DESC`,
+        ORDER BY a.is_featured DESC, a.created_at DESC`,
       [viewerId, viewerId]
     );
 
@@ -770,11 +770,12 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
       }
     }
 
+const isFeatured = req.body.is_featured === 'on' ? 1 : 0;
     const result = await db.execute(
       `INSERT INTO artworks
          (user_id, category_id, title, description, tags, image_url, thumbnail_url,
-          visibility, is_published, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', COALESCE(?, NOW()), NOW())`,
+          visibility, is_published, status, is_featured, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', COALESCE(?, NOW()), NOW())`,
       [
         req.session.user.id,
         categoryId,
@@ -785,6 +786,7 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
         artworkImage.thumbnail_url || artworkImage.image_url,
         visibility,
         isPublished,
+        isFeatured,
         createdAt
       ]
     );
@@ -1077,7 +1079,7 @@ app.get('/profile/:username', async (req, res, next) => {
          LEFT JOIN categories c ON c.id = a.category_id
         WHERE a.user_id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
         ORDER BY a.created_at DESC
-        LIMIT 12`,
+        LIMIT 60`,
       [viewerId, viewerId, profileUser.id]
     );
 
@@ -1099,7 +1101,7 @@ app.get('/profile/:username', async (req, res, next) => {
          LEFT JOIN categories c ON c.id = a.category_id
         WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
         ORDER BY liked_by.created_at DESC
-        LIMIT 12`,
+        LIMIT 60`,
       [viewerId, viewerId, profileUser.id]
     );
 
@@ -1125,7 +1127,7 @@ app.get('/profile/:username', async (req, res, next) => {
            LEFT JOIN categories c ON c.id = a.category_id
           WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
           ORDER BY saved_by.created_at DESC
-          LIMIT 12`,
+          LIMIT 60`,
         [viewerId, viewerId, viewerId]
       );
     }
@@ -1161,7 +1163,8 @@ app.get('/profile/:username', async (req, res, next) => {
       },
       isFollowing: false,
       activeTab,
-      memberSinceLabel: ''
+      memberSinceLabel: '',
+      deletedNotice: req.query.deleted === '1'
     });
   } catch (err) {
     next(err);
@@ -1246,6 +1249,62 @@ app.get('/art/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+function localUploadPath(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('/uploads/')) return null;
+
+  const clean = decodeURIComponent(url.split('?')[0]);
+  const relative = clean.slice('/uploads/'.length);
+  const absolute = path.resolve(UPLOADS_DIR, relative);
+  const root = path.resolve(UPLOADS_DIR) + path.sep;
+
+  return absolute.startsWith(root) ? absolute : null;
+}
+
+async function deleteArtworkMedia(artwork) {
+  const urls = [artwork.image_url, artwork.thumbnail_url].filter(Boolean);
+
+  for (const url of urls) {
+    const localPath = localUploadPath(url);
+    if (!localPath) continue;
+    try {
+      await fs.promises.unlink(localPath);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        console.error('Could not remove local artwork file:', err);
+      }
+    }
+  }
+
+  const endpoint = process.env.IMAGEKIT_URL_ENDPOINT;
+  if (!ik || !endpoint) return;
+
+  const remoteNames = new Set(
+    urls
+      .filter((url) => url.startsWith(endpoint))
+      .map((url) => {
+        try {
+          return decodeURIComponent(new URL(url).pathname.split('/').pop());
+        } catch (err) {
+          return null;
+        }
+      })
+      .filter(Boolean)
+  );
+
+  if (remoteNames.size === 0) return;
+
+  try {
+    const files = await ik.listFiles({ path: `/artspace/${artwork.user_id}`, limit: 1000 });
+    for (const file of files) {
+      if (remoteNames.has(file.name)) {
+        await ik.deleteFile(file.fileId);
+      }
+    }
+  } catch (err) {
+    console.error('Could not remove ImageKit artwork files:', err);
+  }
+}
 
 // 7b. Artwork Like and Bookmark Actions
 app.post('/art/:id/like', requireAuth, async (req, res, next) => {
@@ -1354,6 +1413,61 @@ app.post('/art/:id/bookmark', requireAuth, async (req, res, next) => {
   }
 });
 
+app.post('/art/:id/delete', requireAuth, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const rows = await db.execute(
+      'SELECT id, user_id, title, image_url, thumbnail_url FROM artworks WHERE id = ? LIMIT 1',
+      [artworkId]
+    );
+    const artwork = (rows && rows[0]) || null;
+
+    if (!artwork) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    if (Number(artwork.user_id) !== Number(req.session.user.id)) {
+      respondArtworkActionError(req, res, 403, 'You do not have permission to delete this artwork.');
+      return;
+    }
+
+    await db.execute('DELETE FROM notifications WHERE artwork_id = ?', [artworkId]);
+    const deleted = await db.execute('DELETE FROM artworks WHERE id = ? AND user_id = ?', [
+      artworkId,
+      req.session.user.id
+    ]);
+
+    if (!deleted || deleted.affectedRows === 0) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    await deleteArtworkMedia(artwork);
+
+    const redirectUrl = `/profile/${encodeURIComponent(req.session.user.username)}?tab=artworks&deleted=1`;
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, deleted: true, id: artworkId, redirectUrl });
+      return;
+    }
+
+    res.redirect(redirectUrl);
+  } catch (err) {
+    console.error('Artwork delete failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not delete this artwork. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
 // 8. Search Page Route
 app.get('/search', async (req, res, next) => {
   try {
@@ -1419,7 +1533,157 @@ app.get('/admin', (req, res) => res.redirect('/'));
 app.get('/profile-edit', requireAuth, (req, res) => {
   return res.redirect('/profile/' + encodeURIComponent(req.session.user.username));
 });
-app.get('/art/:id/edit', (req, res) => res.redirect('/art/' + encodeURIComponent(req.params.id)));
+app.get('/art/:id/edit', requireAuth, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT id, user_id, category_id, title, description, tags, image_url, thumbnail_url,
+              visibility, is_published, status
+         FROM artworks
+        WHERE id = ?
+        LIMIT 1`,
+      [artworkId]
+    );
+    const artwork = (rows && rows[0]) || null;
+
+    if (!artwork) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    if (Number(artwork.user_id) !== Number(req.session.user.id)) {
+      respondArtworkActionError(req, res, 403, 'You do not have permission to edit this artwork.');
+      return;
+    }
+
+    const categories = await db.execute(
+      'SELECT id, name, slug FROM categories ORDER BY sort_order ASC'
+    );
+    artwork.visible_tags = String(artwork.tags || '')
+      .split(/\s+/)
+      .filter((tag) => tag && !/^effect:/i.test(tag))
+      .join(' ');
+
+    res.render('pages/artwork-edit', {
+      pageTitle: 'ArtSpace | Edit artwork',
+      artwork,
+      categories: categories || [],
+      error: null
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT id, user_id, category_id, title, description, tags, image_url, thumbnail_url,
+              visibility, is_published, status, is_featured
+         FROM artworks
+        WHERE id = ?
+        LIMIT 1`,
+      [artworkId]
+    );
+    const artwork = (rows && rows[0]) || null;
+
+    if (!artwork) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    if (Number(artwork.user_id) !== Number(req.session.user.id)) {
+      respondArtworkActionError(req, res, 403, 'You do not have permission to edit this artwork.');
+      return;
+    }
+
+    const title = String(req.body.title || '').trim().slice(0, 120);
+    const description = String(req.body.description || '').trim().slice(0, 1200);
+    const categoryValue = String(req.body.category || '').trim();
+    const categoryId = /^\d+$/.test(categoryValue) ? Number.parseInt(categoryValue, 10) : NaN;
+    const visibleTags = String(req.body.tags || '').trim().replace(/\s+/g, ' ').slice(0, 180);
+    const effectTags = String(artwork.tags || '')
+      .split(/\s+/)
+      .filter((tag) => tag && /^effect:/i.test(tag));
+    const tags = [visibleTags, ...effectTags].filter(Boolean).join(' ').slice(0, 500);
+    const isFeatured = req.body.is_featured === 'on' ? 1 : 0;
+
+    const renderError = async (message) => {
+      if (requestWantsJson(req)) {
+        res.status(400).json({ ok: false, error: message });
+        return;
+      }
+
+      const categories = await db.execute(
+        'SELECT id, name, slug FROM categories ORDER BY sort_order ASC'
+      );
+      res.status(400).render('pages/artwork-edit', {
+        pageTitle: 'ArtSpace | Edit artwork',
+        artwork: {
+          ...artwork,
+          title,
+          description,
+          category_id: Number.isFinite(categoryId) ? categoryId : artwork.category_id,
+          visible_tags: visibleTags
+        },
+        categories: categories || [],
+        error: message
+      });
+    };
+
+    if (!title) {
+      await renderError('Give your artwork a title before saving.');
+      return;
+    }
+
+    if (!Number.isFinite(categoryId)) {
+      await renderError('Choose a category for your artwork.');
+      return;
+    }
+
+    const categoryRows = await db.execute(
+      'SELECT id FROM categories WHERE id = ? LIMIT 1',
+      [categoryId]
+    );
+
+    if (!categoryRows || categoryRows.length === 0) {
+      await renderError('That category is not available. Choose another one.');
+      return;
+    }
+
+    await db.execute(
+      `UPDATE artworks
+          SET title = ?, description = ?, category_id = ?, tags = ?, is_featured = ?, updated_at = NOW()
+        WHERE id = ? AND user_id = ?`,
+      [title, description || null, categoryId, tags || null, isFeatured ? 1 : 0, artworkId, req.session.user.id]
+    );
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, id: artworkId, artworkUrl: `/art/${artworkId}` });
+      return;
+    }
+
+    res.redirect(`/art/${artworkId}`);
+  } catch (err) {
+    console.error('Artwork edit failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not save your changes. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
 
 // ----------------------------------------------------
 // 404 CATCH-ALL MIDDLEWARE (MUST BE AT THE VERY END)

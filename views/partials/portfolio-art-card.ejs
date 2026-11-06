@@ -9,6 +9,7 @@
   const likesCount = Number(artwork.likes_count || 0);
   const artistName = artwork.display_name || artwork.username || 'ArtSpace artist';
   const withArtist = typeof showArtist !== 'undefined' && showArtist;
+  const loadingMode = typeof eager !== 'undefined' && eager ? 'eager' : 'lazy';
 %>
 <article
   class="pf-art-card"
@@ -28,7 +29,7 @@
       src="<%= artwork.image_url || artwork.thumbnail_url || '/images/default-artwork.svg' %>"
       data-fallback-src="/images/default-artwork.svg"
       alt="<%= artwork.title %>"
-      loading="lazy"
+      loading="<%= loadingMode %>"
       decoding="async"
     />
     <span class="pf-art-image-outline" aria-hidden="true"></span>

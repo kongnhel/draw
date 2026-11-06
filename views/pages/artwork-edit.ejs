@@ -1,61 +1,197 @@
 <%- include('../partials/header') %>
 
-<div class="page-header">
-  <div>
-    <h1>Edit artwork</h1>
-    <div class="page-subtitle">Update the details for this piece.</div>
+<%
+  const pageNumber = String(artwork.id).padStart(3, '0');
+  const selectedCategory = categories.find((category) => String(category.id) === String(artwork.category_id));
+  const categoryLabel = selectedCategory ? selectedCategory.name : 'Artwork';
+  const isDraft = Number(artwork.is_published) === 0;
+  const visibilityLabel = isDraft ? 'Draft' : (artwork.visibility === 'private' ? 'Private' : 'Public');
+  const previewImage = artwork.image_url || artwork.thumbnail_url || '/images/default-artwork.svg';
+  const titleLength = String(artwork.title || '').length;
+  const descriptionLength = String(artwork.description || '').length;
+  const deleteRedirect = `/profile/${encodeURIComponent(currentUser.username)}?tab=artworks&deleted=1`;
+%>
+
+<div class="ae-page">
+  <div class="ae-topbar">
+    <a class="ae-back-link" href="/art/<%= artwork.id %>">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+      <span>Back to artwork</span>
+    </a>
+    <span class="ae-page-code">PAGE A-<%= pageNumber %></span>
   </div>
-</div>
 
-<div class="form-card" style="max-width: 780px; margin: 0 auto;">
-  <% if (typeof error !== 'undefined' && error) { %>
-    <div class="empty-state" style="margin-bottom: 16px; color: #ffb8a8; border-color: rgba(255,122,89,0.3);"><%= error %></div>
-  <% } %>
+  <header class="ae-hero">
+    <div class="ae-hero-copy">
+      <span class="ae-kicker">The studio <i>/</i> pencil &amp; paper</span>
+      <h1>Refine this <span>page</span></h1>
+      <p>Adjust the title, notes, and placement of your artwork. The drawing stays exactly as it is.</p>
+    </div>
+    <svg class="ae-hero-doodle" viewBox="0 0 190 150" aria-hidden="true">
+      <path d="M30 119c20-29 42-57 68-82M97 49c8-8 17-11 24-9 8 3 8 13 1 22-9 13-24 17-36 21" />
+      <path d="M20 132c18-3 35 0 51 6M113 112c10-5 20-7 31-5" />
+      <path d="M32 30c0 9-7 16-16 16 9 0 16 7 16 16 0-9 7-16 16-16-9 0-16-7-16-16Z" />
+      <path d="M151 95c0 6-5 11-11 11 6 0 11 5 11 11 0-6 5-11 11-11-6 0-11-5-11-11Z" />
+    </svg>
+  </header>
 
-  <form action="/art/<%= artwork.id %>/edit" method="POST">
-    <div class="form-grid">
-      <div class="form-block">
-        <label for="title">Artwork title</label>
-        <input id="title" name="title" type="text" value="<%= artwork.title || '' %>" required />
+  <div class="ae-layout">
+    <section class="ae-form-card">
+      <form action="/art/<%= artwork.id %>/edit" method="POST" data-artwork-edit-form>
+        <% if (typeof error !== 'undefined' && error) { %>
+          <div class="ae-alert" role="alert">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 3.5 19h17L12 4Z" /><path d="M12 9v4M12 16.5h.01" /></svg>
+            <span><%= error %></span>
+          </div>
+        <% } %>
+
+        <div class="ae-section">
+          <div class="ae-section-head">
+            <span class="ae-step">01</span>
+            <div>
+              <p class="ae-section-kicker">The story</p>
+              <h2>Title &amp; notes</h2>
+            </div>
+            <svg class="ae-section-doodle" viewBox="0 0 54 54" aria-hidden="true">
+              <path d="M8 40 13 27 34 8l8 8L22 37l-14 3ZM29 13l8 8M11 33l7 7" />
+            </svg>
+          </div>
+
+          <div class="ae-field">
+            <div class="ae-label-row">
+              <label for="title">Artwork title <span class="ae-required">*</span></label>
+              <span class="ae-counter" data-ae-title-count><%= titleLength %>/120</span>
+            </div>
+            <input id="title" name="title" type="text" maxlength="120" value="<%= artwork.title || '' %>" required data-ae-title />
+          </div>
+
+          <div class="ae-field">
+            <div class="ae-label-row">
+              <label for="description">Description <span class="ae-optional">optional</span></label>
+              <span class="ae-counter" data-ae-description-count><%= descriptionLength %>/1200</span>
+            </div>
+            <textarea id="description" name="description" rows="7" maxlength="1200" data-ae-description><%= artwork.description || '' %></textarea>
+            <p class="ae-hint">A few honest words about the page: the moment, the material, the mood.</p>
+          </div>
+        </div>
+
+        <div class="ae-rule" aria-hidden="true"></div>
+
+        <div class="ae-section">
+          <div class="ae-section-head">
+            <span class="ae-step">02</span>
+            <div>
+              <p class="ae-section-kicker">Its place</p>
+              <h2>Category &amp; tags</h2>
+            </div>
+            <svg class="ae-section-doodle" viewBox="0 0 54 54" aria-hidden="true">
+              <path d="M9 16c12-2 24-2 36 0l-3 28c-10 2-20 2-30 0L9 16Z" />
+              <path d="M17 23h20M17 30h14M17 37h9" />
+            </svg>
+          </div>
+
+          <div class="ae-field">
+            <label for="category">Category <span class="ae-required">*</span></label>
+            <span class="ae-select-wrap">
+              <select id="category" name="category" required data-ae-category>
+                <% categories.forEach((category) => { %>
+                  <option value="<%= category.id %>" <%= String(category.id) === String(artwork.category_id) ? 'selected' : '' %>><%= category.name %></option>
+                <% }) %>
+              </select>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+            </span>
+          </div>
+
+<div class="ae-field">
+              <label for="tags">Tags <span class="ae-optional">optional</span></label>
+              <input id="tags" name="tags" type="text" maxlength="180" value="<%= artwork.visible_tags || '' %>" placeholder="#portrait #pencil #quiet" data-ae-tags />
+              <p class="ae-hint">Separate tags with spaces. They help the right people find this page.</p>
+            </div>
+
+            <div class="ae-field">
+              <label for="is_featured">Feature on home page</label>
+              <input type="checkbox" id="is_featured" name="is_featured" <%= Number(artwork.is_featured) ? 'checked' : '' %> />
+              <span class="ae-hint">Check to showcase this artwork at the top of the home page.</span>
+            </div>
+        </div>
+
+        <div class="ae-actions">
+          <button type="submit" class="ae-save">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 18.5 1.3-4.3L17 3.5c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.4 17.3 5 18.5Z" /><path d="m16.2 4.3 3.4 3.4M5 18.5l3.1-.9" /></svg>
+            <span>Save changes</span>
+          </button>
+          <a class="ae-cancel" href="/art/<%= artwork.id %>">Cancel</a>
+          <span class="ae-save-note">The public artwork page updates as soon as you save.</span>
+        </div>
+      </form>
+    </section>
+
+    <aside class="ae-side">
+      <section class="ae-preview-card" aria-label="Current artwork preview">
+        <span class="ae-preview-label">Current page</span>
+        <span class="ae-preview-tape" aria-hidden="true"></span>
+        <div class="ae-preview-frame">
+          <img src="<%= previewImage %>" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title || 'Current artwork' %>" />
+        </div>
+        <div class="ae-preview-copy">
+          <div class="ae-preview-meta">
+            <span data-ae-preview-category><%= categoryLabel %></span>
+            <span class="ae-visibility ae-visibility--<%= visibilityLabel.toLowerCase() %>"><%= visibilityLabel %></span>
+          </div>
+          <h2 data-ae-preview-title><%= artwork.title || 'Untitled artwork' %></h2>
+          <span class="ae-preview-id">A-<%= pageNumber %></span>
+        </div>
+      </section>
+
+      <section class="ae-note-card">
+        <svg class="ae-note-doodle" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M10 49c9-13 20-25 34-33M40 21c6-4 11-5 14-2 3 4 0 10-5 15M8 55c10-2 20-1 30 3" />
+          <path d="M49 40c0 5-4 9-9 9 5 0 9 4 9 9 0-5 4-9 9-9-5 0-9-4-9-9Z" />
+        </svg>
+        <h2>A note before you save</h2>
+        <p>These details frame the work, but they never change the drawing itself.</p>
+        <ul>
+          <li><span>01</span> Keep the title short and evocative.</li>
+          <li><span>02</span> Good tags make your page easier to discover.</li>
+          <li><span>03</span> The category shapes where the page lives in the gallery.</li>
+        </ul>
+      </section>
+
+      <a class="ae-view-link" href="/art/<%= artwork.id %>">
+        <span>View artwork</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+      </a>
+
+      <section class="ae-danger-card" aria-labelledby="ae-delete-heading">
+        <span class="ae-danger-label">The eraser</span>
+        <h2 id="ae-delete-heading">Delete this artwork</h2>
+        <p>The artwork, its likes, saves, and comments will be permanently removed.</p>
+        <button type="button" class="ae-delete-open" data-delete-open aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M6.5 7l1 13h9l1-13M10 10.5v6M14 10.5v6" /></svg>
+          <span>Delete artwork</span>
+        </button>
+      </section>
+    </aside>
+  </div>
+
+  <div class="ae-modal" data-delete-modal hidden>
+    <button type="button" class="ae-modal-backdrop" data-delete-cancel aria-label="Close delete dialog" tabindex="-1"></button>
+    <section class="ae-modal-card" role="alertdialog" aria-modal="true" aria-labelledby="ae-delete-title" aria-describedby="ae-delete-description" data-delete-card>
+      <button type="button" class="ae-modal-close" data-delete-cancel aria-label="Close delete dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+      </button>
+      <span class="ae-modal-kicker">The eraser</span>
+      <h2 id="ae-delete-title">Delete this artwork?</h2>
+      <p id="ae-delete-description">&ldquo;<%= artwork.title %>&rdquo; will be removed from your collection. This cannot be undone.</p>
+      <p class="ae-modal-status" data-delete-status role="status" aria-live="assertive" hidden></p>
+      <div class="ae-modal-actions">
+        <button type="button" class="ae-modal-cancel" data-delete-cancel>Keep artwork</button>
+        <form method="POST" action="/art/<%= artwork.id %>/delete" data-delete-form data-delete-redirect="<%= deleteRedirect %>">
+          <button type="submit" class="ae-modal-delete" data-delete-submit>Delete artwork</button>
+        </form>
       </div>
-
-      <div class="form-block">
-        <label for="category">Category</label>
-        <select id="category" name="category" required>
-          <% categories.forEach((category) => { %>
-            <option value="<%= category.id %>" <%= category.id === artwork.category_id ? 'selected' : '' %>><%= category.name %></option>
-          <% }) %>
-        </select>
-      </div>
-    </div>
-
-    <div class="form-block">
-      <label for="description">Description</label>
-      <textarea id="description" name="description" rows="6" required><%= artwork.description || '' %></textarea>
-    </div>
-
-    <div class="form-block">
-      <label for="tags">Tags</label>
-      <input id="tags" name="tags" type="text" value="<%= artwork.visible_tags || '' %>" />
-    </div>
-
-    <div class="form-block">
-      <label for="visual_effect">Viewer atmosphere</label>
-      <select id="visual_effect" name="visual_effect">
-        <option value="auto" <%= artwork.visual_effect === 'auto' ? 'selected' : '' %>>Automatic from category</option>
-        <option value="portrait" <%= artwork.visual_effect === 'portrait' ? 'selected' : '' %>>Portrait and human drawing</option>
-        <option value="sketch" <%= artwork.visual_effect === 'sketch' ? 'selected' : '' %>>Pencil and sketch</option>
-        <option value="digital" <%= artwork.visual_effect === 'digital' ? 'selected' : '' %>>Digital painting</option>
-        <option value="nature" <%= artwork.visual_effect === 'nature' ? 'selected' : '' %>>Nature and landscape</option>
-        <option value="khmer" <%= artwork.visual_effect === 'khmer' ? 'selected' : '' %>>Traditional Khmer art</option>
-      </select>
-    </div>
-
-    <div class="submit-row">
-      <button type="submit" class="btn btn-primary">Save changes</button>
-      <a href="/art/<%= artwork.id %>" class="btn btn-ghost">Cancel</a>
-    </div>
-  </form>
+    </section>
+  </div>
 </div>
 
 <%- include('../partials/footer') %>
