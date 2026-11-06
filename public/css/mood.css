@@ -175,7 +175,7 @@ html[data-mood] .bg-falling {
   right: max(1rem, env(safe-area-inset-right));
   bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 4.35rem);
   z-index: 72;
-  width: min(24.5rem, calc(100vw - 2rem));
+  width: min(24.5rem, calc(100% - 2rem));
   max-height: calc(100dvh - 7rem);
   padding: 1.35rem 1.25rem 1.05rem;
   overflow: auto;
@@ -651,11 +651,11 @@ html[data-mood] .bg-falling {
   position: fixed;
   right: max(1rem, env(safe-area-inset-right));
   bottom: max(1rem, env(safe-area-inset-bottom));
-  z-index: 68;
+  z-index: 71;
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  max-width: calc(100vw - 2rem);
+  max-width: calc(100% - 2rem);
   padding: 0.5rem 0.9rem 0.5rem 0.55rem;
   color: var(--text);
   background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
@@ -917,7 +917,7 @@ html.mood-start-open {
   .mood-panel {
     right: max(0.7rem, env(safe-area-inset-right));
     bottom: calc(max(0.8rem, env(safe-area-inset-bottom)) + 4rem);
-    width: calc(100vw - 1.4rem);
+    width: calc(100% - 1.4rem);
     max-height: calc(100dvh - 6.4rem);
     padding: 1.2rem 1rem 0.95rem;
   }
