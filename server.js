@@ -98,7 +98,7 @@ if (IS_VERCEL) {
 
 const artworkUpload = upload.array('images', 6);
 
-function uploadRequestWantsJson(req) {
+function requestWantsJson(req) {
   return req.xhr
     || req.get('X-Requested-With') === 'XMLHttpRequest'
     || (req.get('Accept') || '').includes('application/json');
@@ -114,67 +114,142 @@ function getUploadErrorMessage(error) {
   return error.message || 'We could not receive that image. Please try again.';
 }
 
+function cleanupUploadedFiles(files) {
+  (Array.isArray(files) ? files : []).forEach((file) => {
+    if (file && file.path) {
+      fs.unlink(file.path, () => {});
+    }
+  });
+}
+
+async function renderUploadPageWithError(req, res, status, message, formValues) {
+  let categories = [];
+
+  try {
+    categories = await db.execute(
+      'SELECT id, name, slug FROM categories ORDER BY sort_order ASC'
+    );
+  } catch (err) {
+    console.error('Could not load upload categories:', err);
+  }
+
+  res.status(status).render('pages/upload', {
+    pageTitle: 'ArtSpace | Upload',
+    categories: categories || [],
+    error: message,
+    formValues: formValues || req.body || {}
+  });
+}
+
 function handleArtworkUpload(req, res, next) {
-  artworkUpload(req, res, async (error) => {
+  artworkUpload(req, res, (error) => {
     if (!error) {
       next();
       return;
     }
 
     const message = getUploadErrorMessage(error);
-    if (uploadRequestWantsJson(req)) {
+    cleanupUploadedFiles(req.files);
+
+    if (requestWantsJson(req)) {
       res.status(400).json({ ok: false, error: message, field: 'images' });
       return;
     }
 
-    res.status(400).render('pages/upload', {
-      error: message,
-      formValues: req.body || {},
-      pageTitle: 'Upload artwork',
-      categories: []
-    });
+    renderUploadPageWithError(req, res, 400, message).catch(next);
   });
 }
 
-// Upload artwork images to ImageKit
+async function storeArtworkLocally(buffer, originalName) {
+  const baseName = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+  const imageName = `${baseName}.webp`;
+  const thumbName = `${baseName}-thumb.webp`;
+
+  await fs.promises.writeFile(path.join(PROCESSED_DIR, imageName), buffer);
+
+  try {
+    const thumbnail = await sharp(buffer)
+      .resize({ width: 640, height: 640, fit: 'cover', withoutEnlargement: true })
+      .webp({ quality: 78 })
+      .toBuffer();
+    await fs.promises.writeFile(path.join(PROCESSED_DIR, thumbName), thumbnail);
+    return {
+      image_url: `/uploads/processed/${imageName}`,
+      thumbnail_url: `/uploads/processed/${thumbName}`,
+      original_name: originalName
+    };
+  } catch (err) {
+    console.error('Artwork thumbnail generation failed:', err);
+    return {
+      image_url: `/uploads/processed/${imageName}`,
+      thumbnail_url: `/uploads/processed/${imageName}`,
+      original_name: originalName
+    };
+  }
+}
+
+// Upload artwork images to ImageKit, with a local fallback for development
 async function uploadArtworkToImageKit(files, userId) {
   if (!files || files.length === 0) return [];
 
   const processedImages = [];
 
   for (const file of files) {
+    const originalName = file.originalname || 'artwork.jpg';
+
     try {
       let buffer = file.buffer;
-      let originalName = file.originalname || 'artwork.jpg';
 
       if (!buffer && file.path) {
         buffer = fs.readFileSync(file.path);
-        originalName = file.filename || originalName;
       }
 
-      const optimized = await sharp(buffer)
-        .resize({ width: 1600, fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 82 })
-        .toBuffer();
+      if (!buffer) {
+        throw new Error('We could not read that image. Please try again.');
+      }
 
-      const result = await ik.upload({
-        file: optimized,
-        fileName: `${userId}-${Date.now()}-${path.extname(originalName)}`,
-        folder: `/artspace/${userId}`
-      });
+      let optimized;
 
-      processedImages.push({
-        image_url: result.url,
-        thumbnail_url: result.thumbnailUrl || result.url,
-        original_name: originalName
-      });
-    } catch (err) {
-      console.error('ImageKit upload error:', err);
-      processedImages.push({
-        image_url: IS_VERCEL ? '/uploads/processed/fallback.jpg' : `/uploads/processed/${path.basename(file.path || originalName)}`,
-        thumbnail_url: '/uploads/processed/fallback-thumb.webp',
-        original_name: originalName
-      });
+      try {
+        optimized = await sharp(buffer)
+          .rotate()
+          .resize({ width: 1600, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toBuffer();
+      } catch (sharpError) {
+        throw new Error('That file does not look like a valid image. Please choose a JPG, PNG, or WEBP.');
+      }
+
+      if (ik) {
+        try {
+          const result = await ik.upload({
+            file: optimized,
+            fileName: `${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`,
+            folder: `/artspace/${userId}`
+          });
+
+          processedImages.push({
+            image_url: result.url,
+            thumbnail_url: result.thumbnailUrl || result.url,
+            original_name: originalName
+          });
+          continue;
+        } catch (uploadError) {
+          console.error('ImageKit artwork upload failed:', uploadError);
+
+          if (IS_VERCEL) {
+            throw new Error('We could not save that image right now. Please try again.');
+          }
+        }
+      } else if (IS_VERCEL) {
+        throw new Error('Image storage is not configured. Please contact support.');
+      }
+
+      processedImages.push(await storeArtworkLocally(optimized, originalName));
+    } finally {
+      if (file.path) {
+        fs.unlink(file.path, () => {});
+      }
     }
   }
 
@@ -338,6 +413,35 @@ function requireAuth(req, res, next) {
   return res.redirect('/login');
 }
 
+function getSafeActionRedirect(req, fallback) {
+  const referer = req.get('Referer');
+
+  if (!referer) return fallback;
+
+  try {
+    const target = new URL(referer);
+    if (target.host !== req.get('host')) return fallback;
+    return `${target.pathname}${target.search}`;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function respondArtworkActionError(req, res, status, message) {
+  if (requestWantsJson(req)) {
+    res.status(status).json({ ok: false, error: message });
+    return;
+  }
+
+  res.status(status).render('pages/error', {
+    message,
+    pageTitle: 'ArtSpace | Page not found',
+    isAuthenticated: Boolean(req.session && req.session.user),
+    currentUser: (req.session && req.session.user) || null,
+    unreadNotifications: 0
+  });
+}
+
 app.use(compression());
 app.use(morgan('dev'));
 app.use(express.urlencoded({ extended: true }));
@@ -352,7 +456,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // 1. Home Page Route
 app.get('/', async (req, res, next) => {
   try {
-    const totalArtworkRows = await db.execute('SELECT COUNT(*) AS count FROM artworks');
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
+    const totalArtworkRows = await db.execute(
+      "SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"
+    );
     const totalArtworks = Number((totalArtworkRows && totalArtworkRows[0] && totalArtworkRows[0].count) || 0);
 
     const bookArtworks = await db.execute(
@@ -361,12 +468,17 @@ app.get('/', async (req, res, next) => {
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
               u.avatar,
               c.name AS category_name, c.slug AS category_slug,
-              a.created_at, a.visibility, a.is_published
+              a.created_at, a.visibility, a.is_published,
+              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
          INNER JOIN categories c ON c.id = a.category_id
-        WHERE a.visibility = 'public' AND a.is_published = 1
-        ORDER BY a.created_at DESC`
+        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+        ORDER BY a.created_at DESC`,
+      [viewerId, viewerId]
     );
 
     const latest = (bookArtworks || []).slice(0, 9);
@@ -429,6 +541,7 @@ app.get('/', async (req, res, next) => {
 // 2. Explore Page Route
 app.get('/explore', async (req, res, next) => {
   try {
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
     const query = req.query.q || '';
     const filter = req.query.category || 'all';
     const sort = req.query.sort || 'latest';
@@ -449,7 +562,7 @@ app.get('/explore', async (req, res, next) => {
       count: Number(row.count) || 0
     }));
 
-    const whereConditions = ["a.visibility = 'public'", "a.is_published = 1"];
+    const whereConditions = ["a.visibility = 'public'", "a.is_published = 1", "a.status = 'active'"];
     const queryParams = [];
 
     if (filter !== 'all') {
@@ -467,7 +580,7 @@ app.get('/explore', async (req, res, next) => {
     const sortMap = {
       latest: 'a.created_at DESC',
       views: 'a.created_at DESC',
-      popular: 'a.created_at DESC'
+      popular: 'likes_count DESC, a.created_at DESC'
     };
     const orderBy = sortMap[sort] || 'a.created_at DESC';
 
@@ -478,14 +591,18 @@ app.get('/explore', async (req, res, next) => {
               u.avatar,
               c.name AS category_name, c.slug AS category_slug,
               a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-              0 AS is_liked, 0 AS is_bookmarked, 0 AS likes_count, 0 AS comments_count, 0 AS views, 'auto' AS visual_effect
+              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+              0 AS views, 'auto' AS visual_effect
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
          INNER JOIN categories c ON c.id = a.category_id
         ${whereClause}
         ORDER BY ${orderBy}
         LIMIT ${pageSize} OFFSET ${offset}`,
-      queryParams
+      [viewerId, viewerId, ...queryParams]
     );
 
     const filteredCountRows = await db.execute(
@@ -507,11 +624,16 @@ app.get('/explore', async (req, res, next) => {
     const artistSpotlightRows = await db.execute(
       `SELECT u.id, u.username,
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-              u.avatar, u.bio, 0 AS likes_count,
-              COUNT(a.id) AS art_count
+              u.avatar, u.bio,
+              COUNT(a.id) AS art_count,
+              (SELECT COUNT(*)
+                 FROM likes l
+                 INNER JOIN artworks la ON la.id = l.artwork_id
+                WHERE la.user_id = u.id
+                  AND la.visibility = 'public' AND la.is_published = 1 AND la.status = 'active') AS likes_count
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
-        WHERE a.visibility = 'public' AND a.is_published = 1
+        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
         GROUP BY u.id
         ORDER BY art_count DESC
         LIMIT 6`
@@ -572,6 +694,132 @@ app.get('/upload', requireAuth, async (req, res, next) => {
       formValues: {}
     });
   } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => {
+  const wantsJson = requestWantsJson(req);
+
+  const respondError = async (status, message, field) => {
+    cleanupUploadedFiles(req.files);
+
+    if (wantsJson) {
+      const payload = { ok: false, error: message };
+      if (field) payload.field = field;
+      res.status(status).json(payload);
+      return;
+    }
+
+    await renderUploadPageWithError(req, res, status, message);
+  };
+
+  try {
+    const title = String(req.body.title || '').trim().slice(0, 120);
+    const description = String(req.body.description || '').trim().slice(0, 1200);
+    const tags = String(req.body.tags || '').trim().slice(0, 180);
+    const categoryValue = String(req.body.category || '').trim();
+    const categoryId = /^\d+$/.test(categoryValue) ? Number.parseInt(categoryValue, 10) : NaN;
+    const visibility = req.body.visibility === 'private' ? 'private' : 'public';
+    const saveAsDraft = req.body.save_as_draft === 'on' || req.body.save_as_draft === '1';
+    const file = Array.isArray(req.files) ? req.files[0] : null;
+
+    cleanupUploadedFiles((req.files || []).slice(1));
+
+    if (!title) {
+      await respondError(400, 'Give your artwork a title before publishing.', 'title');
+      return;
+    }
+
+    if (!Number.isFinite(categoryId)) {
+      await respondError(400, 'Choose a category for your artwork.', 'category');
+      return;
+    }
+
+    if (!file) {
+      await respondError(400, 'Add an image of your artwork before publishing.', 'images');
+      return;
+    }
+
+    const categoryRows = await db.execute(
+      'SELECT id FROM categories WHERE id = ? LIMIT 1',
+      [categoryId]
+    );
+
+    if (!categoryRows || categoryRows.length === 0) {
+      await respondError(400, 'That category is not available. Choose another one.', 'category');
+      return;
+    }
+
+    const processed = await uploadArtworkToImageKit([file], req.session.user.id);
+    const artworkImage = processed[0];
+
+    if (!artworkImage || !artworkImage.image_url) {
+      await respondError(502, 'We could not save that image. Please try again.', 'images');
+      return;
+    }
+
+    const isPublished = saveAsDraft ? 0 : 1;
+    const createdOn = String(req.body.created_at || '').trim();
+    let createdAt = null;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(createdOn)) {
+      const parsedDate = new Date(`${createdOn}T00:00:00Z`);
+      if (!Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === createdOn) {
+        createdAt = `${createdOn} 12:00:00`;
+      }
+    }
+
+    const result = await db.execute(
+      `INSERT INTO artworks
+         (user_id, category_id, title, description, tags, image_url, thumbnail_url,
+          visibility, is_published, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', COALESCE(?, NOW()), NOW())`,
+      [
+        req.session.user.id,
+        categoryId,
+        title,
+        description || null,
+        tags || null,
+        artworkImage.image_url,
+        artworkImage.thumbnail_url || artworkImage.image_url,
+        visibility,
+        isPublished,
+        createdAt
+      ]
+    );
+
+    const artworkId = result.insertId;
+    const artworkUrl = visibility === 'private' || saveAsDraft
+      ? '/dashboard'
+      : `/art/${artworkId}`;
+
+    if (wantsJson) {
+      res.status(201).json({
+        ok: true,
+        id: artworkId,
+        isDraft: saveAsDraft,
+        isPrivate: visibility === 'private',
+        artworkImageUrl: artworkImage.image_url,
+        artworkUrl,
+        artworkEditUrl: '/dashboard'
+      });
+      return;
+    }
+
+    res.redirect(artworkUrl);
+  } catch (err) {
+    cleanupUploadedFiles(req.files);
+    console.error('Artwork upload failed:', err);
+
+    if (wantsJson) {
+      const message = err.message && err.message.startsWith('We ')
+        ? err.message
+        : 'We could not pin this page. Please try again.';
+      res.status(500).json({ ok: false, error: message });
+      return;
+    }
+
     next(err);
   }
 });
@@ -790,6 +1038,7 @@ app.post('/profile/edit', requireAuth, handleProfileUpload, async (req, res, nex
 app.get('/profile/:username', async (req, res, next) => {
   try {
     const targetUsername = req.params.username;
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
     const userRows = await db.execute(
       `SELECT u.id, u.username, u.email, u.role, (u.email_verified_at IS NOT NULL) AS is_verified,
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
@@ -816,23 +1065,85 @@ app.get('/profile/:username', async (req, res, next) => {
               u.username,
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
               u.avatar,
-              NULL AS category_name,
+              c.name AS category_name,
               a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-              0 AS likes_count, 0 AS comments_count, 0 AS views,
-              0 AS is_liked, 0 AS is_bookmarked, 'auto' AS visual_effect
+              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+              0 AS views, 'auto' AS visual_effect
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
-        WHERE a.user_id = ? AND a.visibility = 'public' AND a.is_published = 1
+         LEFT JOIN categories c ON c.id = a.category_id
+        WHERE a.user_id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
         ORDER BY a.created_at DESC
         LIMIT 12`,
-      [profileUser.id]
+      [viewerId, viewerId, profileUser.id]
     );
 
+    const likedRows = await db.execute(
+      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+              u.username,
+              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+              u.avatar,
+              c.name AS category_name,
+              a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+              0 AS views, 'auto' AS visual_effect
+         FROM artworks a
+         INNER JOIN users u ON u.id = a.user_id
+         INNER JOIN likes liked_by ON liked_by.artwork_id = a.id AND liked_by.user_id = ?
+         LEFT JOIN categories c ON c.id = a.category_id
+        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+        ORDER BY liked_by.created_at DESC
+        LIMIT 12`,
+      [viewerId, viewerId, profileUser.id]
+    );
+
+    const isOwner = Boolean(req.session && req.session.user && req.session.user.id === profileUser.id);
+    let savedRows = [];
+
+    if (isOwner) {
+      savedRows = await db.execute(
+        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar,
+                c.name AS category_name,
+                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                0 AS views, 'auto' AS visual_effect
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           INNER JOIN bookmarks saved_by ON saved_by.artwork_id = a.id AND saved_by.user_id = ?
+           LEFT JOIN categories c ON c.id = a.category_id
+          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+          ORDER BY saved_by.created_at DESC
+          LIMIT 12`,
+        [viewerId, viewerId, viewerId]
+      );
+    }
+
     const countRows = await db.execute(
-      "SELECT COUNT(*) AS count FROM artworks WHERE user_id = ? AND visibility = 'public' AND is_published = 1",
+      "SELECT COUNT(*) AS count FROM artworks WHERE user_id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active'",
       [profileUser.id]
     );
     const totalArtworks = Number((countRows && countRows[0] && countRows[0].count) || 0);
+
+    const likeCountRows = await db.execute(
+      `SELECT COUNT(*) AS count
+         FROM likes l
+         INNER JOIN artworks a ON a.id = l.artwork_id
+        WHERE a.user_id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'`,
+      [profileUser.id]
+    );
+    const totalLikes = Number((likeCountRows && likeCountRows[0] && likeCountRows[0].count) || 0);
 
     const activeTab = ['artworks', 'liked', 'saved'].includes(req.query.tab) ? req.query.tab : 'artworks';
 
@@ -840,11 +1151,11 @@ app.get('/profile/:username', async (req, res, next) => {
       pageTitle: `ArtSpace | ${profileUser.username}'s Profile`,
       profileUser,
       artworks: artRows || [],
-      likedArtworks: [],
-      savedArtworks: [],
+      likedArtworks: likedRows || [],
+      savedArtworks: savedRows || [],
       stats: {
         totalArtworks,
-        totalLikes: 0,
+        totalLikes,
         followers: 0,
         totalViews: 0
       },
@@ -860,6 +1171,7 @@ app.get('/profile/:username', async (req, res, next) => {
 // 7. Artwork Detail Page Route
 app.get('/art/:id', async (req, res, next) => {
   try {
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
     const artworkId = parseInt(req.params.id, 10);
     if (!Number.isFinite(artworkId)) {
       return res.status(404).render('pages/error', {
@@ -877,14 +1189,18 @@ app.get('/art/:id', async (req, res, next) => {
               u.username,
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
               u.avatar, u.bio,
-              NULL AS category_name,
-              0 AS likes_count, 0 AS comments_count, 0 AS views,
-              0 AS is_liked, 0 AS is_bookmarked, 'auto' AS visual_effect
+              c.name AS category_name,
+              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+              0 AS views, 'auto' AS visual_effect
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
-        WHERE a.id = ? AND a.visibility = 'public' AND a.is_published = 1
+         LEFT JOIN categories c ON c.id = a.category_id
+        WHERE a.id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
         LIMIT 1`,
-      [artworkId]
+      [viewerId, viewerId, artworkId]
     );
     const artwork = (rows && rows[0]) || null;
 
@@ -903,16 +1219,20 @@ app.get('/art/:id', async (req, res, next) => {
               u.username,
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
               u.avatar,
-              NULL AS category_name,
+              c.name AS category_name,
               a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-              0 AS likes_count, 0 AS comments_count, 0 AS views,
-              0 AS is_liked, 0 AS is_bookmarked, 'auto' AS visual_effect
+              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+              0 AS views, 'auto' AS visual_effect
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
-        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.id <> ?
+         LEFT JOIN categories c ON c.id = a.category_id
+        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active' AND a.id <> ?
         ORDER BY a.created_at DESC
         LIMIT 4`,
-      [artworkId]
+      [viewerId, viewerId, artworkId]
     );
 
     res.render('pages/artwork', {
@@ -927,9 +1247,117 @@ app.get('/art/:id', async (req, res, next) => {
   }
 });
 
+// 7b. Artwork Like and Bookmark Actions
+app.post('/art/:id/like', requireAuth, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const artworks = await db.execute(
+      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      [artworkId]
+    );
+
+    if (!artworks || artworks.length === 0) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const userId = req.session.user.id;
+    const removed = await db.execute(
+      'DELETE FROM likes WHERE user_id = ? AND artwork_id = ?',
+      [userId, artworkId]
+    );
+
+    let liked = false;
+
+    if (!removed || removed.affectedRows === 0) {
+      await db.execute(
+        'INSERT INTO likes (user_id, artwork_id) VALUES (?, ?)',
+        [userId, artworkId]
+      );
+      liked = true;
+    }
+
+    const countRows = await db.execute(
+      'SELECT COUNT(*) AS count FROM likes WHERE artwork_id = ?',
+      [artworkId]
+    );
+    const likesCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, liked, likes_count: likesCount });
+      return;
+    }
+
+    res.redirect(getSafeActionRedirect(req, `/art/${artworkId}`));
+  } catch (err) {
+    console.error('Artwork like toggle failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not update that like. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
+app.post('/art/:id/bookmark', requireAuth, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const artworks = await db.execute(
+      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      [artworkId]
+    );
+
+    if (!artworks || artworks.length === 0) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const userId = req.session.user.id;
+    const removed = await db.execute(
+      'DELETE FROM bookmarks WHERE user_id = ? AND artwork_id = ?',
+      [userId, artworkId]
+    );
+
+    let bookmarked = false;
+
+    if (!removed || removed.affectedRows === 0) {
+      await db.execute(
+        'INSERT INTO bookmarks (user_id, artwork_id) VALUES (?, ?)',
+        [userId, artworkId]
+      );
+      bookmarked = true;
+    }
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, bookmarked });
+      return;
+    }
+
+    res.redirect(getSafeActionRedirect(req, `/art/${artworkId}`));
+  } catch (err) {
+    console.error('Artwork bookmark toggle failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not update that save. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
 // 8. Search Page Route
 app.get('/search', async (req, res, next) => {
   try {
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
     const query = (req.query.q || '').trim();
     let artworks = [];
 
@@ -939,17 +1367,21 @@ app.get('/search', async (req, res, next) => {
                 u.username,
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
               u.avatar,
-              NULL AS category_name,
+              c.name AS category_name,
                 a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-                0 AS likes_count, 0 AS comments_count, 0 AS views,
-                0 AS is_liked, 0 AS is_bookmarked, 'auto' AS visual_effect
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                0 AS views, 'auto' AS visual_effect
            FROM artworks a
            INNER JOIN users u ON u.id = a.user_id
-          WHERE a.visibility = 'public' AND a.is_published = 1
+           LEFT JOIN categories c ON c.id = a.category_id
+          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
             AND (a.title LIKE ? OR a.tags LIKE ? OR u.username LIKE ?)
           ORDER BY a.created_at DESC
           LIMIT 24`,
-        [`%${query}%`, `%${query}%`, `%${query}%`]
+        [viewerId, viewerId, `%${query}%`, `%${query}%`, `%${query}%`]
       );
     }
 

@@ -7,6 +7,61 @@
   const latest = artworks[0] || null;
   const profileUrl = '/profile/' + profileUser.username;
   const numeral = (v) => Number(v || 0).toLocaleString('en-US');
+  const portfolioItems = activeTab === 'liked'
+    ? likedArtworks
+    : activeTab === 'saved'
+      ? savedArtworks
+      : artworks;
+  const portfolioCount = activeTab === 'artworks' ? stats.totalArtworks : portfolioItems.length;
+  const categoryMap = new Map();
+  portfolioItems.forEach((artwork) => {
+    const name = (artwork.category_name || 'Uncategorised').trim();
+    categoryMap.set(name, (categoryMap.get(name) || 0) + 1);
+  });
+  const portfolioCategories = Array.from(categoryMap, ([name, count]) => ({ name, count }));
+  const collectionKicker = activeTab === 'liked'
+    ? 'Inspiration board'
+    : activeTab === 'saved'
+      ? 'Private clippings'
+      : 'The sketchbook';
+  const collectionTitle = activeTab === 'liked'
+    ? 'Liked Artworks'
+    : activeTab === 'saved'
+      ? 'Saved Artworks'
+      : isOwner
+        ? 'My Art Collection'
+        : 'Art Collection';
+  const collectionBlurb = activeTab === 'liked'
+    ? (isOwner
+      ? 'Pieces that caught your eye, pinned here for another look.'
+      : `Pieces that caught ${profileUser.display_name}'s eye, pinned here for another look.`)
+    : activeTab === 'saved'
+      ? 'Pages saved for quiet inspiration, tucked away until you need them.'
+      : isOwner
+        ? 'Every page here is an original thought — drawn, kept, and pinned for you.'
+        : `Original pages from ${profileUser.display_name}'s ongoing sketchbook.`;
+  const collectionCountLabel = activeTab === 'liked'
+    ? `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'inspiration' : 'inspirations'} pinned`
+    : activeTab === 'saved'
+      ? `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'page' : 'pages'} tucked away`
+      : `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'piece' : 'pieces'} pinned`;
+  const emptyKicker = activeTab === 'liked'
+    ? 'The inspiration page'
+    : activeTab === 'saved'
+      ? 'The clippings folder'
+      : 'A fresh page';
+  const emptyTitle = activeTab === 'liked'
+    ? 'No liked artwork yet.'
+    : activeTab === 'saved'
+      ? 'Nothing saved yet.'
+      : 'No artwork yet.';
+  const emptyMessage = activeTab === 'liked'
+    ? 'When a drawing catches your eye, it will be pinned here for another look.'
+    : activeTab === 'saved'
+      ? 'Save the pages that stay with you and they will wait here, ready when inspiration calls.'
+      : isOwner
+        ? 'Your sketchbook is open and waiting. Pin the first page of your collection.'
+        : 'When this artist shares a new drawing, it will appear here.';
 %>
 
 <div class="pf-page">
@@ -146,55 +201,122 @@
         </div>
       </section>
 
-      <section class="pf-portfolio" aria-labelledby="pf-portfolio-heading">
-        <div class="pf-portfolio-head">
-          <div>
-            <h2 id="pf-portfolio-heading">Portfolio</h2>
-            <p><%= numeral(stats.totalArtworks) %> pieces pinned on the table</p>
+      <section class="pf-portfolio pf-collection" aria-labelledby="pf-portfolio-heading" data-portfolio>
+        <svg class="pf-collection-doodle" viewBox="0 0 160 160" aria-hidden="true">
+          <path d="M31 111c18-25 38-51 64-77M89 51c8-7 16-10 23-9 8 2 9 12 2 21-9 13-23 18-35 22" />
+          <path d="M23 128c17-2 33 0 49 5M112 112c9-5 19-7 29-5" />
+          <path d="M26 32c0 8-6 14-14 14 8 0 14 6 14 14 0-8 6-14 14-14-8 0-14-6-14-14Z" />
+        </svg>
+
+        <div class="pf-collection-head">
+          <div class="pf-collection-heading">
+            <span class="pf-collection-kicker"><%= collectionKicker %> <i>/</i> <span><%= collectionCountLabel %></span></span>
+            <div class="pf-collection-title-wrap">
+              <h2 id="pf-portfolio-heading"><%= collectionTitle %></h2>
+              <svg class="pf-collection-underline" viewBox="0 0 260 18" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M4 12c44-7 94-8 142-5 37 2 73 5 110 2" />
+                <path d="M28 15c60-4 120-4 180-1" />
+              </svg>
+            </div>
+            <p class="pf-collection-blurb"><%= collectionBlurb %></p>
           </div>
-          <nav class="pf-tabs" aria-label="Portfolio collections">
-            <a class="pf-tab <%= activeTab === 'artworks' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=artworks" aria-current="<%= activeTab === 'artworks' ? 'page' : 'false' %>">Artworks</a>
-            <a class="pf-tab <%= activeTab === 'liked' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=liked" aria-current="<%= activeTab === 'liked' ? 'page' : 'false' %>">Liked</a>
-            <a class="pf-tab <%= activeTab === 'saved' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=saved" aria-current="<%= activeTab === 'saved' ? 'page' : 'false' %>">Saved</a>
-          </nav>
+
+          <div class="pf-collection-count" aria-label="<%= portfolioCount %> works in this collection">
+            <span class="pf-collection-pin" aria-hidden="true"></span>
+            <strong><%= numeral(portfolioCount) %></strong>
+            <span><%= portfolioCount === 1 ? 'piece' : 'pieces' %><br /><%= activeTab === 'artworks' ? 'in the collection' : 'in this set' %></span>
+          </div>
         </div>
 
-        <% if (activeTab === 'liked') { %>
-          <% if (likedArtworks.length) { %>
-            <div class="masonry-grid pf-gallery">
-              <% likedArtworks.forEach((artwork) => { %>
-                <%- include('../partials/art-card', { artwork }) %>
+        <div class="pf-collection-nav">
+          <div class="pf-collection-bar">
+            <nav class="pf-tabs" aria-label="Portfolio collections">
+              <a class="pf-tab <%= activeTab === 'artworks' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=artworks" aria-current="<%= activeTab === 'artworks' ? 'page' : 'false' %>">Artworks <sup><%= numeral(stats.totalArtworks) %></sup></a>
+              <a class="pf-tab <%= activeTab === 'liked' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=liked" aria-current="<%= activeTab === 'liked' ? 'page' : 'false' %>">Liked <sup><%= numeral(likedArtworks.length) %></sup></a>
+              <% if (isOwner) { %>
+                <a class="pf-tab <%= activeTab === 'saved' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=saved" aria-current="<%= activeTab === 'saved' ? 'page' : 'false' %>">Saved <sup><%= numeral(savedArtworks.length) %></sup></a>
+              <% } %>
+            </nav>
+
+            <% if (portfolioItems.length) { %>
+              <div class="pf-collection-tools">
+                <div class="pf-collection-sort" role="group" aria-label="Sort artworks">
+                  <button type="button" class="pf-sort-button is-active" data-portfolio-sort="all" aria-pressed="true">All artwork</button>
+                  <button type="button" class="pf-sort-button" data-portfolio-sort="recent" aria-pressed="false">Recent</button>
+                  <button type="button" class="pf-sort-button" data-portfolio-sort="popular" aria-pressed="false">Most liked</button>
+                </div>
+
+                <label class="pf-collection-search">
+                  <span class="pf-collection-sr-only">Search this collection</span>
+                  <svg class="pf-collection-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
+                  <input type="search" placeholder="Search this collection..." autocomplete="off" data-portfolio-search />
+                  <button type="button" class="pf-collection-search-clear" data-portfolio-search-clear aria-label="Clear search" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                  </button>
+                </label>
+              </div>
+            <% } %>
+          </div>
+
+          <% if (portfolioItems.length && portfolioCategories.length > 1) { %>
+            <div class="pf-collection-filters" role="group" aria-label="Filter artwork by medium" data-portfolio-filters>
+              <span class="pf-collection-filter-label">Mediums</span>
+              <button type="button" class="pf-collection-filter is-active" data-portfolio-category="all" aria-pressed="true">All <sup><%= portfolioItems.length %></sup></button>
+              <% portfolioCategories.forEach((category) => { %>
+                <button type="button" class="pf-collection-filter" data-portfolio-category="<%= category.name %>" aria-pressed="false"><%= category.name %> <sup><%= category.count %></sup></button>
               <% }) %>
             </div>
-          <% } else { %>
-            <div class="empty-state pf-empty">
-              <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M20 58l5-17 24-24 11 11-24 24-16 6Z" /><path d="M44 22l11 11" /><path d="M14 66c8-2 16-2 24 0" /></svg>
-              <p>No liked artwork yet — go pin some inspiration.</p>
-            </div>
           <% } %>
-        <% } else if (activeTab === 'saved') { %>
-          <% if (savedArtworks.length) { %>
-            <div class="masonry-grid pf-gallery">
-              <% savedArtworks.forEach((artwork) => { %>
-                <%- include('../partials/art-card', { artwork }) %>
-              <% }) %>
-            </div>
-          <% } else { %>
-            <div class="empty-state pf-empty">
-              <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M28 12h24v56l-12-9-12 9V12Z" /><path d="M35 26h10M35 33h10" /></svg>
-              <p>Nothing saved yet — bookmark pages you want to revisit.</p>
-            </div>
-          <% } %>
-        <% } else if (artworks.length) { %>
-          <div class="masonry-grid pf-gallery">
-            <% artworks.forEach((artwork) => { %>
-              <%- include('../partials/art-card', { artwork }) %>
+        </div>
+
+        <% if (portfolioItems.length) { %>
+          <div class="pf-collection-status-row">
+            <p class="pf-collection-status" aria-live="polite" data-portfolio-status>Showing <strong><%= portfolioItems.length %></strong> of <strong><%= portfolioItems.length %></strong> pieces</p>
+            <button type="button" class="pf-collection-reset" data-portfolio-reset hidden>Clear filters</button>
+          </div>
+
+          <div class="pf-art-grid" data-portfolio-gallery>
+            <% portfolioItems.forEach((artwork) => { %>
+              <%- include('../partials/portfolio-art-card', { artwork, showArtist: activeTab !== 'artworks' }) %>
             <% }) %>
           </div>
+
+          <div class="pf-collection-empty pf-collection-empty--results" data-portfolio-no-results hidden role="status">
+            <svg class="pf-collection-empty-art pf-collection-empty-art--small" viewBox="0 0 160 110" aria-hidden="true">
+              <circle cx="67" cy="48" r="25" />
+              <path d="m85 67 24 24M55 46c7-8 15-8 22 0M75 84c-17 3-32 3-48 0" />
+            </svg>
+            <p class="pf-collection-kicker">Nothing on this page</p>
+            <h3>No artwork matches those filters.</h3>
+            <p>Try another medium, or clear the search to see the whole collection.</p>
+            <button type="button" class="pf-collection-cta" data-portfolio-reset>Clear filters</button>
+          </div>
         <% } else { %>
-          <div class="empty-state pf-empty">
-            <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M20 58l5-17 24-24 11 11-24 24-16 6Z" /><path d="M44 22l11 11" /></svg>
-            <p>This artist has not published any public artwork yet.</p>
+          <div class="pf-collection-empty pf-collection-empty--blank">
+            <svg class="pf-collection-empty-art" viewBox="0 0 220 160" aria-hidden="true">
+              <path d="M27 136c54-12 112-12 166 0" />
+              <path d="M46 30c40-4 88-4 128 0l-4 92c-40 4-82 4-122 0L46 30Z" />
+              <path d="M46 30l-5 92M51 45l118-1M51 122l115 1" />
+              <path d="M72 64c28-5 52-5 76 0M72 82c24-3 46-3 68 0M72 100c15-2 31-2 45 0" />
+              <path d="M173 106l21-26 9 7-20 28-10 5 0-14Z" />
+              <path d="M70 139c0 6-5 10-11 10 6 0 11 4 11 10 0-6 5-10 11-10-6 0-11-4-11-10Z" />
+            </svg>
+            <p class="pf-collection-kicker"><%= emptyKicker %></p>
+            <h3><%= emptyTitle %></h3>
+            <p><%= emptyMessage %></p>
+            <div class="pf-collection-empty-actions">
+              <% if (activeTab === 'artworks' && isOwner) { %>
+                <a class="pf-collection-cta pf-collection-cta--solid" href="/upload">
+                  Upload artwork
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+                </a>
+              <% } else { %>
+                <a class="pf-collection-cta" href="/explore">
+                  Explore the gallery
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+                </a>
+              <% } %>
+            </div>
           </div>
         <% } %>
       </section>

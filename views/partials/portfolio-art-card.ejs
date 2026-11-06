@@ -1,0 +1,93 @@
+<%
+  const createdDate = new Date(artwork.created_at);
+  const createdTime = Number.isNaN(createdDate.getTime()) ? 0 : createdDate.getTime();
+  const createdIso = createdTime ? createdDate.toISOString() : '';
+  const dateLabel = artwork.created_at_label || (createdTime
+    ? createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'Fresh page');
+  const categoryLabel = artwork.category_name || 'Uncategorised';
+  const likesCount = Number(artwork.likes_count || 0);
+  const artistName = artwork.display_name || artwork.username || 'ArtSpace artist';
+  const withArtist = typeof showArtist !== 'undefined' && showArtist;
+%>
+<article
+  class="pf-art-card"
+  data-portfolio-card
+  data-artwork-id="<%= artwork.id %>"
+  data-title="<%= artwork.title %>"
+  data-tags="<%= artwork.tags || '' %>"
+  data-category="<%= categoryLabel %>"
+  data-artist="<%= artistName %>"
+  data-likes="<%= likesCount %>"
+  data-created="<%= createdTime %>"
+>
+  <span class="pf-art-tape" aria-hidden="true"></span>
+
+  <a class="pf-art-image" href="/art/<%= artwork.id %>" aria-label="Open <%= artwork.title %>">
+    <img
+      src="<%= artwork.image_url || artwork.thumbnail_url || '/images/default-artwork.svg' %>"
+      data-fallback-src="/images/default-artwork.svg"
+      alt="<%= artwork.title %>"
+      loading="lazy"
+      decoding="async"
+    />
+    <span class="pf-art-image-outline" aria-hidden="true"></span>
+  </a>
+
+  <div class="pf-art-body">
+    <div class="pf-art-meta">
+      <span class="pf-art-category"><%= categoryLabel %></span>
+      <time datetime="<%= createdIso %>"><%= dateLabel %></time>
+    </div>
+
+    <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+
+    <% if (withArtist) { %>
+      <a class="pf-art-artist" href="/profile/<%= artwork.username %>">
+        <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" decoding="async" />
+        <span>by <%= artistName %></span>
+      </a>
+    <% } %>
+
+    <div class="pf-art-footer">
+      <div class="pf-art-stats">
+        <span class="pf-art-stat" title="<%= likesCount %> <%= likesCount === 1 ? 'like' : 'likes' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
+          <span data-portfolio-likes><%= likesCount %></span>
+        </span>
+      </div>
+
+      <div class="pf-art-actions">
+        <form method="POST" action="/art/<%= artwork.id %>/like" class="pf-art-action-form">
+          <button
+            type="submit"
+            class="pf-art-action pf-art-like <%= artwork.is_liked ? 'active' : '' %>"
+            aria-pressed="<%= artwork.is_liked ? 'true' : 'false' %>"
+            aria-label="<%= artwork.is_liked ? 'Unlike' : 'Like' %> <%= artwork.title %>"
+            title="<%= artwork.is_liked ? 'Unlike' : 'Like' %>"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
+            <span data-action-label><%= artwork.is_liked ? 'Unlike' : 'Like' %></span>
+          </button>
+        </form>
+
+        <form method="POST" action="/art/<%= artwork.id %>/bookmark" class="pf-art-action-form">
+          <button
+            type="submit"
+            class="pf-art-action pf-art-save <%= artwork.is_bookmarked ? 'active' : '' %>"
+            aria-pressed="<%= artwork.is_bookmarked ? 'true' : 'false' %>"
+            aria-label="<%= artwork.is_bookmarked ? 'Remove from saved artwork' : 'Save this artwork' %>"
+            title="<%= artwork.is_bookmarked ? 'Remove from saved artwork' : 'Save this artwork' %>"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4V4Z" /></svg>
+            <span data-action-label><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></span>
+          </button>
+        </form>
+
+        <a class="pf-art-open" href="/art/<%= artwork.id %>" aria-label="Open <%= artwork.title %>" title="Open artwork">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M9 5h10v10" /></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</article>

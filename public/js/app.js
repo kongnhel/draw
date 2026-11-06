@@ -1,8 +1,6 @@
 const root = document.documentElement;
 const toggleButton = document.querySelector('.theme-toggle');
 const themeStorageKey = 'artspace-sketchbook-theme';
-const mobileMenuToggle = document.querySelector('[data-mobile-menu]');
-const primaryNavigation = document.querySelector('#primary-nav');
 
 const applyTheme = (theme) => {
   const safeTheme = theme === 'light' ? 'light' : 'dark';
@@ -10,7 +8,6 @@ const applyTheme = (theme) => {
   localStorage.setItem(themeStorageKey, safeTheme);
 
   if (toggleButton) {
-    toggleButton.textContent = safeTheme === 'light' ? '☾' : '☀';
     toggleButton.setAttribute('aria-label', safeTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
     toggleButton.title = safeTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
   }
@@ -286,7 +283,7 @@ const bindScrollReveal = () => {
 const markCurrentNavigation = () => {
   const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
 
-  document.querySelectorAll('.nav-links a').forEach((link) => {
+  document.querySelectorAll('.nav-link-group a').forEach((link) => {
     const linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/$/, '') || '/';
     const isCurrent = linkPath === currentPath || (linkPath !== '/' && currentPath.startsWith(`${linkPath}/`));
 
@@ -297,14 +294,6 @@ const markCurrentNavigation = () => {
       link.removeAttribute('aria-current');
     }
   });
-};
-
-const setMobileMenuOpen = (isOpen) => {
-  if (!primaryNavigation || !mobileMenuToggle) return;
-  primaryNavigation.classList.toggle('is-open', isOpen);
-  mobileMenuToggle.setAttribute('aria-expanded', String(isOpen));
-  mobileMenuToggle.setAttribute('aria-label', isOpen ? 'Close notebook menu' : 'Open notebook menu');
-  mobileMenuToggle.title = isOpen ? 'Close menu' : 'Open menu';
 };
 
 const revealArtworkCards = () => {
@@ -1425,22 +1414,6 @@ if (toggleButton) {
   });
 }
 
-mobileMenuToggle?.addEventListener('click', () => {
-  setMobileMenuOpen(mobileMenuToggle.getAttribute('aria-expanded') !== 'true');
-});
-
-primaryNavigation?.addEventListener('click', (event) => {
-  if (event.target instanceof Element && event.target.closest('a')) setMobileMenuOpen(false);
-});
-
-document.addEventListener('click', (event) => {
-  if (!document.querySelector('.nav-wrap')?.contains(event.target)) setMobileMenuOpen(false);
-});
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') setMobileMenuOpen(false);
-});
-
 bindQuickActions();
 bindCommentForms();
 bindShareButtons();
@@ -1890,25 +1863,36 @@ if (studioDashboard) {
     if (progressDetail) progressDetail.textContent = 'The ink is dry.';
 
     const wasDraft = Boolean(payload?.isDraft);
+    const isPrivate = Boolean(payload?.isPrivate);
+    const isHidden = wasDraft || isPrivate;
+
     if (successTitle) {
       successTitle.textContent = wasDraft
         ? 'Your draft is tucked safely into your collection!'
-        : 'Your artwork has been added to your collection!';
+        : isPrivate
+          ? 'Your artwork is saved in your private collection!'
+          : 'Your artwork has been added to your collection!';
     }
     if (successNote) {
       successNote.textContent = wasDraft
         ? 'Only you can see it until you are ready to publish.'
-        : 'It is pinned to your gallery and ready for the world to see.';
+        : isPrivate
+          ? 'Only you can see it until you choose to share it.'
+          : 'It is pinned to your gallery and ready for the world to see.';
     }
     if (successImage && payload?.artworkImageUrl) {
       successImage.src = payload.artworkImageUrl;
-      successImage.alt = wasDraft ? 'Your saved draft artwork' : 'Your newly published artwork';
+      successImage.alt = wasDraft
+        ? 'Your saved draft artwork'
+        : isPrivate
+          ? 'Your privately saved artwork'
+          : 'Your newly published artwork';
     }
     if (successView) {
-      successView.href = wasDraft
+      successView.href = isHidden
         ? (payload?.artworkEditUrl || '/dashboard')
         : (payload?.artworkUrl || '/dashboard');
-      successView.textContent = wasDraft ? 'View Draft' : 'View Artwork';
+      successView.textContent = wasDraft ? 'View Draft' : isPrivate ? 'View in Studio' : 'View Artwork';
     }
 
     window.setTimeout(() => {
