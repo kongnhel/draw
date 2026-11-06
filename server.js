@@ -247,6 +247,61 @@ function handleProfileUpload(req, res, next) {
   });
 }
 
+// Persistent session store backed by MySQL (required on serverless platforms like Vercel)
+class MySQLSessionStore extends session.Store {
+  constructor(options = {}) {
+    super();
+    this.ttlSeconds = options.ttlSeconds || 14 * 24 * 60 * 60;
+  }
+
+  get(sid, callback) {
+    db.execute('SELECT data FROM sessions WHERE sid = ? AND expires > NOW() LIMIT 1', [sid])
+      .then((rows) => {
+        if (!rows || !rows.length) return callback(null, null);
+        try {
+          callback(null, JSON.parse(rows[0].data));
+        } catch (error) {
+          callback(error);
+        }
+      })
+      .catch(callback);
+  }
+
+  set(sid, sessionData, callback) {
+    db.execute(
+      `INSERT INTO sessions (sid, data, expires)
+       VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
+       ON DUPLICATE KEY UPDATE data = VALUES(data), expires = DATE_ADD(NOW(), INTERVAL ? SECOND)`,
+      [sid, JSON.stringify(sessionData), this.ttlSeconds, this.ttlSeconds]
+    ).then(() => callback(null)).catch(callback);
+  }
+
+  touch(sid, sessionData, callback) {
+    db.execute(
+      'UPDATE sessions SET expires = DATE_ADD(NOW(), INTERVAL ? SECOND) WHERE sid = ?',
+      [this.ttlSeconds, sid]
+    ).then(() => callback(null)).catch(callback);
+  }
+
+  destroy(sid, callback) {
+    db.execute('DELETE FROM sessions WHERE sid = ?', [sid])
+      .then(() => callback(null))
+      .catch(callback);
+  }
+
+  length(callback) {
+    db.execute('SELECT COUNT(*) AS count FROM sessions WHERE expires > NOW()')
+      .then((rows) => callback(null, Number(rows[0].count)))
+      .catch(callback);
+  }
+
+  clear(callback) {
+    db.execute('DELETE FROM sessions')
+      .then(() => callback(null))
+      .catch(callback);
+  }
+}
+
 const app = express();
 
 app.set('trust proxy', 1);
@@ -255,12 +310,15 @@ app.set('view engine', 'ejs');
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'artspace-dev-secret',
+  store: new MySQLSessionStore(),
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: IS_VERCEL
+    secure: IS_VERCEL,
+    maxAge: 7 * 24 * 60 * 60 * 1000
   }
 }));
 

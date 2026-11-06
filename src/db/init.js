@@ -168,10 +168,19 @@ const schemaStatements = [
     UNIQUE KEY uq_password_reset_token (token_hash),
     KEY idx_password_reset_user (user_id),
     CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS sessions (
+    sid VARCHAR(128) NOT NULL,
+    data MEDIUMTEXT NOT NULL,
+    expires DATETIME NOT NULL,
+    PRIMARY KEY (sid),
+    KEY idx_sessions_expires (expires)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
 ];
 
 let pool;
+let initPromise = null;
 
 async function ensureUserProfileColumns() {
   const [columns] = await pool.query(
@@ -194,22 +203,25 @@ async function ensureUserProfileColumns() {
 }
 
 async function initPool() {
-  if (!pool) {
-    if (dbConfig.database === 'defaultdb') {
-      throw new Error('Refusing to use "defaultdb". Set AIVEN_MYSQL_DATABASE=draw_web_db in your environment (including Vercel).');
-    }
-    pool = mysql.createPool(dbConfig);
-    for (const statement of schemaStatements) {
-      await pool.query(statement);
-    }
-    await ensureUserProfileColumns();
+  if (!initPromise) {
+    initPromise = (async () => {
+      if (dbConfig.database === 'defaultdb') {
+        throw new Error('Refusing to use "defaultdb". Set AIVEN_MYSQL_DATABASE=draw_web_db in your environment (including Vercel).');
+      }
+      pool = mysql.createPool(dbConfig);
+      for (const statement of schemaStatements) {
+        await pool.query(statement);
+      }
+      await ensureUserProfileColumns();
+      return pool;
+    })();
   }
-  return pool;
+  return initPromise;
 }
 
 // Execute SQL and return results (mimics better-sqlite3 .all() behavior)
 async function execute(sql, params = []) {
-  const p = pool || await initPool();
+  const p = await initPool();
   const [results] = await p.execute(sql, params);
   return results;
 }

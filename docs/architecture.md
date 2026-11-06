@@ -72,6 +72,10 @@ notifications (
 password_reset_tokens (
   id, user_id, token_hash, expires_at, used_at, created_at
 )
+
+sessions (
+  sid, data, expires
+)
 ```
 
 ## Functional modules
