@@ -2907,8 +2907,12 @@ const syncPinButtons = (artworkId, pinned) => {
     button.classList.toggle('active', pinned);
     button.setAttribute('aria-pressed', String(pinned));
     const label = button.querySelector('[data-pin-label]');
-    if (label) label.textContent = pinned ? 'Pinned' : 'Pin';
-    if (button.classList.contains('ad-tool-pin')) {
+    if (label) {
+      label.textContent = pinned
+        ? 'Pinned'
+        : (button.hasAttribute('data-pin-label-long') ? 'Pin to homepage' : 'Pin');
+    }
+    if (button.classList.contains('ad-tool-pin') || button.classList.contains('ad-showcase-pin') || button.classList.contains('hs-hero-pin')) {
       button.title = pinned ? 'Unpin from homepage' : 'Pin to homepage';
       button.setAttribute('aria-label', pinned ? 'Unpin from the homepage' : 'Pin to the homepage');
     }

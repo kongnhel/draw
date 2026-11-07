@@ -2,6 +2,8 @@
 
 <%
   const heroArtistName = heroArtwork ? (heroArtwork.display_name || heroArtwork.username) : '';
+  const heroOwned = Boolean(heroArtwork && isAuthenticated && currentUser && Number(currentUser.id) === Number(heroArtwork.user_id));
+  const heroPinned = Boolean(heroArtwork && typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(heroArtwork.id)));
   const homeArtistCount = new Set(bookArtworks.map((item) => item.username)).size;
   const liveCategoryCount = visibleCategories.filter((category) => Number(category.count) > 0).length;
 %>
@@ -64,6 +66,12 @@
             </span>
             <span class="hs-feature-arrow" aria-hidden="true">↗</span>
           </a>
+        <% } %>
+        <% if (heroOwned) { %>
+          <button type="button" class="hs-hero-pin<%= heroPinned ? ' is-pinned' : '' %>" data-pin-toggle data-pin-label-long data-artwork-id="<%= heroArtwork.id %>" data-pinned="<%= heroPinned ? 'true' : 'false' %>" aria-pressed="<%= heroPinned ? 'true' : 'false' %>" aria-label="<%= heroPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>" title="<%= heroPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+            <span data-pin-label><%= heroPinned ? 'Pinned' : 'Pin to homepage' %></span>
+          </button>
         <% } %>
         <p class="hs-hero-note"><span aria-hidden="true">✦</span> Original work,<br>pinned with care.</p>
       </div>

@@ -39,6 +39,13 @@
             Immersive view
           </span>
         </button>
+
+        <% if (isOwner) { %>
+          <button type="button" class="ad-showcase-pin<%= artworkPinned ? ' is-pinned' : '' %>" data-pin-toggle data-pin-label-long data-artwork-id="<%= artwork.id %>" data-pinned="<%= artworkPinned ? 'true' : 'false' %>" aria-pressed="<%= artworkPinned ? 'true' : 'false' %>" aria-label="<%= artworkPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>" title="<%= artworkPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+            <span data-pin-label><%= artworkPinned ? 'Pinned' : 'Pin to homepage' %></span>
+          </button>
+        <% } %>
       </div>
 
       <p class="ad-frame-caption" aria-hidden="true">

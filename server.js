@@ -756,12 +756,12 @@ app.get('/', async (req, res, next) => {
   try {
     const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
 
-    const [totalArtworkRows, bookArtworks, artistRows, categoryRows, pinnedArtworks] = await Promise.all([
+    const [totalArtworkRows, bookArtworks, artistRows, categoryRows, pinnedArtworks, pinnedIds] = await Promise.all([
       db.execute(
         "SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"
       ),
       db.execute(
-        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+        `SELECT a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
                 u.username,
                 COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
                 u.avatar,
@@ -798,7 +798,8 @@ app.get('/', async (req, res, next) => {
            GROUP BY c.id
            ORDER BY c.sort_order`
       ),
-      getPinnedHomepageArtworks(viewerId)
+      getPinnedHomepageArtworks(viewerId),
+      getPinnedArtworkIds(viewerId)
     ]);
 
     const totalArtworks = Number((totalArtworkRows && totalArtworkRows[0] && totalArtworkRows[0].count) || 0);
@@ -806,8 +807,17 @@ app.get('/', async (req, res, next) => {
     const latest = (bookArtworks || [])
       .filter((artwork) => !pinnedIdSet.has(Number(artwork.id)))
       .slice(0, 9);
-    const heroArtwork = (bookArtworks && bookArtworks[0]) || null;
-    const heroArtworkIndex = heroArtwork ? bookArtworks.indexOf(heroArtwork) : 0;
+    const viewerPinnedArtwork = (pinnedArtworks || [])
+      .find((artwork) => pinnedIds.has(Number(artwork.id)))
+      || (bookArtworks || []).find((artwork) => pinnedIds.has(Number(artwork.id)))
+      || null;
+    const heroArtwork = viewerPinnedArtwork
+      || (pinnedArtworks && pinnedArtworks[0])
+      || (bookArtworks && bookArtworks[0])
+      || null;
+    const heroArtworkIndex = heroArtwork
+      ? Math.max(0, (bookArtworks || []).findIndex((artwork) => Number(artwork.id) === Number(heroArtwork.id)))
+      : 0;
     const artistSpotlight = (artistRows && artistRows[0]) || null;
     const visibleCategories = (categoryRows || []).map((category) => ({
       slug: category.slug,
@@ -819,7 +829,6 @@ app.get('/', async (req, res, next) => {
 
     const currentUser = (req.session && req.session.user) || null;
     const isAuthenticated = Boolean(currentUser);
-    const pinnedIds = await getPinnedArtworkIds(viewerId);
 
     res.render('pages/home', {
       pageTitle: 'ArtSpace | Discover original artwork',
