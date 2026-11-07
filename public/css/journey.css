@@ -1,0 +1,200 @@
+.studio-explore-page {
+  --journey-pencil: rgba(80, 55, 34, 0.68);
+  --journey-pencil-soft: rgba(112, 84, 59, 0.16);
+  --journey-shadow: rgba(58, 42, 27, 0.14);
+}
+
+:root[data-theme='dark'] .studio-explore-page {
+  --journey-pencil: rgba(240, 226, 200, 0.56);
+  --journey-pencil-soft: rgba(232, 216, 188, 0.12);
+  --journey-shadow: rgba(0, 0, 0, 0.34);
+}
+
+.studio-explore-masonry.sketch-journey {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--journey-cols, 3), minmax(0, 1fr));
+  columns: auto;
+  column-gap: clamp(44px, 6.4vw, 92px);
+  row-gap: clamp(86px, 9.5vw, 132px);
+  align-items: start;
+  isolation: isolate;
+  padding: clamp(10px, 1.8vw, 22px) 0 clamp(18px, 2.6vw, 32px);
+}
+
+.sketch-journey-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.sketch-journey .studio-explore-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: var(--journey-offset, 0px) 0 0;
+  border-radius: 4px 11px 5px 9px;
+  break-inside: auto;
+  animation: none;
+  transform: rotate(var(--tilt));
+  transition: transform 0.28s ease, box-shadow 0.28s ease, border-radius 0.28s ease;
+}
+
+.sketch-journey .studio-explore-card::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  z-index: 0;
+  border: 1px dashed var(--journey-pencil);
+  border-radius: 3px 9px 4px 7px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.sketch-journey .studio-explore-card:hover,
+.sketch-journey .studio-explore-card:focus-within {
+  z-index: 3;
+  transform: rotate(0) translateY(-6px) scale(1.012);
+  box-shadow: 10px 14px 0 var(--journey-pencil-soft), 0 24px 46px var(--journey-shadow);
+}
+
+.sketch-journey .studio-explore-card:hover::after,
+.sketch-journey .studio-explore-card:focus-within::after {
+  opacity: 0.55;
+}
+
+.sketch-journey .studio-explore-card:active {
+  transform: rotate(var(--tilt)) scale(0.99);
+}
+
+.sketch-journey[data-journey-cols='1'] .studio-explore-card {
+  width: 88%;
+}
+
+.sketch-journey[data-journey-cols='1'] .studio-explore-card[data-journey-align='left'] {
+  justify-self: start;
+}
+
+.sketch-journey[data-journey-cols='1'] .studio-explore-card[data-journey-align='right'] {
+  justify-self: end;
+}
+
+.sketch-journey[data-journey-narrow='true'] .studio-explore-card {
+  width: 100%;
+  justify-self: stretch;
+}
+
+.sketch-journey-path {
+  --journey-path-opacity: 0.86;
+  fill: none;
+  stroke: var(--journey-pencil);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: var(--journey-path-opacity);
+  transition: stroke-width 0.22s ease, opacity 0.22s ease;
+}
+
+.sketch-journey-path--ghost {
+  --journey-path-opacity: 0.3;
+  stroke-width: 0.85;
+}
+
+.sketch-journey.is-visible .sketch-journey-path {
+  animation: journey-line-draw 1.05s cubic-bezier(0.22, 0.7, 0.2, 1) forwards;
+  animation-delay: calc(var(--journey-path-index, 0) * 65ms);
+}
+
+.sketch-journey.is-visible .sketch-journey-path--ghost {
+  animation-delay: calc(var(--journey-path-index, 0) * 65ms + 110ms);
+}
+
+.sketch-journey-path.is-hovered {
+  stroke-width: 2.8;
+  opacity: 0.98;
+}
+
+@keyframes journey-line-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0.16;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: var(--journey-path-opacity);
+  }
+}
+
+@media (max-width: 760px) {
+  .studio-explore-masonry.sketch-journey {
+    row-gap: clamp(56px, 11vw, 86px);
+  }
+
+  .sketch-journey[data-journey-cols='1'] .studio-explore-card {
+    width: 90%;
+  }
+
+  .sketch-journey .studio-explore-card:hover,
+  .sketch-journey .studio-explore-card:focus-within {
+    transform: rotate(0) translateY(-4px) scale(1.008);
+  }
+}
+
+@media (max-width: 460px) {
+  .studio-explore-masonry.sketch-journey {
+    row-gap: 44px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .sketch-journey[data-journey-cols='1'] .studio-explore-card {
+    width: 100%;
+  }
+}
+
+@media (hover: none) {
+  .sketch-journey .studio-explore-card:hover,
+  .sketch-journey .studio-explore-card:focus-within {
+    transform: rotate(var(--tilt));
+    box-shadow: 7px 9px 0 rgba(112, 84, 59, 0.08), 0 14px 30px rgba(58, 42, 27, 0.08);
+  }
+
+  .sketch-journey .studio-explore-card:hover::after,
+  .sketch-journey .studio-explore-card:focus-within::after {
+    opacity: 0;
+  }
+
+  .sketch-journey .studio-explore-card:active {
+    transform: rotate(var(--tilt)) scale(0.988);
+    box-shadow: 4px 5px 0 rgba(112, 84, 59, 0.1), 0 10px 22px rgba(58, 42, 27, 0.1);
+  }
+
+  .sketch-journey .studio-explore-card:active::after {
+    opacity: 0.38;
+  }
+
+  .sketch-journey-path {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sketch-journey .studio-explore-card,
+  .sketch-journey .studio-explore-card::after,
+  .sketch-journey-path {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .sketch-journey-path {
+    stroke-dashoffset: 0;
+    opacity: var(--journey-path-opacity);
+  }
+}

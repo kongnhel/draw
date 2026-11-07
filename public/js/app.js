@@ -2537,6 +2537,283 @@ const initUploadPage = () => {
   updateReadiness();
 };
 
+const createSketchJourney = (explorePage) => {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let container = null;
+  let svg = null;
+  let cards = [];
+  let resizeObserver = null;
+  let mutationObserver = null;
+  let intersectionObserver = null;
+  let listeners = null;
+  let frame = 0;
+  let signature = '';
+  let hoveredIndex = -1;
+  let destroyed = false;
+  let currentColumns = 3;
+
+  const getCards = () => (container ? Array.from(container.querySelectorAll('[data-explore-card]')) : []);
+
+  const getColumns = () => {
+    const width = container?.clientWidth || explorePage.clientWidth || window.innerWidth;
+    if (width >= 1040) return 3;
+    if (width >= 560) return 2;
+    return 1;
+  };
+
+  const applyLayout = () => {
+    const columns = getColumns();
+    currentColumns = columns;
+    const width = container.clientWidth || 0;
+    container.dataset.journeyCols = String(columns);
+    container.dataset.journeyNarrow = String(columns === 1 && width < 460);
+    container.style.setProperty('--journey-cols', String(columns));
+
+    cards.forEach((card, index) => {
+      const row = Math.floor(index / columns);
+      const slot = index % columns;
+      const column = row % 2 === 1 ? columns - 1 - slot : slot;
+      let offset = 0;
+      if (columns === 3) offset = [0, 22, 9][(row + column) % 3];
+      else if (columns === 2) offset = [0, 18][(row + column) % 2];
+      else offset = [0, 14, 4][row % 3];
+
+      card.style.gridColumn = String(column + 1);
+      card.style.gridRow = String(row + 1);
+      card.style.setProperty('--journey-offset', `${offset}px`);
+      card.dataset.journeyRow = String(row);
+      card.dataset.journeyCol = String(column);
+      card.dataset.journeyAlign = columns === 1 ? (row % 2 === 0 ? 'left' : 'right') : '';
+    });
+  };
+
+  const appendPath = (fragment, d, index, ghost) => {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('pathLength', '1');
+    path.classList.add('sketch-journey-path');
+    if (ghost) path.classList.add('sketch-journey-path--ghost');
+    path.dataset.from = String(index);
+    path.dataset.to = String(index + 1);
+    path.style.setProperty('--journey-path-index', String(Math.min(index, 14)));
+    fragment.appendChild(path);
+  };
+
+  const draw = () => {
+    frame = 0;
+    if (destroyed || !container || !svg) return;
+
+    cards = getCards();
+    if (!cards.length) {
+      svg.replaceChildren();
+      signature = '';
+      return;
+    }
+
+    applyLayout();
+
+    const containerRect = container.getBoundingClientRect();
+    const width = Math.max(1, Math.round(container.clientWidth));
+    const height = Math.max(1, Math.round(container.scrollHeight));
+    const points = cards.map((card) => {
+      const rect = card.getBoundingClientRect();
+      return {
+        card,
+        left: rect.left - containerRect.left,
+        top: rect.top - containerRect.top,
+        width: rect.width,
+        height: rect.height,
+        right: rect.right - containerRect.left,
+        bottom: rect.bottom - containerRect.top
+      };
+    });
+
+    const nextSignature = `${width}x${height}|${currentColumns}|${points
+      .map((point) => `${Math.round(point.left)},${Math.round(point.top)},${Math.round(point.width)},${Math.round(point.height)}`)
+      .join(';')}`;
+    if (nextSignature === signature) return;
+    signature = nextSignature;
+
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('width', String(width));
+    svg.setAttribute('height', String(height));
+
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const from = points[index];
+      const to = points[index + 1];
+      const sameRow = from.card.dataset.journeyRow === to.card.dataset.journeyRow;
+      const wobble = index % 2 === 0 ? 1 : -1;
+      let d;
+      let ghostD;
+
+      if (sameRow) {
+        const rightward = to.left > from.left;
+        const startX = rightward ? from.right - from.width * 0.22 : from.left + from.width * 0.22;
+        const endX = rightward ? to.left + to.width * 0.22 : to.right - to.width * 0.22;
+        const startY = from.bottom + 4;
+        const endY = to.bottom + 4;
+        const dip = 28 + (index % 3) * 7;
+        const c1x = startX + (endX - startX) * 0.26;
+        const c2x = startX + (endX - startX) * 0.74;
+        const c1y = Math.max(startY, endY) + dip;
+        const c2y = c1y;
+        d = `M ${startX.toFixed(1)} ${startY.toFixed(1)} C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+        ghostD = `M ${(startX + 1.5).toFixed(1)} ${(startY + 1).toFixed(1)} C ${(c1x + 2).toFixed(1)} ${(c1y + 2.5).toFixed(1)}, ${(c2x - 2).toFixed(1)} ${(c2y + 2.5).toFixed(1)}, ${(endX - 1.5).toFixed(1)} ${(endY + 1).toFixed(1)}`;
+      } else {
+        const narrow = currentColumns === 1 && width < 460;
+        const startX = narrow ? from.left + 16 : from.left + from.width * 0.5;
+        const endX = narrow ? to.left + 16 : to.left + to.width * 0.5;
+        const startY = from.bottom + 5;
+        const endY = to.top - 5;
+        const dy = Math.max(20, endY - startY);
+        const c1x = startX + wobble * 12;
+        const c2x = endX - wobble * 12;
+        const c1y = startY + dy * 0.38;
+        const c2y = startY + dy * 0.62;
+        d = `M ${startX.toFixed(1)} ${startY.toFixed(1)} C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+        ghostD = `M ${(startX + 1.5).toFixed(1)} ${(startY + 1).toFixed(1)} C ${(c1x + 2).toFixed(1)} ${(c1y + 2).toFixed(1)}, ${(c2x - 2).toFixed(1)} ${(c2y - 2).toFixed(1)}, ${(endX - 1.5).toFixed(1)} ${(endY + 1).toFixed(1)}`;
+      }
+
+      appendPath(fragment, ghostD, index, true);
+      appendPath(fragment, d, index, false);
+    }
+
+    svg.replaceChildren(fragment);
+    hoveredIndex = -1;
+  };
+
+  const setHover = (index) => {
+    if (index === hoveredIndex) return;
+    hoveredIndex = index;
+    svg?.querySelectorAll('.sketch-journey-path').forEach((path) => {
+      const from = Number(path.dataset.from);
+      const to = Number(path.dataset.to);
+      path.classList.toggle('is-hovered', index >= 0 && (from === index || to === index));
+    });
+  };
+
+  const schedule = () => {
+    if (destroyed || frame) return;
+    frame = window.requestAnimationFrame(draw);
+  };
+
+  const teardown = () => {
+    if (frame) {
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+    }
+    resizeObserver?.disconnect();
+    mutationObserver?.disconnect();
+    intersectionObserver?.disconnect();
+    listeners?.abort();
+    resizeObserver = null;
+    mutationObserver = null;
+    intersectionObserver = null;
+    listeners = null;
+
+    if (container) {
+      container.classList.remove('sketch-journey', 'is-visible');
+      container.removeAttribute('data-journey-cols');
+      container.removeAttribute('data-journey-narrow');
+      container.querySelector('.sketch-journey-lines')?.remove();
+    }
+
+    container = null;
+    svg = null;
+    cards = [];
+    signature = '';
+    hoveredIndex = -1;
+  };
+
+  const bindHover = (signal) => {
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    container.addEventListener('pointerover', (event) => {
+      const target = event.target instanceof Element ? event.target.closest('[data-explore-card]') : null;
+      if (!target) return;
+      const index = cards.indexOf(target);
+      if (index !== -1) setHover(index);
+    }, { signal });
+
+    container.addEventListener('pointerout', (event) => {
+      const target = event.target instanceof Element ? event.target.closest('[data-explore-card]') : null;
+      if (!target) return;
+      if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) return;
+      setHover(-1);
+    }, { signal });
+  };
+
+  const setup = () => {
+    container.classList.add('sketch-journey');
+    svg = container.querySelector('.sketch-journey-lines');
+    if (!svg) {
+      svg = document.createElementNS(SVG_NS, 'svg');
+      svg.classList.add('sketch-journey-lines');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('focusable', 'false');
+      container.prepend(svg);
+    }
+
+    cards = getCards();
+    listeners = new AbortController();
+    container.addEventListener('load', schedule, { capture: true, signal: listeners.signal });
+    window.addEventListener('resize', schedule, { passive: true, signal: listeners.signal });
+
+    if ('ResizeObserver' in window) {
+      resizeObserver = new ResizeObserver(schedule);
+      resizeObserver.observe(container);
+      cards.forEach((card) => resizeObserver.observe(card));
+    }
+
+    if ('MutationObserver' in window) {
+      mutationObserver = new MutationObserver(schedule);
+      mutationObserver.observe(container, { childList: true });
+    }
+
+    if ('IntersectionObserver' in window) {
+      intersectionObserver = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        container?.classList.add('is-visible');
+        intersectionObserver?.disconnect();
+        intersectionObserver = null;
+      }, { threshold: 0.04, rootMargin: '0px 0px -8% 0px' });
+      intersectionObserver.observe(container);
+    } else {
+      container.classList.add('is-visible');
+    }
+
+    bindHover(listeners.signal);
+  };
+
+  const sync = () => {
+    if (destroyed) return;
+    const next = explorePage.querySelector('[data-explore-masonry]');
+    if (!next) {
+      teardown();
+      return;
+    }
+
+    if (next !== container) {
+      teardown();
+      container = next;
+      setup();
+    } else {
+      cards = getCards();
+      if (resizeObserver) cards.forEach((card) => resizeObserver.observe(card));
+    }
+
+    schedule();
+  };
+
+  const destroy = () => {
+    destroyed = true;
+    teardown();
+  };
+
+  return { sync, refresh: schedule, destroy };
+};
+
 const initExplorePage = () => {
   const explorePage = document.querySelector('[data-explore-page]');
   if (!explorePage) return;
@@ -2547,6 +2824,8 @@ const initExplorePage = () => {
     pageController.abort();
     if (exploreRequest) exploreRequest.abort();
   });
+  const journey = createSketchJourney(explorePage);
+  registerPageCleanup(() => journey.destroy());
 
   const exploreForm = explorePage.querySelector('[data-explore-form]');
   const exploreGallery = document.getElementById('explore-gallery');
@@ -2685,6 +2964,7 @@ const initExplorePage = () => {
       announceExploreResults(incomingResults.dataset.total);
       bindExploreMedia(incomingResults);
       bindQuickActions();
+      journey.sync();
 
       if (push) window.history.pushState({ explore: true }, '', url.toString());
       if (scroll) exploreGallery.scrollIntoView({ behavior: exploreReducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
@@ -2764,6 +3044,7 @@ const initExplorePage = () => {
         announceExploreResults(incomingResults.dataset.total);
         bindExploreMedia(currentMasonry);
         bindQuickActions();
+        journey.refresh();
       } catch (error) {
         moreButton.innerHTML = originalMarkup;
         moreButton.disabled = false;
@@ -2799,6 +3080,7 @@ const initExplorePage = () => {
 
   bindExploreMedia();
   syncExploreControls();
+  journey.sync();
 };
 
 const initHomePage = () => {
