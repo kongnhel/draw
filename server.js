@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const zlib = require('zlib');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
@@ -417,6 +418,43 @@ const imagekitOrigin = (() => {
 
 const PIN_LIMIT = Math.max(1, Number.parseInt(process.env.PIN_LIMIT, 10) || 3);
 
+const ASSET_VERSION = (() => {
+  const assetFiles = [
+    'public/css/styles.css',
+    'public/css/cursor.css',
+    'public/css/interactions.css',
+    'public/css/background-falling.css',
+    'public/css/mobile.css',
+    'public/css/navbar-sketch.css',
+    'public/css/spa-nav.css',
+    'public/css/intro.css',
+    'public/css/sketchbook.css',
+    'public/css/pins.css',
+    'public/css/image-editor.css',
+    'public/js/intro.js',
+    'public/js/app.js',
+    'public/js/spa-nav.js',
+    'public/js/navbar.js',
+    'public/js/cursor.js',
+    'public/js/interactions.js',
+    'public/js/background-falling.js',
+    'public/js/image-editor.js',
+    'public/js/profile-edit.js',
+    'public/vendor/page-flip.browser.js',
+    'public/vendor/cropper.min.js',
+    'public/vendor/cropper.min.css'
+  ];
+  const hash = crypto.createHash('sha1');
+  for (const relative of assetFiles) {
+    try {
+      hash.update(fs.readFileSync(path.join(__dirname, relative)));
+    } catch (error) {
+      /* optional asset */
+    }
+  }
+  return hash.digest('hex').slice(0, 10);
+})();
+
 async function getPinnedArtworkIds(userId) {
   if (!userId) return new Set();
   try {
@@ -517,6 +555,7 @@ app.use((req, res, next) => {
   res.locals.isAuthenticated = Boolean(currentUser);
   res.locals.unreadNotifications = 0;
   res.locals.pinLimit = PIN_LIMIT;
+  res.locals.assetVersion = ASSET_VERSION;
   res.locals.imageTools = imageTools;
   res.locals.imagekitOrigin = imagekitOrigin;
   next();
@@ -670,7 +709,8 @@ app.get('/css/bundle.css', (req, res, next) => {
     const bundle = buildCssBundle();
     const accept = String(req.headers['accept-encoding'] || '');
     res.type('text/css');
-    res.set('Cache-Control', IS_VERCEL ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache');
+    const versioned = Boolean(req.query.v);
+    res.set('Cache-Control', IS_VERCEL ? (versioned ? 'public, max-age=31536000, immutable' : 'no-cache') : 'no-cache');
     res.set('Vary', 'Accept-Encoding');
 
     if (bundle.br && /\bbr\b/.test(accept)) {

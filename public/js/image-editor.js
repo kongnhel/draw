@@ -6,6 +6,8 @@
   const CROPPER_JS = '/vendor/cropper.min.js';
   const CROPPER_CSS = '/vendor/cropper.min.css';
   const EDITOR_CSS = '/css/image-editor.css';
+  const ASSET_VERSION = document.querySelector('meta[name="asset-version"]')?.content || '';
+  const assetUrl = (url) => (ASSET_VERSION ? `${url}?v=${encodeURIComponent(ASSET_VERSION)}` : url);
   const MAX_WORK_SIZE = 2400;
   const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
   const HISTORY_LIMIT = 25;
@@ -23,17 +25,17 @@
     document.head.appendChild(link);
   };
 
-  const ensureEditorStyle = () => ensureStyle(EDITOR_CSS, 'artspace-image-editor-css');
+  const ensureEditorStyle = () => ensureStyle(assetUrl(EDITOR_CSS), 'artspace-image-editor-css');
 
   const loadCropper = () => {
     ensureEditorStyle();
     if (window.Cropper) return Promise.resolve();
     if (cropperPromise) return cropperPromise;
 
-    ensureStyle(CROPPER_CSS, 'artspace-cropper-css');
+    ensureStyle(assetUrl(CROPPER_CSS), 'artspace-cropper-css');
     const loading = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = CROPPER_JS;
+      script.src = assetUrl(CROPPER_JS);
       script.async = true;
       script.onload = () => (window.Cropper ? resolve() : reject(new Error('The image tools could not load.')));
       script.onerror = () => reject(new Error('The image tools could not load.'));

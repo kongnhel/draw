@@ -1,4 +1,6 @@
 const root = document.documentElement;
+const assetVersion = document.querySelector('meta[name="asset-version"]')?.content || '';
+const versionedAsset = (url) => (assetVersion ? `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(assetVersion)}` : url);
 const toggleButton = document.querySelector('.theme-toggle');
 const themeStorageKey = 'artspace-sketchbook-theme';
 
@@ -28,7 +30,7 @@ const loadImageEditorModule = () => {
 
   imageEditorModulePromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = '/js/image-editor.js';
+    script.src = versionedAsset('/js/image-editor.js');
     script.async = true;
     script.onload = () => {
       if (window.ArtSpaceImageEditor) resolve(window.ArtSpaceImageEditor);
@@ -723,7 +725,7 @@ const loadPageFlipLibrary = () => {
     }
 
     const script = document.createElement('script');
-    script.src = '/vendor/page-flip.browser.js';
+    script.src = versionedAsset('/vendor/page-flip.browser.js');
     script.async = true;
     script.dataset.pageFlipLoader = 'true';
     script.addEventListener('load', () => resolve(), { once: true });

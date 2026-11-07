@@ -25,13 +25,15 @@
   let dirty = false;
   let submitting = false;
   let editorPromise = null;
+  const assetVersion = document.querySelector('meta[name="asset-version"]')?.content || '';
+  const versionedAsset = (url) => (assetVersion ? `${url}?v=${encodeURIComponent(assetVersion)}` : url);
 
   const loadEditor = () => {
     if (window.ArtSpaceImageEditor) return Promise.resolve(window.ArtSpaceImageEditor);
     if (editorPromise) return editorPromise;
     editorPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/js/image-editor.js';
+      script.src = versionedAsset('/js/image-editor.js');
       script.async = true;
       script.onload = () => {
         if (window.ArtSpaceImageEditor) resolve(window.ArtSpaceImageEditor);
