@@ -1,15 +1,9 @@
 require('dotenv').config({ quiet: true });
-const fs = require('fs');
 const mysql = require('mysql2/promise');
 
 function buildSslConfig() {
   const mode = String(process.env.AIVEN_MYSQL_SSL || '').toLowerCase();
   if (mode !== 'required') return undefined;
-
-  const caPath = process.env.AIVEN_MYSQL_SSL_CA_PATH;
-  if (caPath && fs.existsSync(caPath)) {
-    return { ca: fs.readFileSync(caPath), rejectUnauthorized: true };
-  }
   return { rejectUnauthorized: false };
 }
 
@@ -22,8 +16,13 @@ const dbConfig = {
   charset: 'utf8mb4',
   timezone: 'Z',
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 5,
+  maxIdle: 2,
+  idleTimeout: 60000,
+  connectTimeout: 15000,
   queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
   ssl: buildSslConfig(),
 };
 
@@ -198,8 +197,36 @@ const schemaStatements = [
 let pool;
 let initPromise = null;
 
-async function ensureUserProfileColumns() {
-  const [columns] = await pool.query(
+const IS_SERVERLESS = process.env.VERCEL === '1';
+const SKIP_SCHEMA_INIT = process.env.DB_SKIP_SCHEMA_INIT === '1';
+const READ_QUERY = /^\s*(SELECT|SHOW|DESCRIBE|EXPLAIN|WITH)\b/i;
+const RETRYABLE_CODES = new Set([
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'EPIPE',
+  'ECONNREFUSED',
+  'PROTOCOL_CONNECTION_LOST',
+  'ER_CON_COUNT_ERROR',
+  'ER_LOCK_WAIT_TIMEOUT'
+]);
+
+function attachPoolErrorHandlers(targetPool) {
+  const basePool = targetPool && targetPool.pool ? targetPool.pool : targetPool;
+  if (!basePool || typeof basePool.on !== 'function') return;
+
+  basePool.on('connection', (connection) => {
+    connection.on('error', (error) => {
+      console.error('MySQL connection error:', error && (error.code || error.message));
+    });
+  });
+
+  basePool.on('error', (error) => {
+    console.error('MySQL pool error:', error && (error.code || error.message));
+  });
+}
+
+async function ensureUserProfileColumns(targetPool = pool) {
+  const [columns] = await targetPool.query(
     `SELECT COLUMN_NAME FROM information_schema.COLUMNS
       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'`
   );
@@ -213,9 +240,16 @@ async function ensureUserProfileColumns() {
 
   for (const [name, definition] of additions) {
     if (!existing.has(name)) {
-      await pool.query(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+      await targetPool.query(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
     }
   }
+}
+
+async function initializeSchema(targetPool) {
+  for (const statement of schemaStatements) {
+    await targetPool.query(statement);
+  }
+  await ensureUserProfileColumns(targetPool);
 }
 
 async function initPool() {
@@ -224,25 +258,45 @@ async function initPool() {
       if (dbConfig.database === 'defaultdb') {
         throw new Error('Refusing to use "defaultdb". Set AIVEN_MYSQL_DATABASE=draw_web_db in your environment (including Vercel).');
       }
+
       pool = mysql.createPool(dbConfig);
-      for (const statement of schemaStatements) {
-        await pool.query(statement);
+      attachPoolErrorHandlers(pool);
+
+      if (!SKIP_SCHEMA_INIT) {
+        const schemaTask = initializeSchema(pool).catch((error) => {
+          console.error('MySQL schema initialization failed:', error && (error.code || error.message));
+        });
+        if (!IS_SERVERLESS) await schemaTask;
       }
-      await ensureUserProfileColumns();
+
       return pool;
-    })();
+    })().catch((error) => {
+      initPromise = null;
+      throw error;
+    });
   }
   return initPromise;
 }
 
-// Execute SQL and return results (mimics better-sqlite3 .all() behavior)
-async function execute(sql, params = []) {
-  const p = await initPool();
-  const [results] = await p.execute(sql, params);
+const isRetryableDatabaseError = (error) => Boolean(error && RETRYABLE_CODES.has(error.code));
+
+async function runQuery(targetPool, sql, params) {
+  const [results] = await targetPool.execute(sql, params);
   return results;
 }
 
-// Prepare a statement (mimics better-sqlite3 .prepare())
+async function execute(sql, params = []) {
+  const targetPool = await initPool();
+  try {
+    return await runQuery(targetPool, sql, params);
+  } catch (error) {
+    if (READ_QUERY.test(sql) && isRetryableDatabaseError(error)) {
+      return runQuery(targetPool, sql, params);
+    }
+    throw error;
+  }
+}
+
 function prepare(sql) {
   return {
     all: async (...args) => {
@@ -251,8 +305,8 @@ function prepare(sql) {
     },
     get: async (...args) => {
       const p = args[0] || [];
-      const [results] = await execute(sql, typeof p === 'object' ? p : [p]);
-      return results.length > 0 ? results[0] : null;
+      const rows = await execute(sql, typeof p === 'object' ? p : [p]);
+      return rows.length > 0 ? rows[0] : null;
     },
     run: async (...args) => {
       const p = args.length > 1 ? args[1] : args[0] || [];
@@ -290,4 +344,4 @@ const db = {
   }
 };
 
-module.exports = { dbConfig, db, initPool, schemaStatements };
+module.exports = { dbConfig, db, initPool, getPool: initPool, schemaStatements };

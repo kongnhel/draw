@@ -3,7 +3,6 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
-const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const session = require('express-session');
@@ -18,10 +17,15 @@ const ImageKit = require('imagekit');
 
 dotenv.config();
 
-const { dbConfig, db } = require('./src/db/init');
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason && (reason.stack || reason.message || reason));
+});
 
-// Initialize MySQL connection pool
-const pool = mysql.createPool(dbConfig);
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error && (error.stack || error.message || error));
+});
+
+const { db, getPool } = require('./src/db/init');
 
 // Initialize ImageKit SDK (credentials must come from environment variables)
 let ik = null;
@@ -329,10 +333,14 @@ class MySQLSessionStore extends session.Store {
         try {
           callback(null, JSON.parse(rows[0].data));
         } catch (error) {
-          callback(error);
+          console.error('Session parse failed:', error.message);
+          callback(null, null);
         }
       })
-      .catch(callback);
+      .catch((error) => {
+        console.error('Session read failed:', error && (error.code || error.message));
+        callback(null, null);
+      });
   }
 
   set(sid, sessionData, callback) {
@@ -341,20 +349,29 @@ class MySQLSessionStore extends session.Store {
        VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
        ON DUPLICATE KEY UPDATE data = VALUES(data), expires = DATE_ADD(NOW(), INTERVAL ? SECOND)`,
       [sid, JSON.stringify(sessionData), this.ttlSeconds, this.ttlSeconds]
-    ).then(() => callback(null)).catch(callback);
+    ).then(() => callback(null)).catch((error) => {
+      console.error('Session write failed:', error && (error.code || error.message));
+      callback(null);
+    });
   }
 
   touch(sid, sessionData, callback) {
     db.execute(
       'UPDATE sessions SET expires = DATE_ADD(NOW(), INTERVAL ? SECOND) WHERE sid = ?',
       [this.ttlSeconds, sid]
-    ).then(() => callback(null)).catch(callback);
+    ).then(() => callback(null)).catch((error) => {
+      console.error('Session touch failed:', error && (error.code || error.message));
+      callback(null);
+    });
   }
 
   destroy(sid, callback) {
     db.execute('DELETE FROM sessions WHERE sid = ?', [sid])
       .then(() => callback(null))
-      .catch(callback);
+      .catch((error) => {
+        console.error('Session destroy failed:', error && (error.code || error.message));
+        callback(null);
+      });
   }
 
   length(callback) {
@@ -532,35 +549,6 @@ app.set('trust proxy', 1);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'artspace-dev-secret',
-  store: new MySQLSessionStore(),
-  resave: false,
-  saveUninitialized: false,
-  rolling: true,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: IS_VERCEL,
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  }
-}));
-
-// Add IS_VERCEL and auth state to res.locals for template rendering
-app.use((req, res, next) => {
-  const currentUser = (req.session && req.session.user) || null;
-  res.locals.isVercel = IS_VERCEL;
-  res.locals.appName = 'ArtSpace';
-  res.locals.currentUser = currentUser;
-  res.locals.isAuthenticated = Boolean(currentUser);
-  res.locals.unreadNotifications = 0;
-  res.locals.pinLimit = PIN_LIMIT;
-  res.locals.assetVersion = ASSET_VERSION;
-  res.locals.imageTools = imageTools;
-  res.locals.imagekitOrigin = imagekitOrigin;
-  next();
-});
-
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) return next();
   return res.redirect('/login');
@@ -628,8 +616,6 @@ function respondArtworkActionError(req, res, status, message) {
 
 app.use(compression());
 app.use(morgan('dev'));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'), {
   etag: true,
   setHeaders: (res, filePath) => {
@@ -727,6 +713,38 @@ app.get('/css/bundle.css', (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'artspace-dev-secret',
+  store: new MySQLSessionStore(),
+  resave: false,
+  saveUninitialized: false,
+  rolling: true,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: IS_VERCEL,
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  }
+}));
+
+// Add IS_VERCEL and auth state to res.locals for template rendering
+app.use((req, res, next) => {
+  const currentUser = (req.session && req.session.user) || null;
+  res.locals.isVercel = IS_VERCEL;
+  res.locals.appName = 'ArtSpace';
+  res.locals.currentUser = currentUser;
+  res.locals.isAuthenticated = Boolean(currentUser);
+  res.locals.unreadNotifications = 0;
+  res.locals.pinLimit = PIN_LIMIT;
+  res.locals.assetVersion = ASSET_VERSION;
+  res.locals.imageTools = imageTools;
+  res.locals.imagekitOrigin = imagekitOrigin;
+  next();
 });
 
 // ----------------------------------------------------
@@ -1746,7 +1764,8 @@ app.post('/art/:id/pin', requireAuthJson, async (req, res, next) => {
   let connection;
 
   try {
-    connection = await pool.getConnection();
+    const pinPool = await getPool();
+    connection = await pinPool.getConnection();
     await connection.beginTransaction();
 
     await connection.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [userId]);
@@ -2141,6 +2160,49 @@ app.use((req, res, next) => {
     isAuthenticated: false,
     currentUser: null,
     unreadNotifications: 0
+  });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled request error:', err && (err.stack || err.message || err));
+
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
+  const isClientError = err instanceof URIError;
+  const status = isClientError ? 400 : 500;
+  const message = isClientError
+    ? 'That request could not be understood. Please check the address and try again.'
+    : 'Something went wrong on our side. Please refresh the page or try again in a moment.';
+
+  if (requestWantsJson(req)) {
+    res.status(status).json({ ok: false, error: message });
+    return;
+  }
+
+  res.locals.assetVersion = res.locals.assetVersion || ASSET_VERSION;
+  res.locals.imageTools = res.locals.imageTools || imageTools;
+  res.locals.imagekitOrigin = res.locals.imagekitOrigin || imagekitOrigin;
+  res.locals.pinLimit = res.locals.pinLimit || PIN_LIMIT;
+  res.locals.currentUser = res.locals.currentUser || null;
+  res.locals.isAuthenticated = Boolean(res.locals.currentUser);
+  res.locals.unreadNotifications = 0;
+
+  res.status(status).render('pages/error', {
+    message,
+    pageTitle: isClientError ? 'ArtSpace | Bad request' : 'ArtSpace | Something went wrong',
+    isAuthenticated: res.locals.isAuthenticated,
+    currentUser: res.locals.currentUser,
+    unreadNotifications: 0
+  }, (renderError, html) => {
+    if (renderError) {
+      console.error('Error page render failed:', renderError.message);
+      res.type('text/plain').send(message);
+      return;
+    }
+    res.send(html);
   });
 });
 
