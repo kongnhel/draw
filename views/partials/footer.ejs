@@ -56,6 +56,12 @@
                 <button class="art-viewer-action" type="button" data-viewer-share>Share</button>
                 <button class="art-viewer-action" type="button" data-viewer-related-toggle aria-expanded="false">Related</button>
               </div>
+              <div class="art-viewer-owner-actions" data-viewer-owner-actions hidden>
+                <a class="art-viewer-action art-viewer-action--owner" data-viewer-edit href="#" data-no-viewer>Edit</a>
+                <form method="POST" action="/art/1/delete" data-viewer-delete-form onsubmit="return confirm('Delete this artwork? This cannot be undone.');">
+                  <button class="art-viewer-action art-viewer-action--danger" type="submit" data-viewer-delete>Delete</button>
+                </form>
+              </div>
               <a class="art-viewer-details" data-viewer-detail href="#">Open artwork details <span aria-hidden="true">↗</span></a>
             </div>
           </div>

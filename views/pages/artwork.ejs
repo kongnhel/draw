@@ -45,6 +45,18 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
             <span data-pin-label><%= artworkPinned ? 'Pinned' : 'Pin to homepage' %></span>
           </button>
+          <div class="ad-showcase-owner-actions">
+            <a class="ad-showcase-owner-action" href="/art/<%= artwork.id %>/edit" data-no-viewer aria-label="Edit this artwork">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17l-1 3Z" /><path d="M13.5 7.5l3 3" /></svg>
+              <span>Edit</span>
+            </a>
+            <form method="POST" action="/art/<%= artwork.id %>/delete" onsubmit="return confirm('Delete this artwork? This cannot be undone.');">
+              <button type="submit" class="ad-showcase-owner-action is-danger" aria-label="Delete this artwork">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13" /></svg>
+                <span>Delete</span>
+              </button>
+            </form>
+          </div>
         <% } %>
       </div>
 

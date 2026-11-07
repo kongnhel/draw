@@ -106,5 +106,20 @@
         </a>
       </div>
     </div>
+
+    <% if (cardOwned) { %>
+      <div class="pf-art-owner-actions">
+        <a class="pf-art-owner-action" href="/art/<%= artwork.id %>/edit" data-no-viewer aria-label="Edit <%= artwork.title %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17l-1 3Z" /><path d="M13.5 7.5l3 3" /></svg>
+          <span>Edit</span>
+        </a>
+        <form method="POST" action="/art/<%= artwork.id %>/delete" onsubmit="return confirm('Delete this artwork? This cannot be undone.');">
+          <button type="submit" class="pf-art-owner-action is-danger" aria-label="Delete <%= artwork.title %>">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13" /></svg>
+            <span>Delete</span>
+          </button>
+        </form>
+      </div>
+    <% } %>
   </div>
 </article>

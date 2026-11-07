@@ -1089,6 +1089,10 @@ const bindArtViewer = () => {
   const relatedPanel = viewer.querySelector('[data-viewer-related]');
   const relatedList = viewer.querySelector('[data-viewer-related-list]');
   const relatedClose = viewer.querySelector('[data-viewer-related-close]');
+  const ownerActions = viewer.querySelector('[data-viewer-owner-actions]');
+  const editLink = viewer.querySelector('[data-viewer-edit]');
+  const deleteForm = viewer.querySelector('[data-viewer-delete-form]');
+  const currentUsername = document.querySelector('meta[name="current-username"]')?.getAttribute('content') || '';
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const effectNames = ['portrait', 'sketch', 'digital', 'nature', 'khmer', 'default'];
   const effectParticles = {
@@ -1409,6 +1413,10 @@ const bindArtViewer = () => {
     }
     if (dateLabel) dateLabel.textContent = artwork.date;
     if (detailLink) detailLink.href = artwork.href;
+    const isOwner = Boolean(currentUsername && artwork.artistUrl === `/profile/${currentUsername}`);
+    if (ownerActions) ownerActions.hidden = !isOwner;
+    if (editLink) editLink.href = `${artwork.href}/edit`;
+    if (deleteForm) deleteForm.action = `${artwork.href}/delete`;
     if (shareButton) shareButton.textContent = 'Share';
     if (likeForm) likeForm.action = `${artwork.href}/like`;
     if (likeButton) {
@@ -1620,6 +1628,7 @@ const bindArtViewer = () => {
     const target = event.target instanceof Element ? event.target : null;
     const trigger = target?.closest('a[href^="/art/"], [data-artwork-open]');
     if (!trigger) return;
+    if (trigger.closest('[data-no-viewer]')) return;
 
     if (trigger instanceof HTMLAnchorElement && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || trigger.target === '_blank')) return;
     const artworkElement = trigger.closest('[data-artwork-view]');
@@ -2133,7 +2142,7 @@ const initUploadPage = () => {
     if (!selectedFile) missing.push('a drawing');
     if (!titleInput?.value.trim()) missing.push('a title');
     if (!categoryInput?.value) missing.push('a category');
-    if (missing.length === 0) return 'Ready when you are. Pin this page to your collection.';
+    if (missing.length === 0) return 'Ready when you are. Publish this page to your collection.';
     if (missing.length === 1) return `Add ${missing[0]} to finish this page.`;
     if (missing.length === 2) return `Add ${missing[0]} and ${missing[1]} to finish this page.`;
     return `Add ${missing[0]}, ${missing[1]}, and ${missing[2]} to finish this page.`;
@@ -2310,7 +2319,7 @@ const initUploadPage = () => {
     if (progressTrack) progressTrack.style.setProperty('--upload-progress', '100%');
     progressPanel?.classList.remove('is-processing');
     progressPanel?.classList.add('is-complete');
-    if (progressKicker) progressKicker.textContent = 'Page pinned';
+    if (progressKicker) progressKicker.textContent = 'Page published';
     if (progressLabel) progressLabel.textContent = 'Your page is safe in the collection.';
     if (progressDetail) progressDetail.textContent = 'The ink is dry.';
 
@@ -2330,7 +2339,7 @@ const initUploadPage = () => {
         ? 'Only you can see it until you are ready to publish.'
         : isPrivate
           ? 'Only you can see it until you choose to share it.'
-          : 'It is pinned to your gallery and ready for the world to see.';
+          : 'It is added to your gallery and ready for the world to see.';
     }
     if (successImage && payload?.artworkImageUrl) {
       successImage.src = payload.artworkImageUrl;
@@ -2433,7 +2442,7 @@ const initUploadPage = () => {
         return;
       }
 
-      showUploadError(payload?.error || 'We could not pin this page. Please try again.');
+      showUploadError(payload?.error || 'We could not publish this page. Please try again.');
     });
 
     xhr.addEventListener('error', () => {

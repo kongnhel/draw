@@ -102,16 +102,10 @@
             </span>
           </div>
 
-<div class="ae-field">
+            <div class="ae-field">
               <label for="tags">Tags <span class="ae-optional">optional</span></label>
               <input id="tags" name="tags" type="text" maxlength="180" value="<%= artwork.visible_tags || '' %>" placeholder="#portrait #pencil #quiet" data-ae-tags />
               <p class="ae-hint">Separate tags with spaces. They help the right people find this page.</p>
-            </div>
-
-            <div class="ae-field">
-              <label for="is_featured">Feature on home page</label>
-              <input type="checkbox" id="is_featured" name="is_featured" <%= Number(artwork.is_featured) ? 'checked' : '' %> />
-              <span class="ae-hint">Check to showcase this artwork at the top of the home page.</span>
             </div>
         </div>
 

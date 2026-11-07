@@ -769,7 +769,7 @@ app.get('/', async (req, res, next) => {
                 u.avatar,
                 c.name AS category_name, c.slug AS category_slug,
                 a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-                a.visibility, a.is_published, a.is_featured,
+                a.visibility, a.is_published,
                 (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
                 (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
                 EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
@@ -778,7 +778,7 @@ app.get('/', async (req, res, next) => {
            INNER JOIN users u ON u.id = a.user_id
            INNER JOIN categories c ON c.id = a.category_id
           WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
-          ORDER BY a.is_featured DESC, a.created_at DESC
+          ORDER BY a.created_at DESC
           LIMIT 48`,
         [viewerId, viewerId]
       ),
@@ -1088,12 +1088,11 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
       }
     }
 
-const isFeatured = req.body.is_featured === 'on' ? 1 : 0;
     const result = await db.execute(
       `INSERT INTO artworks
          (user_id, category_id, title, description, tags, image_url, thumbnail_url,
-          visibility, is_published, status, is_featured, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', COALESCE(?, NOW()), NOW())`,
+          visibility, is_published, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', COALESCE(?, NOW()), NOW())`,
       [
         req.session.user.id,
         categoryId,
@@ -1104,7 +1103,6 @@ const isFeatured = req.body.is_featured === 'on' ? 1 : 0;
         artworkImage.thumbnail_url || artworkImage.image_url,
         visibility,
         isPublished,
-        isFeatured,
         createdAt
       ]
     );
@@ -1135,7 +1133,7 @@ const isFeatured = req.body.is_featured === 'on' ? 1 : 0;
     if (wantsJson) {
       const message = err.message && err.message.startsWith('We ')
         ? err.message
-        : 'We could not pin this page. Please try again.';
+        : 'We could not publish this page. Please try again.';
       res.status(500).json({ ok: false, error: message });
       return;
     }
@@ -2066,7 +2064,7 @@ app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
 
     const rows = await db.execute(
       `SELECT id, user_id, category_id, title, description, tags, image_url, thumbnail_url,
-              visibility, is_published, status, is_featured
+              visibility, is_published, status
          FROM artworks
         WHERE id = ?
         LIMIT 1`,
@@ -2093,7 +2091,6 @@ app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
       .split(/\s+/)
       .filter((tag) => tag && /^effect:/i.test(tag));
     const tags = [visibleTags, ...effectTags].filter(Boolean).join(' ').slice(0, 500);
-    const isFeatured = req.body.is_featured === 'on' ? 1 : 0;
 
     const renderError = async (message) => {
       if (requestWantsJson(req)) {
@@ -2140,9 +2137,9 @@ app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
 
     await db.execute(
       `UPDATE artworks
-          SET title = ?, description = ?, category_id = ?, tags = ?, is_featured = ?, updated_at = NOW()
+          SET title = ?, description = ?, category_id = ?, tags = ?, updated_at = NOW()
         WHERE id = ? AND user_id = ?`,
-      [title, description || null, categoryId, tags || null, isFeatured ? 1 : 0, artworkId, req.session.user.id]
+      [title, description || null, categoryId, tags || null, artworkId, req.session.user.id]
     );
 
     if (requestWantsJson(req)) {
