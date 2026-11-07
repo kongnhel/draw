@@ -28,7 +28,11 @@
         </span>
 
         <button class="ad-artwork-open" type="button" data-artwork-open data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artistName %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artworkDateLabel %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="Open <%= artwork.title %> in the immersive viewer">
-          <img src="<%= artwork.image_url %>" alt="<%= artwork.title %>" />
+          <%
+            const detailSrc = imageTools.transformUrl(artwork.image_url, 1200);
+            const detailSrcset = imageTools.srcset(artwork.image_url, [640, 960, 1200, 1600], 82);
+          %>
+          <img src="<%= detailSrc %>"<% if (detailSrcset) { %> srcset="<%= detailSrcset %>" sizes="(max-width: 900px) 92vw, 720px"<% } %> alt="<%= artwork.title %>" loading="eager" fetchpriority="high" decoding="async" />
           <span class="ad-zoom-hint" aria-hidden="true">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v4M15 5h4v4M9 19H5v-4M15 19h4v-4" /></svg>
             Immersive view

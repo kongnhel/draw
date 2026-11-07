@@ -357,7 +357,11 @@
         <section class="pf-card pf-pinned" aria-label="Latest artwork">
           <span class="pf-side-label" aria-hidden="true">Pinned latest</span>
           <a class="pf-pinned-link" href="/art/<%= latest.id %>">
-            <img src="<%= latest.thumbnail_url || latest.image_url %>" data-fallback-src="/images/default-artwork.svg" alt="<%= latest.title %>" loading="lazy" decoding="async" />
+            <%
+              const latestSrc = imageTools.cardSrc(latest, 480);
+              const latestSrcset = imageTools.cardSrcset(latest, [320, 480, 640]);
+            %>
+            <img src="<%= latestSrc %>"<% if (latestSrcset) { %> srcset="<%= latestSrcset %>" sizes="(max-width: 640px) 88vw, 300px"<% } %> data-fallback-src="/images/default-artwork.svg" alt="<%= latest.title %>" loading="lazy" decoding="async" />
             <span class="pf-pinned-meta">
               <span><%= latest.category_name || 'Artwork' %></span>
               <strong><%= latest.title %></strong>

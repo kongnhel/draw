@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap');
 
 :root {
   --black: #292824;
@@ -18912,4 +18911,109 @@ body.ae-modal-open {
 :root[data-theme='dark'] .footer-bottom .intro-replay,
 :root[data-theme='dark'] .footer-bottom .sound-toggle {
   border-color: var(--border);
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+.art-card-media img,
+.studio-explore-card-image img,
+.studio-explore-spotlight img,
+.pf-art-image img,
+.hs-feature-mat img,
+.ad-artwork-open img,
+.art-viewer-image {
+  background-color: var(--card-alt);
+}
+
+.studio-explore-spotlight img {
+  aspect-ratio: 1.04;
+  height: auto;
+}
+
+:root[data-perf='low'] .bg-falling,
+:root[data-perf='low'] .intro-particles,
+:root[data-perf='low'] .art-viewer-particles {
+  display: none !important;
+}
+
+:root[data-perf='low'] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root[data-perf='low'] .topbar,
+:root[data-perf='low'] .nav-links,
+:root[data-perf='low'] .profile-menu,
+:root[data-perf='low'] .art-viewer-shell,
+:root[data-perf='low'] .art-viewer-caption,
+:root[data-perf='low'] .site-footer {
+  box-shadow: none !important;
+}
+
+:root[data-perf='low'] .art-viewer-image,
+:root[data-perf='low'] .art-viewer.is-revealed .art-viewer-image {
+  filter: none !important;
+}
+
+:root[data-perf='low'] .intro-drawing {
+  filter: none !important;
+}
+
+:root[data-perf='low'] .art-card-media img,
+:root[data-perf='low'] .studio-explore-card-image img,
+:root[data-perf='low'] .pf-art-image img {
+  transition: none !important;
+}
+
+:root[data-perf='low'] .art-card-media:hover img,
+:root[data-perf='low'] .art-card:focus-within .art-card-media img,
+:root[data-perf='low'] .studio-explore-card:hover .studio-explore-card-image img {
+  transform: none !important;
+  filter: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-falling,
+  .intro-particles,
+  .art-viewer-particles {
+    display: none !important;
+  }
+}
+
+@media (pointer: coarse) {
+  .nav-icon-btn,
+  .theme-toggle,
+  .nav-search-submit,
+  .nav-search-clear,
+  .profile-chip,
+  .art-viewer-tool,
+  .book-nav-button,
+  .ad-comment-actions button,
+  .studio-explore-save button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .art-card-media:hover img,
+  .studio-explore-card:hover .studio-explore-card-image img {
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .category-pill,
+  .nav-drawer-actions a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .nav-search input,
+  .auth-form input {
+    font-size: 16px;
+  }
 }

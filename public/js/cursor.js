@@ -20,6 +20,16 @@
     try { return localStorage.getItem(STORAGE_KEY) === 'off'; } catch { return false; }
   };
 
+  const isLowPerf = () => {
+    if (document.documentElement.getAttribute('data-perf') === 'low') return true;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const memory = Number(navigator.deviceMemory) || 8;
+    const cores = Number(navigator.hardwareConcurrency) || 8;
+    return memory <= 2
+      || (memory <= 4 && cores <= 4)
+      || Boolean(connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || '')));
+  };
+
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const rand = (min, max) => min + Math.random() * (max - min);
   const TAU = Math.PI * 2;
@@ -390,6 +400,8 @@
     if (isTouch && mode !== 'tap') return;
     if (!isTouch && mode !== 'full') return;
 
+    if (mode === 'tap' && !layers.canvas) createLayers();
+
     burst(event.clientX, event.clientY, isTouch ? 6 : Math.round(rand(7, 12)), isTouch ? 0.75 : 1);
   };
 
@@ -464,8 +476,10 @@
   let listenersBound = false;
 
   const applyMode = () => {
-    const wantFull = finePointerQuery.matches && hoverQuery.matches && !reducedMotionQuery.matches && !isDisabledByUser();
-    const wantTap = !wantFull && !reducedMotionQuery.matches && !isDisabledByUser();
+    const off = isDisabledByUser();
+    const lowPerf = isLowPerf();
+    const wantFull = !lowPerf && finePointerQuery.matches && hoverQuery.matches && !reducedMotionQuery.matches && !off;
+    const wantTap = !lowPerf && !wantFull && !reducedMotionQuery.matches && !off;
     const next = wantFull ? 'full' : wantTap ? 'tap' : 'off';
 
     if (next === mode) return;
@@ -480,7 +494,6 @@
       pencilVisible = false;
       if (!listenersBound) { bindGlobalListeners(); listenersBound = true; }
     } else if (mode === 'tap') {
-      createLayers();
       if (!listenersBound) { bindGlobalListeners(); listenersBound = true; }
     } else if (listenersBound) {
       unbindGlobalListeners();

@@ -1,7 +1,11 @@
 <article class="art-card" data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
+  <%
+    const cardSrc = imageTools.cardSrc(artwork, 480);
+    const cardSrcset = imageTools.cardSrcset(artwork, [320, 480, 640, 800]);
+  %>
   <div class="art-card-media">
     <a href="/art/<%= artwork.id %>">
-      <img src="<%= artwork.image_url || artwork.thumbnail_url || '/images/default-artwork.svg' %>" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+      <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 300px"<% } %> width="480" height="600" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
     </a>
     <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <path d="M4 4H96V121H4Z" pathLength="1000" />

@@ -179,6 +179,15 @@
      ========================================================================== */
 
   const finePointerQuery = window.matchMedia('(pointer: fine)');
+  const isLowPerf = () => {
+    if (document.documentElement.getAttribute('data-perf') === 'low') return true;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const memory = Number(navigator.deviceMemory) || 8;
+    const cores = Number(navigator.hardwareConcurrency) || 8;
+    return memory <= 2
+      || (memory <= 4 && cores <= 4)
+      || Boolean(connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || '')));
+  };
   // Every artwork / preview image on the site gets the magnifier.
   // Opt out per image with data-magnify="false"; opt in anything else with data-magnify.
   const MAGNIFY_SELECTOR = [
@@ -317,7 +326,7 @@
 
   const activateMagnifier = (img, event) => {
     if (img.dataset.magnify === 'false') return; // explicit opt-out
-    if (!finePointerQuery.matches) return;
+    if (!finePointerQuery.matches || isLowPerf()) return;
 
     const rect = img.getBoundingClientRect();
     if (rect.width < MIN_IMAGE_SIDE || rect.height < MIN_IMAGE_SIDE) return;
@@ -372,5 +381,5 @@
   window.artspaceMagnifier = { hide: hideMagnifier };
 
   syncSoundToggles();
-  initMagnifier();
+  if (!isLowPerf()) initMagnifier();
 })();

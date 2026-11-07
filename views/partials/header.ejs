@@ -8,26 +8,46 @@
     <meta name="description" content="ArtSpace is a premium art and drawing social platform for artists and art lovers." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/css/styles.css" />
-    <link rel="stylesheet" href="/css/cursor.css" />
-    <link rel="stylesheet" href="/css/interactions.css" />
-    <link rel="stylesheet" href="/css/background-falling.css" />
-    <link rel="stylesheet" href="/css/mobile.css" />
-    <link rel="stylesheet" href="/css/navbar-sketch.css" />
-    <link rel="stylesheet" href="/css/spa-nav.css" />
-    <link rel="stylesheet" href="/css/intro.css" />
+    <% if (typeof imagekitOrigin !== 'undefined' && imagekitOrigin) { %>
+      <link rel="preconnect" href="<%= imagekitOrigin %>" crossorigin />
+    <% } %>
+    <% if (typeof heroArtwork !== 'undefined' && heroArtwork && heroArtwork.image_url && typeof imageTools !== 'undefined') { %>
+      <%
+        const heroPreloadSrc = imageTools.transformUrl(heroArtwork.image_url, 720);
+        const heroPreloadSrcset = imageTools.srcset(heroArtwork.image_url, [320, 480, 720, 960, 1200]);
+      %>
+      <link rel="preload" as="image" href="<%= heroPreloadSrc %>"<% if (heroPreloadSrcset) { %> imagesrcset="<%= heroPreloadSrcset %>" imagesizes="(max-width: 480px) 40vw, (max-width: 1080px) 46vw, 480px"<% } %> fetchpriority="high" />
+    <% } %>
+    <%
+      const fontCssUrl = 'https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap';
+    %>
+    <link rel="preload" as="style" href="<%= fontCssUrl %>" />
+    <link rel="stylesheet" href="<%= fontCssUrl %>" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="<%= fontCssUrl %>" /></noscript>
+    <link rel="stylesheet" href="/css/bundle.css" />
     <script>
       (function () {
         try {
+          var root = document.documentElement;
           var theme = localStorage.getItem('artspace-sketchbook-theme');
-          if (theme === 'dark' || theme === 'light') document.documentElement.setAttribute('data-theme', theme);
+          if (theme === 'dark' || theme === 'light') root.setAttribute('data-theme', theme);
+
+          var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+          var memory = Number(navigator.deviceMemory) || 8;
+          var cores = Number(navigator.hardwareConcurrency) || 8;
+          var forced = localStorage.getItem('artspace-perf');
+          var lowPower = memory <= 2
+            || (memory <= 4 && cores <= 4)
+            || (connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || '')));
+          if (forced === 'low' || (forced !== 'high' && lowPower)) root.setAttribute('data-perf', 'low');
+          else root.removeAttribute('data-perf');
+
           var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
           var seen = localStorage.getItem('artspace-intro-seen-v1') === '1';
           if (!seen && !reduced) {
-            document.documentElement.classList.add('intro-pending');
+            root.classList.add('intro-pending');
             window.__introFallback = window.setTimeout(function () {
-              if (!window.__introReady) document.documentElement.classList.remove('intro-pending');
+              if (!window.__introReady) root.classList.remove('intro-pending');
             }, 10000);
           }
         } catch (error) {}

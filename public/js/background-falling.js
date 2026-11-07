@@ -6,6 +6,16 @@
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const effectsKey = 'artspace-art-effects';
 
+  const readLowPerf = () => {
+    if (document.documentElement.getAttribute('data-perf') === 'low') return true;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const memory = Number(navigator.deviceMemory) || 8;
+    const cores = Number(navigator.hardwareConcurrency) || 8;
+    return memory <= 2
+      || (memory <= 4 && cores <= 4)
+      || Boolean(connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || '')));
+  };
+
   const ICON_SVGS = {
     pencil: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="__INK__" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v12.5l-3 4.8-3-4.8V3Z"/><path d="M9 6.5h6"/><path d="M9 15.5h6"/><path d="M9 15.5h6L12 20.3Z" fill="__ACCENT__" stroke="none" opacity=".55"/></svg>',
     brush: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="__INK__" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15.6 3.4 9 10l2 2 6.6-6.6a1.42 1.42 0 0 0-2-2Z"/><path d="m9 10 2 2"/><path d="M10.4 10.6c-2.4.4-4 2-4.7 4.7 1.9.5 3.8 0 5.7-1.8" stroke="__ACCENT__"/></svg>',
@@ -100,6 +110,7 @@
   let lastTime = 0;
   let running = false;
   let enabled = true;
+  let lowPerf = readLowPerf();
 
   const readColors = () => {
     const styles = getComputedStyle(document.documentElement);
@@ -127,7 +138,8 @@
     const area = width * height;
     const base = Math.round(area / 120000);
     const mobile = width < 640;
-    return clamp(mobile ? base - 1 : base, mobile ? 4 : 6, 15);
+    const max = lowPerf ? (mobile ? 5 : 7) : 15;
+    return clamp(mobile ? base - 1 : base, mobile ? 4 : 6, max);
   };
 
   const createParticle = (spawnAnywhere = false) => {
@@ -161,7 +173,8 @@
   };
 
   const resize = () => {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    lowPerf = readLowPerf();
+    dpr = Math.min(window.devicePixelRatio || 1, lowPerf ? 1 : 2);
     width = window.innerWidth;
     height = window.innerHeight;
     canvas.width = Math.round(width * dpr);
@@ -219,20 +232,36 @@
   };
 
   const evaluate = () => {
+    lowPerf = readLowPerf();
     const effectsOff = (() => {
       try { return localStorage.getItem(effectsKey) === 'off'; } catch { return false; }
     })();
-    enabled = !reducedMotionQuery.matches && !effectsOff;
+    enabled = !lowPerf && !reducedMotionQuery.matches && !effectsOff;
     layer.dataset.bgMotion = enabled ? 'on' : 'off';
     if (enabled) start();
     else stop();
   };
 
-  buildImages();
   resize();
-  evaluate();
 
-  window.addEventListener('resize', resize, { passive: true });
+  const boot = () => {
+    buildImages();
+    evaluate();
+  };
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(boot, { timeout: 1500 });
+  } else {
+    window.setTimeout(boot, 250);
+  }
+
+  let resizeFrame = 0;
+  window.addEventListener('resize', () => {
+    if (resizeFrame) return;
+    resizeFrame = window.requestAnimationFrame(() => {
+      resizeFrame = 0;
+      resize();
+    });
+  }, { passive: true });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stop();
     else evaluate();
@@ -246,7 +275,7 @@
 
   new MutationObserver(() => {
     buildImages();
-  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
   window.ArtSpaceBackground = {
     get scene() { return scene; },

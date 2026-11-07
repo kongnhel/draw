@@ -18,6 +18,15 @@
   const root = document.documentElement;
   const pageShell = document.querySelector('.page-shell');
   const reduceQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const lowPerf = (() => {
+    if (document.documentElement.getAttribute('data-perf') === 'low') return true;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const memory = Number(navigator.deviceMemory) || 8;
+    const cores = Number(navigator.hardwareConcurrency) || 8;
+    return memory <= 2
+      || (memory <= 4 && cores <= 4)
+      || Boolean(connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || '')));
+  })();
   const svg = overlay.querySelector('.intro-logo-svg');
   const track = document.getElementById('intro-pencil-path');
   const revealRect = overlay.querySelector('[data-intro-reveal]');
@@ -326,10 +335,13 @@
     revealRect.setAttribute('width', String(846 * draw));
     progressFill.style.width = `${clamp((elapsed / DURATION) * 100, 0, 100)}%`;
 
-    if (now - lastParticleAt > 38) {
+    if (!lowPerf && now - lastParticleAt > 38) {
       lastParticleAt = now;
       spawnParticle(point.x - 1, point.y + 3);
       if (Math.random() > 0.64) spawnParticle(point.x + 4, point.y + 7);
+    } else if (lowPerf && now - lastParticleAt > 140) {
+      lastParticleAt = now;
+      spawnParticle(point.x - 1, point.y + 3);
     }
 
     if (draw >= 1) {

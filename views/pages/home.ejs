@@ -37,9 +37,13 @@
       <div class="hs-hero-art">
         <span class="hs-hero-tape" aria-hidden="true"></span>
         <% if (heroArtwork && heroArtworkImageUrl) { %>
+          <%
+            const heroSrc = imageTools.transformUrl(heroArtwork.image_url || heroArtworkImageUrl, 720);
+            const heroSrcset = imageTools.srcset(heroArtwork.image_url || heroArtworkImageUrl, [320, 480, 720, 960, 1200]);
+          %>
           <a href="/art/<%= heroArtwork.id %>" class="hs-feature home-hero-feature" aria-label="View <%= heroArtwork.title %> by <%= heroArtistName %>">
             <span class="hs-feature-mat">
-              <img src="<%= heroArtworkImageUrl %>" data-home-feature-image data-fallback-src="/images/default-artwork.svg" alt="<%= heroArtwork.title %>" loading="eager" decoding="async">
+              <img src="<%= heroSrc %>"<% if (heroSrcset) { %> srcset="<%= heroSrcset %>" sizes="(max-width: 480px) 40vw, (max-width: 1080px) 46vw, 480px"<% } %> width="480" height="600" data-home-feature-image data-fallback-src="/images/default-artwork.svg" alt="<%= heroArtwork.title %>" loading="eager" fetchpriority="high" decoding="async">
             </span>
             <span class="hs-feature-meta">
               <span class="hs-feature-kicker">Plate <%= String(heroArtworkIndex).padStart(2, '0') %> · <%= heroArtwork.category_name || 'Original artwork' %></span>
@@ -266,9 +270,5 @@
 
   </main>
 </div>
-
-<% if (bookArtworks.length) { %>
-  <script src="/vendor/page-flip.browser.js"></script>
-<% } %>
 
 <%- include('../partials/footer') %>

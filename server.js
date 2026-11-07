@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const zlib = require('zlib');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const express = require('express');
@@ -377,7 +378,54 @@ class MySQLSessionStore extends session.Store {
   }
 }
 
+const IMAGEKIT_ENDPOINT = String(process.env.IMAGEKIT_URL_ENDPOINT || '').replace(/\/+$/, '');
+
+function isTransformableImage(url) {
+  return Boolean(IMAGEKIT_ENDPOINT && typeof url === 'string' && url.startsWith(IMAGEKIT_ENDPOINT));
+}
+
+function transformImageUrl(url, width, quality = 78) {
+  if (!isTransformableImage(url)) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}tr=w-${Math.round(width)},q-${quality},f-auto`;
+}
+
+function buildImageSrcset(url, widths, quality = 78) {
+  if (!isTransformableImage(url)) return '';
+  return widths
+    .map((width) => `${transformImageUrl(url, width, quality)} ${width}w`)
+    .join(', ');
+}
+
+function artworkCardSrc(artwork, width = 480) {
+  if (!artwork) return '/images/default-artwork.svg';
+  if (isTransformableImage(artwork.image_url)) return transformImageUrl(artwork.image_url, width);
+  return artwork.thumbnail_url || artwork.image_url || '/images/default-artwork.svg';
+}
+
+function artworkCardSrcset(artwork, widths = [320, 480, 640, 800]) {
+  if (!artwork) return '';
+  return buildImageSrcset(artwork.image_url, widths);
+}
+
+const imageTools = {
+  isTransformable: isTransformableImage,
+  transformUrl: transformImageUrl,
+  srcset: buildImageSrcset,
+  cardSrc: artworkCardSrc,
+  cardSrcset: artworkCardSrcset
+};
+
+const imagekitOrigin = (() => {
+  try {
+    return IMAGEKIT_ENDPOINT ? new URL(IMAGEKIT_ENDPOINT).origin : '';
+  } catch (error) {
+    return '';
+  }
+})();
+
 const app = express();
+app.disable('x-powered-by');
 
 app.set('trust proxy', 1);
 app.set('views', path.join(__dirname, 'views'));
@@ -405,6 +453,8 @@ app.use((req, res, next) => {
   res.locals.currentUser = currentUser;
   res.locals.isAuthenticated = Boolean(currentUser);
   res.locals.unreadNotifications = 0;
+  res.locals.imageTools = imageTools;
+  res.locals.imagekitOrigin = imagekitOrigin;
   next();
 });
 
@@ -446,8 +496,101 @@ app.use(compression());
 app.use(morgan('dev'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (!IS_VERCEL) return;
+    if (/\.(?:css|js|mjs|woff2?|ttf|svg|png|jpe?g|webp|avif|wav|mp3)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+  }
+}));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  etag: true,
+  setHeaders: (res) => {
+    if (!IS_VERCEL) return;
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+  }
+}));
+
+const CSS_BUNDLE_FILES = [
+  'styles.css',
+  'cursor.css',
+  'interactions.css',
+  'background-falling.css',
+  'mobile.css',
+  'navbar-sketch.css',
+  'spa-nav.css',
+  'intro.css'
+];
+let cssBundleCache = { key: '', css: '', gzip: null, br: null };
+
+function buildCssBundle() {
+  const cssDir = path.join(__dirname, 'public', 'css');
+  const key = CSS_BUNDLE_FILES.map((file) => {
+    try {
+      const stat = fs.statSync(path.join(cssDir, file));
+      return `${file}:${stat.mtimeMs}:${stat.size}`;
+    } catch (error) {
+      return `${file}:0`;
+    }
+  }).join('|');
+
+  if (cssBundleCache.key === key) return cssBundleCache;
+
+  const css = CSS_BUNDLE_FILES.map((file) => {
+    try {
+      return fs.readFileSync(path.join(cssDir, file), 'utf8');
+    } catch (error) {
+      return '';
+    }
+  }).join('\n');
+
+  let gzip = null;
+  let br = null;
+  try {
+    gzip = zlib.gzipSync(Buffer.from(css), { level: 9 });
+  } catch (error) {
+    gzip = null;
+  }
+  try {
+    br = zlib.brotliCompressSync(Buffer.from(css), {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 5,
+        [zlib.constants.BROTLI_PARAM_SIZE_HINT]: Buffer.byteLength(css)
+      }
+    });
+  } catch (error) {
+    br = null;
+  }
+
+  cssBundleCache = { key, css, gzip, br };
+  return cssBundleCache;
+}
+
+app.get('/css/bundle.css', (req, res, next) => {
+  try {
+    const bundle = buildCssBundle();
+    const accept = String(req.headers['accept-encoding'] || '');
+    res.type('text/css');
+    res.set('Cache-Control', IS_VERCEL ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache');
+    res.set('Vary', 'Accept-Encoding');
+
+    if (bundle.br && /\bbr\b/.test(accept)) {
+      res.set('Content-Encoding', 'br');
+      res.send(bundle.br);
+      return;
+    }
+    if (bundle.gzip && /\bgzip\b/.test(accept)) {
+      res.set('Content-Encoding', 'gzip');
+      res.send(bundle.gzip);
+      return;
+    }
+    res.send(bundle.css);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // ----------------------------------------------------
 // ROUTES (MUST BE PLACED BEFORE 404 CATCH-ALL)
@@ -457,54 +600,55 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', async (req, res, next) => {
   try {
     const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
-    const totalArtworkRows = await db.execute(
-      "SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"
-    );
+
+    const [totalArtworkRows, bookArtworks, artistRows, categoryRows] = await Promise.all([
+      db.execute(
+        "SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"
+      ),
+      db.execute(
+        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar,
+                c.name AS category_name, c.slug AS category_slug,
+                a.created_at, a.visibility, a.is_published, a.is_featured,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           INNER JOIN categories c ON c.id = a.category_id
+          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+          ORDER BY a.is_featured DESC, a.created_at DESC
+          LIMIT 48`,
+        [viewerId, viewerId]
+      ),
+      db.execute(
+        `SELECT u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar, u.bio,
+                COUNT(a.id) AS art_count
+           FROM users u
+           LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
+           GROUP BY u.id
+           ORDER BY art_count DESC
+           LIMIT 1`
+      ),
+      db.execute(
+        `SELECT c.slug, c.name, COUNT(a.id) AS count
+           FROM categories c
+           LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
+           GROUP BY c.id
+           ORDER BY c.sort_order`
+      )
+    ]);
+
     const totalArtworks = Number((totalArtworkRows && totalArtworkRows[0] && totalArtworkRows[0].count) || 0);
-
-    const bookArtworks = await db.execute(
-      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-              u.username,
-              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-              u.avatar,
-              c.name AS category_name, c.slug AS category_slug,
-              a.created_at, a.visibility, a.is_published, a.is_featured,
-              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
-              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
-              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked
-         FROM artworks a
-         INNER JOIN users u ON u.id = a.user_id
-         INNER JOIN categories c ON c.id = a.category_id
-        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
-        ORDER BY a.is_featured DESC, a.created_at DESC`,
-      [viewerId, viewerId]
-    );
-
     const latest = (bookArtworks || []).slice(0, 9);
     const heroArtwork = (bookArtworks && bookArtworks[0]) || null;
     const heroArtworkIndex = heroArtwork ? bookArtworks.indexOf(heroArtwork) : 0;
-
-    const artistRows = await db.execute(
-      `SELECT u.username,
-              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-              u.avatar, u.bio,
-              COUNT(a.id) AS art_count
-         FROM users u
-         LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
-         GROUP BY u.id
-         ORDER BY art_count DESC
-         LIMIT 1`
-    );
     const artistSpotlight = (artistRows && artistRows[0]) || null;
-
-    const categoryRows = await db.execute(
-      `SELECT c.slug, c.name, COUNT(a.id) AS count
-         FROM categories c
-         LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
-         GROUP BY c.id
-         ORDER BY c.sort_order`
-    );
     const visibleCategories = (categoryRows || []).map((category) => ({
       slug: category.slug,
       name: category.name,
@@ -549,19 +693,6 @@ app.get('/explore', async (req, res, next) => {
     const pageSize = 12;
     const offset = (page - 1) * pageSize;
 
-    const categoryRows = await db.execute(
-      `SELECT c.slug, c.name, COUNT(a.id) AS count
-         FROM categories c
-         LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
-         GROUP BY c.id
-         ORDER BY c.sort_order`
-    );
-    const categories = (categoryRows || []).map((row) => ({
-      slug: row.slug,
-      name: row.name,
-      count: Number(row.count) || 0
-    }));
-
     const whereConditions = ["a.visibility = 'public'", "a.is_published = 1", "a.status = 'active'"];
     const queryParams = [];
 
@@ -584,60 +715,71 @@ app.get('/explore', async (req, res, next) => {
     };
     const orderBy = sortMap[sort] || 'a.created_at DESC';
 
-    const artworks = await db.execute(
-      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-              u.username,
-              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-              u.avatar,
-              c.name AS category_name, c.slug AS category_slug,
-              a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
-              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
-              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
-              0 AS views, 'auto' AS visual_effect
-         FROM artworks a
-         INNER JOIN users u ON u.id = a.user_id
-         INNER JOIN categories c ON c.id = a.category_id
-        ${whereClause}
-        ORDER BY ${orderBy}
-        LIMIT ${pageSize} OFFSET ${offset}`,
-      [viewerId, viewerId, ...queryParams]
-    );
+    const [categoryRows, artworks, filteredCountRows, totalRows, artistRows, artistSpotlightRows] = await Promise.all([
+      db.execute(
+        `SELECT c.slug, c.name, COUNT(a.id) AS count
+           FROM categories c
+           LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
+           GROUP BY c.id
+           ORDER BY c.sort_order`
+      ),
+      db.execute(
+        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar,
+                c.name AS category_name, c.slug AS category_slug,
+                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                0 AS views, 'auto' AS visual_effect
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           INNER JOIN categories c ON c.id = a.category_id
+          ${whereClause}
+          ORDER BY ${orderBy}
+          LIMIT ${pageSize} OFFSET ${offset}`,
+        [viewerId, viewerId, ...queryParams]
+      ),
+      db.execute(
+        `SELECT COUNT(*) AS count
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           INNER JOIN categories c ON c.id = a.category_id
+          ${whereClause}`,
+        queryParams
+      ),
+      db.execute("SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1"),
+      db.execute("SELECT COUNT(DISTINCT user_id) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1"),
+      db.execute(
+        `SELECT u.id, u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar, u.bio,
+                COUNT(a.id) AS art_count,
+                (SELECT COUNT(*)
+                   FROM likes l
+                   INNER JOIN artworks la ON la.id = l.artwork_id
+                  WHERE la.user_id = u.id
+                    AND la.visibility = 'public' AND la.is_published = 1 AND la.status = 'active') AS likes_count
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+          GROUP BY u.id
+          ORDER BY art_count DESC
+          LIMIT 6`
+      )
+    ]);
 
-    const filteredCountRows = await db.execute(
-      `SELECT COUNT(*) AS count
-         FROM artworks a
-         INNER JOIN users u ON u.id = a.user_id
-         INNER JOIN categories c ON c.id = a.category_id
-        ${whereClause}`,
-      queryParams
-    );
+    const categories = (categoryRows || []).map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      count: Number(row.count) || 0
+    }));
     const filteredTotal = Number((filteredCountRows && filteredCountRows[0] && filteredCountRows[0].count) || 0);
-
-    const totalRows = await db.execute("SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1");
     const totalArtworks = Number((totalRows && totalRows[0] && totalRows[0].count) || 0);
-
-    const artistRows = await db.execute("SELECT COUNT(DISTINCT user_id) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1");
     const artistCount = Number((artistRows && artistRows[0] && artistRows[0].count) || 0);
-
-    const artistSpotlightRows = await db.execute(
-      `SELECT u.id, u.username,
-              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-              u.avatar, u.bio,
-              COUNT(a.id) AS art_count,
-              (SELECT COUNT(*)
-                 FROM likes l
-                 INNER JOIN artworks la ON la.id = l.artwork_id
-                WHERE la.user_id = u.id
-                  AND la.visibility = 'public' AND la.is_published = 1 AND la.status = 'active') AS likes_count
-         FROM artworks a
-         INNER JOIN users u ON u.id = a.user_id
-        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
-        GROUP BY u.id
-        ORDER BY art_count DESC
-        LIMIT 6`
-    );
     const artists = artistSpotlightRows || [];
 
     const activeCategory = filter !== 'all'
@@ -1186,25 +1328,47 @@ app.get('/art/:id', async (req, res, next) => {
       });
     }
 
-    const rows = await db.execute(
-      `SELECT a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-              a.created_at, a.visibility,
-              u.username,
-              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-              u.avatar, u.bio,
-              c.name AS category_name,
-              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
-              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
-              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
-              0 AS views, 'auto' AS visual_effect
-         FROM artworks a
-         INNER JOIN users u ON u.id = a.user_id
-         LEFT JOIN categories c ON c.id = a.category_id
-        WHERE a.id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
-        LIMIT 1`,
-      [viewerId, viewerId, artworkId]
-    );
+    const [rows, relatedRows] = await Promise.all([
+      db.execute(
+        `SELECT a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                a.created_at, a.visibility,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar, u.bio,
+                c.name AS category_name,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                0 AS views, 'auto' AS visual_effect
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           LEFT JOIN categories c ON c.id = a.category_id
+          WHERE a.id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+          LIMIT 1`,
+        [viewerId, viewerId, artworkId]
+      ),
+      db.execute(
+        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar,
+                c.name AS category_name,
+                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                0 AS views, 'auto' AS visual_effect
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           LEFT JOIN categories c ON c.id = a.category_id
+          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active' AND a.id <> ?
+          ORDER BY a.created_at DESC
+          LIMIT 4`,
+        [viewerId, viewerId, artworkId]
+      )
+    ]);
     const artwork = (rows && rows[0]) || null;
 
     if (!artwork) {
@@ -1216,27 +1380,6 @@ app.get('/art/:id', async (req, res, next) => {
         unreadNotifications: 0
       });
     }
-
-    const relatedRows = await db.execute(
-      `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-              u.username,
-              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-              u.avatar,
-              c.name AS category_name,
-              a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
-              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
-              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
-              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
-              0 AS views, 'auto' AS visual_effect
-         FROM artworks a
-         INNER JOIN users u ON u.id = a.user_id
-         LEFT JOIN categories c ON c.id = a.category_id
-        WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active' AND a.id <> ?
-        ORDER BY a.created_at DESC
-        LIMIT 4`,
-      [viewerId, viewerId, artworkId]
-    );
 
     res.render('pages/artwork', {
       pageTitle: `ArtSpace | ${artwork.title}`,

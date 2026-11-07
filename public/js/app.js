@@ -10,6 +10,16 @@ try {
 }
 const pageCleanups = [];
 
+const isLowPerfDevice = () => {
+  if (root.getAttribute('data-perf') === 'low') return true;
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const memory = Number(navigator.deviceMemory) || 8;
+  const cores = Number(navigator.hardwareConcurrency) || 8;
+  return memory <= 2
+    || (memory <= 4 && cores <= 4)
+    || Boolean(connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || '')));
+};
+
 const registerPageCleanup = (cleanup) => {
   if (typeof cleanup === 'function') pageCleanups.push(cleanup);
 };
@@ -673,10 +683,39 @@ const bindArtworkImageFallback = (image, container) => {
   if (image.hasAttribute('src') && image.complete && image.naturalWidth === 0) handleError();
 };
 
+let boundFlipbookExperience = null;
+let pageFlipLibraryPromise = null;
+
+const loadPageFlipLibrary = () => {
+  if (window.St?.PageFlip) return Promise.resolve();
+  if (pageFlipLibraryPromise) return pageFlipLibraryPromise;
+
+  pageFlipLibraryPromise = new Promise((resolve) => {
+    const existing = document.querySelector('script[data-page-flip-loader]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => resolve(), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = '/vendor/page-flip.browser.js';
+    script.async = true;
+    script.dataset.pageFlipLoader = 'true';
+    script.addEventListener('load', () => resolve(), { once: true });
+    script.addEventListener('error', () => resolve(), { once: true });
+    document.head.appendChild(script);
+  });
+
+  return pageFlipLibraryPromise;
+};
+
 const bindFlipbook = () => {
   const experience = document.querySelector('[data-art-book]');
   const book = experience?.querySelector('[data-book-root]');
   if (!experience || !book || !window.St?.PageFlip) return;
+  if (boundFlipbookExperience === experience) return;
+  boundFlipbookExperience = experience;
 
   const pages = [...book.querySelectorAll('[data-book-page]')];
   const artworkPages = pages.filter((page) => page.querySelector('[data-book-image]'));
@@ -811,9 +850,14 @@ const bindFlipbook = () => {
     bookAudioContext = null;
   };
 
-  bookCueKinds.forEach((kind) => {
-    if (!bookSoundCues.has(kind)) createBookCue(kind);
-  });
+  const warmBookCues = () => {
+    bookCueKinds.forEach((kind) => {
+      if (!bookSoundCues.has(kind)) createBookCue(kind);
+    });
+  };
+  experience.addEventListener('pointerenter', warmBookCues, { once: true, passive: true });
+  experience.addEventListener('focusin', warmBookCues, { once: true });
+  experience.addEventListener('touchstart', warmBookCues, { once: true, passive: true });
   window.addEventListener('pagehide', clearBookAudioCues, { once: true });
 
   let bookOpenState = false;
@@ -928,6 +972,7 @@ const bindFlipbook = () => {
       pageFlip.destroy();
     } catch (error) {
     }
+    boundFlipbookExperience = null;
   });
   loadNearbyImages(0);
   experience.addEventListener('mousedown', (event) => {
@@ -1196,10 +1241,12 @@ const bindArtViewer = () => {
     particleLayer.replaceChildren();
     if (reducedMotion || !visualEffectsEnabled) return;
 
-    const lowPower = window.matchMedia('(max-width: 640px), (pointer: coarse)').matches
+    const lowPerf = isLowPerfDevice();
+    const lowPower = lowPerf
+      || window.matchMedia('(max-width: 640px), (pointer: coarse)').matches
       || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4)
       || navigator.connection?.saveData;
-    const particleCount = lowPower ? 5 : 9;
+    const particleCount = lowPerf ? 3 : lowPower ? 5 : 9;
     const kinds = effectParticles[preset] || effectParticles.default;
 
     for (let index = 0; index < particleCount; index += 1) {
@@ -1662,7 +1709,7 @@ const bindArtViewer = () => {
   });
 
   viewer.addEventListener('pointermove', (event) => {
-    if (reducedMotion || !visualEffectsEnabled || event.pointerType === 'touch' || window.matchMedia('(pointer: coarse)').matches) return;
+    if (reducedMotion || !visualEffectsEnabled || isLowPerfDevice() || event.pointerType === 'touch' || window.matchMedia('(pointer: coarse)').matches) return;
     pointerX = event.clientX / window.innerWidth - 0.5;
     pointerY = event.clientY / window.innerHeight - 0.5;
     if (parallaxFrame) return;
@@ -2692,6 +2739,23 @@ const initHomePage = () => {
   const homePage = document.querySelector('[data-sketch-home]');
   if (!homePage) return;
 
+  const bookSection = homePage.querySelector('[data-art-book]');
+  if (bookSection) {
+    bookSection.addEventListener('pointerenter', loadPageFlipLibrary, { once: true, passive: true });
+    bookSection.addEventListener('touchstart', loadPageFlipLibrary, { once: true, passive: true });
+    if ('IntersectionObserver' in window) {
+      const bookObserver = new IntersectionObserver((entries, observer) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        loadPageFlipLibrary().then(() => bindFlipbook());
+      }, { rootMargin: '160px 0px' });
+      registerPageCleanup(() => bookObserver.disconnect());
+      bookObserver.observe(bookSection);
+    } else {
+      loadPageFlipLibrary().then(() => bindFlipbook());
+    }
+  }
+
   const homeReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const motionTargets = [...homePage.querySelectorAll('[data-motion]')];
   if (motionTargets.length && !homeReducedMotion.matches && 'IntersectionObserver' in window) {
@@ -2722,6 +2786,7 @@ const initHomePage = () => {
     if (!destination) return;
     link.addEventListener('click', (event) => {
       event.preventDefault();
+      if (hash === '#art-book') loadPageFlipLibrary();
       destination.scrollIntoView({
         behavior: homeReducedMotion.matches ? 'auto' : 'smooth',
         block: 'start'
@@ -2747,7 +2812,6 @@ const initPage = () => {
     bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature, .pf-art-image'));
   });
 
-  bindFlipbook();
   markCurrentNavigation();
   revealArtworkCards();
   initStudioDashboard();

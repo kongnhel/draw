@@ -25,8 +25,12 @@
   <span class="pf-art-tape" aria-hidden="true"></span>
 
   <a class="pf-art-image" href="/art/<%= artwork.id %>" aria-label="Open <%= artwork.title %>">
+    <%
+      const cardSrc = imageTools.cardSrc(artwork, 480);
+      const cardSrcset = imageTools.cardSrcset(artwork, [320, 480, 640, 800]);
+    %>
     <img
-      src="<%= artwork.image_url || artwork.thumbnail_url || '/images/default-artwork.svg' %>"
+      src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 320px"<% } %>
       data-fallback-src="/images/default-artwork.svg"
       alt="<%= artwork.title %>"
       loading="<%= loadingMode %>"
