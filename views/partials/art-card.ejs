@@ -2,11 +2,19 @@
   <%
     const cardSrc = imageTools.cardSrc(artwork, 480);
     const cardSrcset = imageTools.cardSrcset(artwork, [320, 480, 640, 800]);
+    const cardOwned = typeof currentUser !== 'undefined' && currentUser && artwork.username === currentUser.username;
+    const cardPinned = typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(artwork.id));
   %>
   <div class="art-card-media">
     <a href="/art/<%= artwork.id %>">
       <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 300px"<% } %> width="480" height="600" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
     </a>
+    <% if (cardPinned && !cardOwned) { %>
+      <span class="pin-badge" title="Pinned to homepage">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+        Pinned
+      </span>
+    <% } %>
     <svg class="artwork-frame" viewBox="0 0 100 125" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <path d="M4 4H96V121H4Z" pathLength="1000" />
     </svg>
@@ -45,6 +53,12 @@
           <%= artwork.is_bookmarked ? 'Saved' : 'Save' %>
         </button>
       </form>
+      <% if (cardOwned) { %>
+        <button type="button" class="action-btn pin-action <%= cardPinned ? 'active is-pinned' : '' %>" data-pin-toggle data-artwork-id="<%= artwork.id %>" data-pinned="<%= cardPinned ? 'true' : 'false' %>" aria-pressed="<%= cardPinned ? 'true' : 'false' %>" title="<%= cardPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+          <span data-pin-label><%= cardPinned ? 'Pinned' : 'Pin' %></span>
+        </button>
+      <% } %>
     </div>
   </div>
 </article>

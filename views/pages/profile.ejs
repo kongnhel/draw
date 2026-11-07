@@ -7,11 +7,14 @@
   const latest = artworks[0] || null;
   const profileUrl = '/profile/' + profileUser.username;
   const numeral = (v) => Number(v || 0).toLocaleString('en-US');
+  const pinnedItems = typeof pinnedArtworks !== 'undefined' && pinnedArtworks ? pinnedArtworks : [];
   const portfolioItems = activeTab === 'liked'
     ? likedArtworks
     : activeTab === 'saved'
       ? savedArtworks
-      : artworks;
+      : activeTab === 'pinned'
+        ? pinnedItems
+        : artworks;
   const portfolioCount = activeTab === 'artworks' ? stats.totalArtworks : portfolioItems.length;
   const categoryMap = new Map();
   portfolioItems.forEach((artwork) => {
@@ -23,45 +26,59 @@
     ? 'Inspiration board'
     : activeTab === 'saved'
       ? 'Private clippings'
-      : 'The sketchbook';
+      : activeTab === 'pinned'
+        ? 'Featured pinboard'
+        : 'The sketchbook';
   const collectionTitle = activeTab === 'liked'
     ? 'Liked Artworks'
     : activeTab === 'saved'
       ? 'Saved Artworks'
-      : isOwner
-        ? 'My Art Collection'
-        : 'Art Collection';
+      : activeTab === 'pinned'
+        ? 'My Pinned Artwork'
+        : isOwner
+          ? 'My Art Collection'
+          : 'Art Collection';
   const collectionBlurb = activeTab === 'liked'
     ? (isOwner
       ? 'Pieces that caught your eye, pinned here for another look.'
       : `Pieces that caught ${profileUser.display_name}'s eye, pinned here for another look.`)
     : activeTab === 'saved'
       ? 'Pages saved for quiet inspiration, tucked away until you need them.'
-      : isOwner
-        ? 'Every page here is an original thought — drawn, kept, and pinned for you.'
-        : `Original pages from ${profileUser.display_name}'s ongoing sketchbook.`;
+      : activeTab === 'pinned'
+        ? 'Your favourite pages, pinned to the top of the community sketchbook.'
+        : isOwner
+          ? 'Every page here is an original thought — drawn, kept, and pinned for you.'
+          : `Original pages from ${profileUser.display_name}'s ongoing sketchbook.`;
   const collectionCountLabel = activeTab === 'liked'
     ? `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'inspiration' : 'inspirations'} pinned`
     : activeTab === 'saved'
       ? `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'page' : 'pages'} tucked away`
-      : `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'piece' : 'pieces'} pinned`;
+      : activeTab === 'pinned'
+        ? `${numeral(portfolioCount)} of ${pinLimit} pinned`
+        : `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'piece' : 'pieces'} pinned`;
   const emptyKicker = activeTab === 'liked'
     ? 'The inspiration page'
     : activeTab === 'saved'
       ? 'The clippings folder'
-      : 'A fresh page';
+      : activeTab === 'pinned'
+        ? 'The pinboard'
+        : 'A fresh page';
   const emptyTitle = activeTab === 'liked'
     ? 'No liked artwork yet.'
     : activeTab === 'saved'
       ? 'Nothing saved yet.'
-      : 'No artwork yet.';
+      : activeTab === 'pinned'
+        ? 'Nothing pinned yet.'
+        : 'No artwork yet.';
   const emptyMessage = activeTab === 'liked'
     ? 'When a drawing catches your eye, it will be pinned here for another look.'
     : activeTab === 'saved'
       ? 'Save the pages that stay with you and they will wait here, ready when inspiration calls.'
-      : isOwner
-        ? 'Your sketchbook is open and waiting. Pin the first page of your collection.'
-        : 'When this artist shares a new drawing, it will appear here.';
+      : activeTab === 'pinned'
+        ? `Pin up to ${pinLimit} of your own artworks to feature them on the homepage.`
+        : isOwner
+          ? 'Your sketchbook is open and waiting. Pin the first page of your collection.'
+          : 'When this artist shares a new drawing, it will appear here.';
 %>
 
 <div class="pf-page">
@@ -244,6 +261,7 @@
               <a class="pf-tab <%= activeTab === 'artworks' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=artworks" aria-current="<%= activeTab === 'artworks' ? 'page' : 'false' %>">Artworks <sup><%= numeral(stats.totalArtworks) %></sup></a>
               <a class="pf-tab <%= activeTab === 'liked' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=liked" aria-current="<%= activeTab === 'liked' ? 'page' : 'false' %>">Liked <sup><%= numeral(likedArtworks.length) %></sup></a>
               <% if (isOwner) { %>
+                <a class="pf-tab <%= activeTab === 'pinned' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=pinned" aria-current="<%= activeTab === 'pinned' ? 'page' : 'false' %>">Pinned <sup><%= numeral(pinnedItems.length) %>/<%= pinLimit %></sup></a>
                 <a class="pf-tab <%= activeTab === 'saved' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=saved" aria-current="<%= activeTab === 'saved' ? 'page' : 'false' %>">Saved <sup><%= numeral(savedArtworks.length) %></sup></a>
               <% } %>
             </nav>
@@ -285,7 +303,7 @@
             <button type="button" class="pf-collection-reset" data-portfolio-reset hidden>Clear filters</button>
           </div>
 
-          <div class="pf-art-grid" data-portfolio-gallery>
+          <div class="pf-art-grid" data-portfolio-gallery<%= activeTab === 'pinned' ? ' data-profile-pinned' : '' %>>
             <% portfolioItems.forEach((artwork, index) => { %>
               <%- include('../partials/portfolio-art-card', { artwork, showArtist: activeTab !== 'artworks', eager: index < 4 }) %>
             <% }) %>

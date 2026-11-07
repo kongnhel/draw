@@ -20,6 +20,30 @@ const isLowPerfDevice = () => {
     || Boolean(connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType || '')));
 };
 
+let imageEditorModulePromise = null;
+
+const loadImageEditorModule = () => {
+  if (window.ArtSpaceImageEditor) return Promise.resolve(window.ArtSpaceImageEditor);
+  if (imageEditorModulePromise) return imageEditorModulePromise;
+
+  imageEditorModulePromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = '/js/image-editor.js';
+    script.async = true;
+    script.onload = () => {
+      if (window.ArtSpaceImageEditor) resolve(window.ArtSpaceImageEditor);
+      else reject(new Error('The image studio is unavailable.'));
+    };
+    script.onerror = () => reject(new Error('The image studio is unavailable.'));
+    document.head.appendChild(script);
+  }).catch((error) => {
+    imageEditorModulePromise = null;
+    throw error;
+  });
+
+  return imageEditorModulePromise;
+};
+
 const registerPageCleanup = (cleanup) => {
   if (typeof cleanup === 'function') pageCleanups.push(cleanup);
 };
@@ -2027,6 +2051,7 @@ const initUploadPage = () => {
   const previewImage = uploadPage.querySelector('[data-upload-preview-image]');
   const replaceButton = uploadPage.querySelector('[data-upload-replace]');
   const removeButton = uploadPage.querySelector('[data-upload-remove]');
+  const editImageButton = uploadPage.querySelector('[data-upload-edit]');
   const fileInfo = uploadPage.querySelector('[data-upload-file]');
   const fileName = uploadPage.querySelector('[data-upload-file-name]');
   const fileSize = uploadPage.querySelector('[data-upload-file-size]');
@@ -2056,6 +2081,8 @@ const initUploadPage = () => {
   const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
   const allowedExtension = /\.(jpe?g|png|webp)$/i;
   let selectedFile = null;
+  let selectedSourceFile = null;
+  let selectionToken = 0;
   let previewUrl = '';
   let isUploading = false;
   let uploadMode = 'publish';
@@ -2159,6 +2186,7 @@ const initUploadPage = () => {
   const clearSelectedFile = () => {
     clearPreviewUrl();
     selectedFile = null;
+    selectedSourceFile = null;
     fileInput.value = '';
     dropzone.classList.remove('has-file', 'is-dragging');
     if (emptyState) emptyState.hidden = false;
@@ -2170,33 +2198,7 @@ const initUploadPage = () => {
     updateReadiness();
   };
 
-  const selectFile = (file) => {
-    clearFileError();
-
-    if (!file) return;
-
-    const validType = allowedTypes.has(file.type) || allowedExtension.test(file.name);
-    if (!validType) {
-      fileInput.value = '';
-      showFileError('That file is not a JPG, PNG, or WEBP image. Choose one of those formats.');
-      updateReadiness();
-      return;
-    }
-
-    if (file.size > maxFileSize) {
-      fileInput.value = '';
-      showFileError('That image is larger than 8 MB. Please choose a smaller file.');
-      updateReadiness();
-      return;
-    }
-
-    if (file.size === 0) {
-      fileInput.value = '';
-      showFileError('That image appears to be empty. Please choose another file.');
-      updateReadiness();
-      return;
-    }
-
+  const applyWorkingFile = (file) => {
     try {
       const transfer = new DataTransfer();
       transfer.items.add(file);
@@ -2223,6 +2225,58 @@ const initUploadPage = () => {
     if (fileSize) fileSize.textContent = `${formatFileSize(file.size)} · ${file.type.replace('image/', '').toUpperCase()}`;
 
     updateReadiness();
+  };
+
+  const openArtworkEditor = async (file) => {
+    try {
+      const editor = await loadImageEditorModule();
+      return await editor.open({ file, mode: 'artwork', maxBytes: maxFileSize });
+    } catch (error) {
+      showFileError(error.userMessage || 'The artwork studio could not open on this device. Your original image will be used.');
+      return file;
+    }
+  };
+
+  const selectFile = async (file) => {
+    clearFileError();
+
+    if (!file) return;
+
+    const token = ++selectionToken;
+
+    const validType = allowedTypes.has(file.type) || allowedExtension.test(file.name);
+    if (!validType) {
+      fileInput.value = '';
+      showFileError('That file is not a JPG, PNG, or WEBP image. Choose one of those formats.');
+      updateReadiness();
+      return;
+    }
+
+    if (file.size > maxFileSize) {
+      fileInput.value = '';
+      showFileError('That image is larger than 8 MB. Please choose a smaller file.');
+      updateReadiness();
+      return;
+    }
+
+    if (file.size === 0) {
+      fileInput.value = '';
+      showFileError('That image appears to be empty. Please choose another file.');
+      updateReadiness();
+      return;
+    }
+
+    const edited = await openArtworkEditor(file);
+    if (token !== selectionToken) return;
+
+    if (!edited) {
+      fileInput.value = '';
+      updateReadiness();
+      return;
+    }
+
+    selectedSourceFile = file;
+    applyWorkingFile(edited);
   };
 
   const restoreActions = () => {
@@ -2435,6 +2489,16 @@ const initUploadPage = () => {
   replaceButton?.addEventListener('click', (event) => {
     event.stopPropagation();
     if (!isUploading) fileInput.click();
+  });
+
+  editImageButton?.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    if (!selectedFile || isUploading) return;
+
+    const token = ++selectionToken;
+    const edited = await openArtworkEditor(selectedSourceFile || selectedFile);
+    if (token !== selectionToken || !edited) return;
+    applyWorkingFile(edited);
   });
 
   removeButton?.addEventListener('click', (event) => {
@@ -2739,8 +2803,9 @@ const initHomePage = () => {
   const homePage = document.querySelector('[data-sketch-home]');
   if (!homePage) return;
 
-  const bookSection = homePage.querySelector('[data-art-book]');
-  if (bookSection) {
+  const bookSection = homePage.querySelector('#art-book');
+  const bookExperience = homePage.querySelector('[data-art-book]');
+  if (bookSection && bookExperience) {
     bookSection.addEventListener('pointerenter', loadPageFlipLibrary, { once: true, passive: true });
     bookSection.addEventListener('touchstart', loadPageFlipLibrary, { once: true, passive: true });
     if ('IntersectionObserver' in window) {
@@ -2748,7 +2813,7 @@ const initHomePage = () => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         observer.disconnect();
         loadPageFlipLibrary().then(() => bindFlipbook());
-      }, { rootMargin: '160px 0px' });
+      }, { rootMargin: '200px 0px' });
       registerPageCleanup(() => bookObserver.disconnect());
       bookObserver.observe(bookSection);
     } else {
@@ -2795,6 +2860,172 @@ const initHomePage = () => {
     });
   });
 };
+
+const PIN_TOAST_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>';
+
+const ensurePinToastStack = () => {
+  let stack = document.querySelector('[data-pin-toast-stack]');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'pin-toast-stack';
+    stack.setAttribute('data-pin-toast-stack', '');
+    stack.setAttribute('role', 'status');
+    stack.setAttribute('aria-live', 'polite');
+    document.body.appendChild(stack);
+  }
+  return stack;
+};
+
+const showPinToast = (message, tone = 'success') => {
+  const stack = ensurePinToastStack();
+  const toast = document.createElement('div');
+  toast.className = `pin-toast pin-toast--${tone}`;
+  const icon = document.createElement('span');
+  icon.className = 'pin-toast-icon';
+  icon.innerHTML = tone === 'success'
+    ? PIN_TOAST_ICON
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 20h18.4L12 4Z" /><path d="M12 10v4M12 17v.5" /></svg>';
+  const text = document.createElement('p');
+  text.textContent = message;
+  toast.append(icon, text);
+  stack.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('is-visible'));
+  window.setTimeout(() => {
+    toast.classList.remove('is-visible');
+    window.setTimeout(() => toast.remove(), 260);
+  }, 3200);
+};
+
+const syncPinButtons = (artworkId, pinned) => {
+  const id = String(artworkId);
+  document.querySelectorAll('[data-pin-toggle]').forEach((button) => {
+    if (String(button.dataset.artworkId) !== id) return;
+    button.dataset.pinned = String(pinned);
+    button.classList.toggle('is-pinned', pinned);
+    button.classList.toggle('active', pinned);
+    button.setAttribute('aria-pressed', String(pinned));
+    const label = button.querySelector('[data-pin-label]');
+    if (label) label.textContent = pinned ? 'Pinned' : 'Pin';
+    if (button.classList.contains('ad-tool-pin')) {
+      button.title = pinned ? 'Unpin from homepage' : 'Pin to homepage';
+      button.setAttribute('aria-label', pinned ? 'Unpin from the homepage' : 'Pin to the homepage');
+    }
+  });
+};
+
+const removePinCards = (artworkId) => {
+  const id = String(artworkId);
+  document.querySelectorAll('[data-pinned-card], [data-profile-pinned] .pf-art-card').forEach((card) => {
+    if (String(card.dataset.artworkId) !== id) return;
+    card.style.transition = 'opacity 0.24s ease, transform 0.24s ease';
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(8px)';
+    window.setTimeout(() => card.remove(), 250);
+  });
+};
+
+const updatePinnedCounters = (count, limit) => {
+  const pinnedTab = document.querySelector('.pf-tabs .pf-tab[href*="tab=pinned"] sup');
+  if (pinnedTab && Number.isFinite(limit)) pinnedTab.textContent = `${count}/${limit}`;
+  const profileGrid = document.querySelector('[data-profile-pinned]');
+  if (!profileGrid) return;
+  const collectionCount = document.querySelector('.pf-collection-count strong');
+  if (collectionCount) collectionCount.textContent = String(count);
+  const status = document.querySelector('[data-portfolio-status]');
+  if (status) status.textContent = `Showing ${count} of ${count} pieces`;
+};
+
+const refreshPinnedCollection = async () => {
+  const section = document.querySelector('[data-pinned-collection]');
+  if (!section) return;
+  try {
+    const response = await fetch(`${window.location.pathname}${window.location.search}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' },
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    if (!response.ok) return;
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const next = doc.querySelector('[data-pinned-collection]');
+    if (next) section.replaceWith(next);
+  } catch (error) {
+    /* the next page load will refresh the collection */
+  }
+};
+
+const handlePinClick = async (event) => {
+  const button = event.target instanceof Element ? event.target.closest('[data-pin-toggle]') : null;
+  if (!button) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  if (button.dataset.busy === 'true' || button.disabled) return;
+
+  const artworkId = button.dataset.artworkId;
+  if (!artworkId) return;
+  const pinned = button.dataset.pinned === 'true';
+  const action = pinned ? 'unpin' : 'pin';
+  const optimisticPinned = !pinned;
+
+  button.dataset.busy = 'true';
+  button.disabled = true;
+  syncPinButtons(artworkId, optimisticPinned);
+
+  try {
+    const response = await fetch(`/art/${encodeURIComponent(artworkId)}/${action}`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    });
+
+    let payload = null;
+    try { payload = await response.json(); } catch (error) { payload = null; }
+
+    if (response.status === 401) {
+      window.location.assign('/login');
+      return;
+    }
+
+    if (!response.ok || !payload?.ok) {
+      syncPinButtons(artworkId, pinned);
+      showPinToast(payload?.error || 'We could not update that pin. Please try again.', 'error');
+      return;
+    }
+
+    syncPinButtons(artworkId, Boolean(payload.pinned));
+    if (!payload.pinned) {
+      removePinCards(artworkId);
+      updatePinnedCounters(payload.count, payload.limit);
+    }
+    const countLabel = Number.isFinite(payload.count) && Number.isFinite(payload.limit)
+      ? ` ${payload.count} of ${payload.limit} pins in use.`
+      : '';
+    showPinToast(
+      payload.pinned
+        ? `Pinned to the community sketchbook.${countLabel}`
+        : `Unpinned from the community sketchbook.${countLabel}`,
+      'success'
+    );
+
+    await refreshPinnedCollection();
+
+    if (!payload.pinned && document.querySelector('[data-profile-pinned]')) {
+      window.setTimeout(() => {
+        if (window.ArtSpaceNavigation?.refresh) window.ArtSpaceNavigation.refresh();
+        else window.location.reload();
+      }, 220);
+    }
+  } catch (error) {
+    syncPinButtons(artworkId, pinned);
+    showPinToast('The connection was interrupted. Please try again.', 'error');
+  } finally {
+    button.dataset.busy = 'false';
+    button.disabled = false;
+  }
+};
+
+document.addEventListener('click', handlePinClick);
 
 const initPage = () => {
   bindQuickActions();

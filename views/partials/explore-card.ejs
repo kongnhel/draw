@@ -1,10 +1,12 @@
 <article class="studio-explore-card" data-explore-card data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
-  <span class="studio-explore-card-tape" aria-hidden="true"></span>
-
   <%
     const cardSrc = imageTools.cardSrc(artwork, 480);
     const cardSrcset = imageTools.cardSrcset(artwork, [320, 480, 640, 800]);
+    const cardOwned = typeof currentUser !== 'undefined' && currentUser && artwork.username === currentUser.username;
+    const cardPinned = typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(artwork.id));
   %>
+  <span class="studio-explore-card-tape" aria-hidden="true"></span>
+
   <a class="studio-explore-card-image" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
     <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 320px"<% } %> data-fallback-src="<%= artwork.image_url || '/images/default-artwork.svg' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
     <span class="studio-explore-card-placeholder" aria-hidden="true">
@@ -17,6 +19,17 @@
       <svg viewBox="0 0 24 24"><path d="M5 19 19 5M9 5h10v10" /></svg>
     </span>
   </a>
+
+  <% if (cardOwned) { %>
+    <button type="button" class="studio-explore-pin<%= cardPinned ? ' is-pinned' : '' %>" data-pin-toggle data-artwork-id="<%= artwork.id %>" data-pinned="<%= cardPinned ? 'true' : 'false' %>" aria-pressed="<%= cardPinned ? 'true' : 'false' %>" title="<%= cardPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+      <span data-pin-label><%= cardPinned ? 'Pinned' : 'Pin' %></span>
+    </button>
+  <% } else if (cardPinned) { %>
+    <span class="studio-explore-pin-badge" title="Pinned to homepage">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+    </span>
+  <% } %>
 
   <form class="studio-explore-save" method="POST" action="/art/<%= artwork.id %>/bookmark">
     <button type="submit" class="<%= artwork.is_bookmarked ? 'active' : '' %>" aria-pressed="<%= artwork.is_bookmarked ? 'true' : 'false' %>" aria-label="<%= artwork.is_bookmarked ? 'Remove from saved artworks' : 'Save artwork' %>"><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></button>

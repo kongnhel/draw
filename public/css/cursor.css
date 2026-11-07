@@ -129,6 +129,53 @@ body.pencil-on .art-viewer-step,
 body.pencil-on .art-viewer-action,
 body.pencil-on .art-viewer-close { cursor: pointer !important; }
 
+body.pencil-on .ie-overlay,
+body.pencil-on .ie-overlay * {
+  cursor: auto !important;
+}
+
+body.pencil-on .ie-overlay button,
+body.pencil-on .ie-overlay .ie-ratio,
+body.pencil-on .ie-overlay .ie-tool,
+body.pencil-on .ie-overlay .ie-btn,
+body.pencil-on .ie-overlay .ie-secondary-btn,
+body.pencil-on .ie-overlay .ie-preview-tool,
+body.pencil-on .ie-overlay input[type="range"],
+body.pencil-on .ie-overlay input[type="checkbox"],
+body.pencil-on .ie-overlay label {
+  cursor: pointer !important;
+}
+
+body.pencil-on .ie-overlay input[type="number"] {
+  cursor: text !important;
+}
+
+body.pencil-on .ie-overlay .cropper-face,
+body.pencil-on .ie-overlay .cropper-view-box,
+body.pencil-on .ie-overlay .cropper-drag-box {
+  cursor: move !important;
+}
+
+body.pencil-on .ie-overlay .cropper-point.point-e,
+body.pencil-on .ie-overlay .cropper-point.point-w {
+  cursor: ew-resize !important;
+}
+
+body.pencil-on .ie-overlay .cropper-point.point-n,
+body.pencil-on .ie-overlay .cropper-point.point-s {
+  cursor: ns-resize !important;
+}
+
+body.pencil-on .ie-overlay .cropper-point.point-nw,
+body.pencil-on .ie-overlay .cropper-point.point-se {
+  cursor: nwse-resize !important;
+}
+
+body.pencil-on .ie-overlay .cropper-point.point-ne,
+body.pencil-on .ie-overlay .cropper-point.point-sw {
+  cursor: nesw-resize !important;
+}
+
 /* --- Reduced motion: keep pencil static, no ring pop --- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -136,6 +183,122 @@ body.pencil-on .art-viewer-close { cursor: pointer !important; }
   .pencil-cursor-ring,
   .pencil-cursor-zoom,
   .pencil-cursor-frame {
+    transition: none !important;
+  }
+}
+
+.touch-hovered {
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease;
+}
+
+.topbar .nav-link-group a.touch-hovered {
+  color: var(--text);
+}
+
+.topbar .nav-link-group a.touch-hovered::after {
+  opacity: 1;
+  transform: scaleX(1) rotate(-1deg);
+}
+
+.topbar .nav-icon-btn.touch-hovered {
+  border-color: var(--secondary);
+  background: color-mix(in srgb, var(--secondary) 13%, transparent);
+  transform: translateY(-1px) rotate(-2deg);
+}
+
+.topbar .nav-auth-link.touch-hovered::after {
+  opacity: 1;
+  transform: scaleX(1) rotate(-1deg);
+}
+
+.topbar .nav-auth-join.touch-hovered {
+  background: transparent;
+  color: var(--text);
+  box-shadow: 3px 4px 0 color-mix(in srgb, var(--text) 18%, transparent);
+  transform: translate(-1px, -1px) rotate(-0.5deg);
+}
+
+.topbar .nav-drawer-actions a.touch-hovered {
+  border-color: var(--secondary);
+  background: color-mix(in srgb, var(--secondary) 12%, transparent);
+}
+
+.category-pill.touch-hovered {
+  background: rgba(17, 17, 17, 0.06);
+  color: var(--text);
+  border-color: rgba(17, 17, 17, 0.25);
+}
+
+button.touch-hovered,
+.btn.touch-hovered,
+.action-btn.touch-hovered,
+[role='button'].touch-hovered {
+  border-color: var(--secondary);
+  outline: 1px dashed color-mix(in srgb, var(--secondary) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.art-card.touch-hovered {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(41, 39, 37, 0.12);
+}
+
+.art-card.touch-hovered .art-card-media img {
+  transform: scale(1.028);
+}
+
+.art-card.touch-hovered .artwork-frame path {
+  opacity: 1;
+  animation: line-draw 0.4s ease forwards;
+}
+
+.studio-explore-card.touch-hovered {
+  z-index: 2;
+  box-shadow: 8px 11px 0 rgba(112, 84, 59, 0.09), 0 18px 34px rgba(58, 42, 27, 0.12);
+  transform: rotate(0) translateY(-4px);
+}
+
+.studio-explore-card.touch-hovered .studio-explore-card-image img {
+  transform: scale(1.018);
+  filter: saturate(1.03) contrast(1.01);
+}
+
+.pf-art-card.touch-hovered {
+  z-index: 2;
+  border-color: var(--secondary);
+  transform: translateY(-4px) rotate(0);
+  box-shadow: var(--pf-hard), 0 18px 30px var(--col-card-shadow);
+}
+
+.pf-art-card.touch-hovered .pf-art-image img {
+  transform: scale(1.014);
+  filter: saturate(1.03);
+}
+
+.pf-art-card.touch-hovered .pf-art-image-outline {
+  inset: 4px;
+  opacity: 0.4;
+}
+
+.hs-category-row.touch-hovered {
+  padding-right: 8px;
+  padding-left: 10px;
+  background: var(--hs-surface);
+}
+
+.hs-category-row.touch-hovered .hs-cat-arrow {
+  opacity: 1;
+  transform: none;
+}
+
+@media (pointer: coarse) {
+  .pencil-art {
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .touch-hovered {
     transition: none !important;
   }
 }

@@ -20,16 +20,7 @@ dotenv.config();
 const { dbConfig, db } = require('./src/db/init');
 
 // Initialize MySQL connection pool
-const pool = mysql.createPool({
-  host: process.env.AIVEN_MYSQL_HOST,
-  port: process.env.AIVEN_MYSQL_PORT || 3306,
-  database: process.env.AIVEN_MYSQL_DATABASE,
-  user: process.env.AIVEN_MYSQL_USER,
-  password: process.env.AIVEN_MYSQL_PASSWORD,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+const pool = mysql.createPool(dbConfig);
 
 // Initialize ImageKit SDK (credentials must come from environment variables)
 let ik = null;
@@ -424,6 +415,78 @@ const imagekitOrigin = (() => {
   }
 })();
 
+const PIN_LIMIT = Math.max(1, Number.parseInt(process.env.PIN_LIMIT, 10) || 3);
+
+async function getPinnedArtworkIds(userId) {
+  if (!userId) return new Set();
+  try {
+    const rows = await db.execute('SELECT artwork_id FROM artwork_pins WHERE user_id = ?', [userId]);
+    return new Set((rows || []).map((row) => Number(row.artwork_id)));
+  } catch (error) {
+    console.error('Could not load pinned artwork ids:', error);
+    return new Set();
+  }
+}
+
+async function countUserPins(userId) {
+  if (!userId) return 0;
+  const rows = await db.execute('SELECT COUNT(*) AS count FROM artwork_pins WHERE user_id = ?', [userId]);
+  return Number((rows && rows[0] && rows[0].count) || 0);
+}
+
+async function getPinnedHomepageArtworks(viewerId) {
+  const rows = await db.execute(
+    `SELECT a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+            u.username,
+            COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+            u.avatar,
+            c.name AS category_name, c.slug AS category_slug,
+            a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+            p.created_at AS pinned_at, DATE_FORMAT(p.created_at, '%b %d, %Y') AS pinned_at_label,
+            (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+            0 AS is_liked, 0 AS is_bookmarked, 'auto' AS visual_effect
+       FROM artwork_pins p
+       INNER JOIN artworks a ON a.id = p.artwork_id
+       INNER JOIN users u ON u.id = a.user_id
+       LEFT JOIN categories c ON c.id = a.category_id
+      WHERE p.user_id = a.user_id
+        AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+      ORDER BY p.created_at DESC, p.id DESC
+      LIMIT 12`
+  );
+
+  const pinned = (rows || []).map((row) => ({ ...row }));
+  if (!pinned.length) return pinned;
+
+  if (viewerId) {
+    const ids = pinned.map((row) => Number(row.id));
+    const placeholders = ids.map(() => '?').join(',');
+    try {
+      const [likedRows, savedRows] = await Promise.all([
+        db.execute(
+          `SELECT artwork_id FROM likes WHERE user_id = ? AND artwork_id IN (${placeholders})`,
+          [viewerId, ...ids]
+        ),
+        db.execute(
+          `SELECT artwork_id FROM bookmarks WHERE user_id = ? AND artwork_id IN (${placeholders})`,
+          [viewerId, ...ids]
+        )
+      ]);
+      const likedSet = new Set((likedRows || []).map((row) => Number(row.artwork_id)));
+      const savedSet = new Set((savedRows || []).map((row) => Number(row.artwork_id)));
+      pinned.forEach((row) => {
+        row.is_liked = likedSet.has(Number(row.id)) ? 1 : 0;
+        row.is_bookmarked = savedSet.has(Number(row.id)) ? 1 : 0;
+      });
+    } catch (error) {
+      console.error('Could not personalize pinned artworks:', error);
+    }
+  }
+
+  return pinned;
+}
+
 const app = express();
 app.disable('x-powered-by');
 
@@ -453,6 +516,7 @@ app.use((req, res, next) => {
   res.locals.currentUser = currentUser;
   res.locals.isAuthenticated = Boolean(currentUser);
   res.locals.unreadNotifications = 0;
+  res.locals.pinLimit = PIN_LIMIT;
   res.locals.imageTools = imageTools;
   res.locals.imagekitOrigin = imagekitOrigin;
   next();
@@ -461,6 +525,37 @@ app.use((req, res, next) => {
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) return next();
   return res.redirect('/login');
+}
+
+function requireAuthJson(req, res, next) {
+  if (req.session && req.session.user) return next();
+  if (requestWantsJson(req)) {
+    res.status(401).json({ ok: false, error: 'Please log in to pin artwork.' });
+    return;
+  }
+  res.redirect('/login');
+}
+
+function respondPinSuccess(req, res, payload) {
+  if (requestWantsJson(req)) {
+    res.json({
+      ok: true,
+      pinned: Boolean(payload.pinned),
+      count: payload.count,
+      limit: PIN_LIMIT,
+      artworkId: payload.artworkId
+    });
+    return;
+  }
+  res.redirect(getSafeActionRedirect(req, '/'));
+}
+
+function respondPinError(req, res, status, message) {
+  if (requestWantsJson(req)) {
+    res.status(status).json({ ok: false, error: message });
+    return;
+  }
+  respondArtworkActionError(req, res, status, message);
 }
 
 function getSafeActionRedirect(req, fallback) {
@@ -521,7 +616,9 @@ const CSS_BUNDLE_FILES = [
   'mobile.css',
   'navbar-sketch.css',
   'spa-nav.css',
-  'intro.css'
+  'intro.css',
+  'sketchbook.css',
+  'pins.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 
@@ -601,7 +698,7 @@ app.get('/', async (req, res, next) => {
   try {
     const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
 
-    const [totalArtworkRows, bookArtworks, artistRows, categoryRows] = await Promise.all([
+    const [totalArtworkRows, bookArtworks, artistRows, categoryRows, pinnedArtworks] = await Promise.all([
       db.execute(
         "SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"
       ),
@@ -611,7 +708,8 @@ app.get('/', async (req, res, next) => {
                 COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
                 u.avatar,
                 c.name AS category_name, c.slug AS category_slug,
-                a.created_at, a.visibility, a.is_published, a.is_featured,
+                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+                a.visibility, a.is_published, a.is_featured,
                 (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
                 (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
                 EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
@@ -641,11 +739,15 @@ app.get('/', async (req, res, next) => {
            LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
            GROUP BY c.id
            ORDER BY c.sort_order`
-      )
+      ),
+      getPinnedHomepageArtworks(viewerId)
     ]);
 
     const totalArtworks = Number((totalArtworkRows && totalArtworkRows[0] && totalArtworkRows[0].count) || 0);
-    const latest = (bookArtworks || []).slice(0, 9);
+    const pinnedIdSet = new Set((pinnedArtworks || []).map((artwork) => Number(artwork.id)));
+    const latest = (bookArtworks || [])
+      .filter((artwork) => !pinnedIdSet.has(Number(artwork.id)))
+      .slice(0, 9);
     const heroArtwork = (bookArtworks && bookArtworks[0]) || null;
     const heroArtworkIndex = heroArtwork ? bookArtworks.indexOf(heroArtwork) : 0;
     const artistSpotlight = (artistRows && artistRows[0]) || null;
@@ -659,6 +761,7 @@ app.get('/', async (req, res, next) => {
 
     const currentUser = (req.session && req.session.user) || null;
     const isAuthenticated = Boolean(currentUser);
+    const pinnedIds = await getPinnedArtworkIds(viewerId);
 
     res.render('pages/home', {
       pageTitle: 'ArtSpace | Discover original artwork',
@@ -674,7 +777,9 @@ app.get('/', async (req, res, next) => {
       artistSpotlight,
       visibleCategories,
       homeArtistCount,
-      liveCategoryCount: visibleCategories.filter((category) => Number(category.count) > 0).length
+      liveCategoryCount: visibleCategories.filter((category) => Number(category.count) > 0).length,
+      pinnedArtworks: pinnedArtworks || [],
+      pinnedIds
     });
   } catch (err) {
     next(err);
@@ -789,6 +894,7 @@ app.get('/explore', async (req, res, next) => {
     const mediumCount = categories.length;
     const spotlightArtwork = (artworks && artworks.length > 0) ? artworks[0] : null;
     const loadedItems = artworks ? artworks.length : 0;
+    const pinnedIds = await getPinnedArtworkIds(viewerId);
 
     const pagination = {
       page,
@@ -815,7 +921,8 @@ app.get('/explore', async (req, res, next) => {
       totalArtworks,
       artistCount,
       mediumCount,
-      sort
+      sort,
+      pinnedIds
     });
   } catch (err) {
     next(err);
@@ -1249,6 +1356,7 @@ app.get('/profile/:username', async (req, res, next) => {
 
     const isOwner = Boolean(req.session && req.session.user && req.session.user.id === profileUser.id);
     let savedRows = [];
+    let pinnedRows = [];
 
     if (isOwner) {
       savedRows = await db.execute(
@@ -1272,6 +1380,29 @@ app.get('/profile/:username', async (req, res, next) => {
           LIMIT 60`,
         [viewerId, viewerId, viewerId]
       );
+
+      pinnedRows = await db.execute(
+        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar,
+                c.name AS category_name,
+                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                0 AS views, 'auto' AS visual_effect
+           FROM artwork_pins pin
+           INNER JOIN artworks a ON a.id = pin.artwork_id
+           INNER JOIN users u ON u.id = a.user_id
+           LEFT JOIN categories c ON c.id = a.category_id
+          WHERE pin.user_id = ? AND a.user_id = ?
+            AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+          ORDER BY pin.created_at DESC
+          LIMIT 60`,
+        [viewerId, viewerId, profileUser.id, profileUser.id]
+      );
     }
 
     const countRows = await db.execute(
@@ -1289,7 +1420,9 @@ app.get('/profile/:username', async (req, res, next) => {
     );
     const totalLikes = Number((likeCountRows && likeCountRows[0] && likeCountRows[0].count) || 0);
 
-    const activeTab = ['artworks', 'liked', 'saved'].includes(req.query.tab) ? req.query.tab : 'artworks';
+    const requestedTab = ['artworks', 'liked', 'saved', 'pinned'].includes(req.query.tab) ? req.query.tab : 'artworks';
+    const activeTab = (requestedTab === 'saved' || requestedTab === 'pinned') && !isOwner ? 'artworks' : requestedTab;
+    const pinnedIds = await getPinnedArtworkIds(viewerId);
 
     res.render('pages/profile', {
       pageTitle: `ArtSpace | ${profileUser.username}'s Profile`,
@@ -1297,6 +1430,8 @@ app.get('/profile/:username', async (req, res, next) => {
       artworks: artRows || [],
       likedArtworks: likedRows || [],
       savedArtworks: savedRows || [],
+      pinnedArtworks: pinnedRows || [],
+      pinnedIds,
       stats: {
         totalArtworks,
         totalLikes,
@@ -1381,12 +1516,15 @@ app.get('/art/:id', async (req, res, next) => {
       });
     }
 
+    const pinnedIds = await getPinnedArtworkIds(viewerId);
+
     res.render('pages/artwork', {
       pageTitle: `ArtSpace | ${artwork.title}`,
       artwork,
       comments: [],
       related: relatedRows || [],
-      artistStats: { isFollowing: false }
+      artistStats: { isFollowing: false },
+      pinnedIds
     });
   } catch (err) {
     next(err);
@@ -1556,6 +1694,128 @@ app.post('/art/:id/bookmark', requireAuth, async (req, res, next) => {
   }
 });
 
+app.post('/art/:id/pin', requireAuthJson, async (req, res, next) => {
+  const artworkId = parseInt(req.params.id, 10);
+  const userId = Number(req.session.user.id);
+
+  if (!Number.isFinite(artworkId)) {
+    respondPinError(req, res, 404, 'The artwork you requested could not be found.');
+    return;
+  }
+
+  let connection;
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    await connection.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [userId]);
+
+    const [artworkRows] = await connection.execute(
+      'SELECT id, user_id, visibility, is_published, status FROM artworks WHERE id = ? LIMIT 1',
+      [artworkId]
+    );
+    const artwork = artworkRows[0];
+
+    if (!artwork) {
+      await connection.rollback();
+      respondPinError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    if (Number(artwork.user_id) !== userId) {
+      await connection.rollback();
+      respondPinError(req, res, 403, 'You can only pin your own artwork.');
+      return;
+    }
+
+    if (artwork.visibility !== 'public' || Number(artwork.is_published) !== 1 || artwork.status !== 'active') {
+      await connection.rollback();
+      respondPinError(req, res, 400, 'Only public, active artwork can be pinned.');
+      return;
+    }
+
+    const [existing] = await connection.execute(
+      'SELECT id FROM artwork_pins WHERE user_id = ? AND artwork_id = ? LIMIT 1',
+      [userId, artworkId]
+    );
+
+    if (existing.length) {
+      await connection.commit();
+      const count = await countUserPins(userId);
+      respondPinSuccess(req, res, { pinned: true, count, artworkId });
+      return;
+    }
+
+    const [countRows] = await connection.execute(
+      'SELECT COUNT(*) AS count FROM artwork_pins WHERE user_id = ?',
+      [userId]
+    );
+    const count = Number((countRows[0] && countRows[0].count) || 0);
+
+    if (count >= PIN_LIMIT) {
+      await connection.rollback();
+      respondPinError(req, res, 409, `You can pin up to ${PIN_LIMIT} artworks. Unpin one first.`);
+      return;
+    }
+
+    await connection.execute(
+      'INSERT INTO artwork_pins (user_id, artwork_id) VALUES (?, ?)',
+      [userId, artworkId]
+    );
+    await connection.commit();
+    respondPinSuccess(req, res, { pinned: true, count: count + 1, artworkId });
+  } catch (error) {
+    if (connection) {
+      try { await connection.rollback(); } catch (rollbackError) { /* transaction already closed */ }
+    }
+    console.error('Artwork pin failed:', error);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not pin that artwork. Please try again.' });
+      return;
+    }
+    next(error);
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+app.post('/art/:id/unpin', requireAuthJson, async (req, res, next) => {
+  const artworkId = parseInt(req.params.id, 10);
+  const userId = Number(req.session.user.id);
+
+  if (!Number.isFinite(artworkId)) {
+    respondPinError(req, res, 404, 'The artwork you requested could not be found.');
+    return;
+  }
+
+  try {
+    const rows = await db.execute('SELECT id, user_id FROM artworks WHERE id = ? LIMIT 1', [artworkId]);
+    const artwork = (rows && rows[0]) || null;
+
+    if (!artwork) {
+      respondPinError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    if (Number(artwork.user_id) !== userId) {
+      respondPinError(req, res, 403, 'You can only unpin your own artwork.');
+      return;
+    }
+
+    await db.execute('DELETE FROM artwork_pins WHERE user_id = ? AND artwork_id = ?', [userId, artworkId]);
+    const count = await countUserPins(userId);
+    respondPinSuccess(req, res, { pinned: false, count, artworkId });
+  } catch (error) {
+    console.error('Artwork unpin failed:', error);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not unpin that artwork. Please try again.' });
+      return;
+    }
+    next(error);
+  }
+});
+
 app.post('/art/:id/delete', requireAuth, async (req, res, next) => {
   try {
     const artworkId = parseInt(req.params.id, 10);
@@ -1642,10 +1902,13 @@ app.get('/search', async (req, res, next) => {
       );
     }
 
+    const pinnedIds = await getPinnedArtworkIds(viewerId);
+
     res.render('pages/search', {
       pageTitle: query ? `ArtSpace | Search: ${query}` : 'ArtSpace | Search',
       query,
-      artworks: artworks || []
+      artworks: artworks || [],
+      pinnedIds
     });
   } catch (err) {
     next(err);

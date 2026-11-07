@@ -1,7 +1,7 @@
 ﻿/* ==========================================================================
    Pencil Cursor — The Living Sketchbook
    Custom pencil cursor, graphite ink trail and click particle bursts.
-   Fine pointers: full experience. Coarse pointers: subtle tap bursts only.
+   Fine pointers: pencil follows the mouse. Coarse pointers: pencil follows touch.
    Disable via localStorage "artspace-pencil-cursor" = "off".
    ========================================================================== */
 (() => {
@@ -73,7 +73,7 @@
   /* --------------------------- State & elements --------------------------- */
 
   const layers = { canvas: null, cursor: null };
-  let mode = 'off'; // 'off' | 'full' | 'tap'
+  let mode = 'off'; // 'off' | 'full' | 'touch'
 
   let pointerX = -100;
   let pointerY = -100;
@@ -90,8 +90,22 @@
   let lastFrame = 0;
   let graphite = { r: 58, g: 56, b: 51 };
 
+  const TOUCH_TRAIL_LIFE_MS = 620;
+  const TOUCH_TRAIL_MAX_POINTS = 52;
+  const TOUCH_PARTICLE_CAP = 42;
+  const TOUCH_HOVER_CLASS = 'touch-hovered';
+  const TOUCH_HOVER_SELECTOR = 'a[href], button, [role="button"], input[type="submit"], .btn, .action-btn, .category-pill, .nav-auth-link, .nav-auth-join, .hs-btn, .hs-category-row';
+  const CARD_HOVER_SELECTOR = '.art-card, .studio-explore-card, .pf-art-card';
+
+  let activeTouchId = null;
+  const activeTouches = new Set();
+  let touchHoverEl = null;
+  let touchHoverTimer = 0;
+  let touchFadeTimer = 0;
+  let lastDustAt = 0;
+
   const TEXT_ZONE_SELECTOR = 'input, textarea, select, option, [contenteditable="true"], [contenteditable=""]';
-  const NATIVE_ZONE_SELECTOR = '.art-viewer, [data-native-cursor]';
+  const NATIVE_ZONE_SELECTOR = '.art-viewer, .ie-overlay, .intro-overlay, dialog, [data-native-cursor]';
   const IMAGE_ZONE_SELECTOR = '.ad-artwork-open, .art-card-media';
   const BUTTON_ZONE_SELECTOR = 'button, [role="button"], input[type="submit"], .btn, .action-btn, .category-pill';
   const ARTWORK_ZONE_SELECTOR = '.art-card';
@@ -117,7 +131,8 @@
 
   const resizeCanvas = () => {
     if (!layers.canvas) return;
-    const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+    const maxDpr = mode === 'touch' ? 1.5 : 2;
+    const dpr = clamp(window.devicePixelRatio || 1, 1, maxDpr);
     layers.canvas.width = Math.round(window.innerWidth * dpr);
     layers.canvas.height = Math.round(window.innerHeight * dpr);
     const ctx = layers.canvas.getContext('2d');
@@ -143,7 +158,8 @@
       skew: rand(-1.1, 1.1),
       life: 1
     });
-    if (trailPoints.length > TRAIL_MAX_POINTS) trailPoints.shift();
+    const limit = mode === 'touch' ? TOUCH_TRAIL_MAX_POINTS : TRAIL_MAX_POINTS;
+    if (trailPoints.length > limit) trailPoints.shift();
     wake();
   };
 
@@ -174,12 +190,14 @@
       ctx.stroke();
 
       /* faint sketchy echo stroke */
-      ctx.strokeStyle = `rgba(${graphite.r},${graphite.g},${graphite.b},${alpha * 0.35})`;
-      ctx.lineWidth = Math.max(0.5, width * 0.55);
-      ctx.beginPath();
-      ctx.moveTo(a.x + (nx / norm) * a.skew, a.y + (ny / norm) * a.skew);
-      ctx.lineTo(b.x + (nx / norm) * b.skew, b.y + (ny / norm) * b.skew);
-      ctx.stroke();
+      if (mode !== 'touch') {
+        ctx.strokeStyle = `rgba(${graphite.r},${graphite.g},${graphite.b},${alpha * 0.35})`;
+        ctx.lineWidth = Math.max(0.5, width * 0.55);
+        ctx.beginPath();
+        ctx.moveTo(a.x + (nx / norm) * a.skew, a.y + (ny / norm) * a.skew);
+        ctx.lineTo(b.x + (nx / norm) * b.skew, b.y + (ny / norm) * b.skew);
+        ctx.stroke();
+      }
     }
   };
 
@@ -210,7 +228,8 @@
   };
 
   const burst = (x, y, count, scale) => {
-    if (particles.length >= PARTICLE_CAP) particles.splice(0, particles.length - PARTICLE_CAP + count);
+    const cap = mode === 'touch' ? TOUCH_PARTICLE_CAP : PARTICLE_CAP;
+    if (particles.length >= cap) particles.splice(0, particles.length - cap + count);
     for (let i = 0; i < count; i += 1) particles.push(spawnParticle(x, y, scale));
     wake();
   };
@@ -320,7 +339,7 @@
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
     for (let i = trailPoints.length - 1; i >= 0; i -= 1) {
-      trailPoints[i].life -= dt / TRAIL_LIFE_MS;
+      trailPoints[i].life -= dt / (mode === 'touch' ? TOUCH_TRAIL_LIFE_MS : TRAIL_LIFE_MS);
       if (trailPoints[i].life <= 0) trailPoints.splice(i, 1);
     }
     updateParticles(dt);
@@ -363,8 +382,123 @@
     return null;
   };
 
+  const clearTouchHover = () => {
+    if (touchHoverTimer) {
+      window.clearTimeout(touchHoverTimer);
+      touchHoverTimer = 0;
+    }
+    if (touchHoverEl) {
+      touchHoverEl.classList.remove(TOUCH_HOVER_CLASS);
+      touchHoverEl = null;
+    }
+  };
+
+  const CONTROL_HOVER_SELECTOR = 'button, [role="button"], input[type="submit"], .action-btn, .btn';
+
+  const applyTouchHover = (target) => {
+    if (!(target instanceof Element)) {
+      clearTouchHover();
+      return;
+    }
+    if (target.closest(NATIVE_ZONE_SELECTOR)) {
+      clearTouchHover();
+      return;
+    }
+    const control = target.closest(CONTROL_HOVER_SELECTOR);
+    const element = control
+      || target.closest(CARD_HOVER_SELECTOR)
+      || target.closest(TOUCH_HOVER_SELECTOR);
+    if (!element) {
+      clearTouchHover();
+      return;
+    }
+    if (element === touchHoverEl) return;
+    clearTouchHover();
+    touchHoverEl = element;
+    element.classList.add(TOUCH_HOVER_CLASS);
+  };
+
+  const releaseTouchHover = () => {
+    if (!touchHoverEl || touchHoverTimer) return;
+    touchHoverTimer = window.setTimeout(() => {
+      touchHoverEl?.classList.remove(TOUCH_HOVER_CLASS);
+      touchHoverEl = null;
+      touchHoverTimer = 0;
+    }, 340);
+  };
+
+  const movePencilTo = (x, y, dt) => {
+    const dx = x - pointerX;
+    const dy = y - pointerY;
+    pointerX = x;
+    pointerY = y;
+    if (Math.hypot(dx, dy) > 2) targetAngle = Math.atan2(dy, dx);
+    pencilAngle = smoothAngle(pencilAngle, targetAngle, dt);
+    pushTrailPoint(pointerX, pointerY);
+    applyPencil();
+    if (!pencilVisible) {
+      pencilVisible = true;
+      layers.cursor?.classList.add('is-visible');
+    }
+    if (!rafId) wake();
+  };
+
+  const startTouchPencil = (event) => {
+    if (mode !== 'touch' && mode !== 'full') return;
+    if (event.target instanceof Element && event.target.closest(NATIVE_ZONE_SELECTOR)) return;
+    if (activeTouchId !== null && activeTouchId !== event.pointerId) {
+      finishTouchPencil(0);
+      return;
+    }
+    if (!layers.canvas) createLayers();
+    activeTouchId = event.pointerId;
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    pencilApplied = { x: -9999, y: -9999, angle: 0 };
+    pencilVisible = true;
+    layers.cursor?.classList.add('is-visible');
+    setCursorState(detectHoverState(event.target) || 'default');
+    applyPencil();
+    burst(event.clientX, event.clientY, 6, 0.72);
+    applyTouchHover(event.target);
+    lastDustAt = performance.now();
+    wake();
+  };
+
+  const finishTouchPencil = (delay = 260) => {
+    activeTouchId = null;
+    if (touchFadeTimer) {
+      window.clearTimeout(touchFadeTimer);
+      touchFadeTimer = 0;
+    }
+    if (delay <= 0) {
+      layers.cursor?.classList.remove('is-visible');
+      pencilVisible = false;
+      return;
+    }
+    touchFadeTimer = window.setTimeout(() => {
+      layers.cursor?.classList.remove('is-visible');
+      pencilVisible = false;
+      touchFadeTimer = 0;
+    }, delay);
+    releaseTouchHover();
+    if (!rafId) wake();
+  };
+
   const onPointerMove = (event) => {
-    if (event.pointerType === 'touch') return;
+    if (event.pointerType === 'touch') {
+      if (event.pointerId !== activeTouchId) return;
+      if (mode !== 'touch' && mode !== 'full') return;
+      const now = performance.now();
+      const dtMove = clamp(now - lastMoveAt || 16.7, 1, 64);
+      lastMoveAt = now;
+      movePencilTo(event.clientX, event.clientY, dtMove);
+      if (now - lastDustAt > 60) {
+        lastDustAt = now;
+        burst(event.clientX, event.clientY, 1, 0.5);
+      }
+      return;
+    }
 
     const dx = event.clientX - pointerX;
     const dy = event.clientY - pointerY;
@@ -396,13 +530,48 @@
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (event.pointerType === 'pen' && event.button !== 0) return;
 
-    const isTouch = event.pointerType === 'touch';
-    if (isTouch && mode !== 'tap') return;
-    if (!isTouch && mode !== 'full') return;
+    if (event.pointerType === 'touch') {
+      activeTouches.add(event.pointerId);
+      if (activeTouches.size > 1) {
+        clearTouchHover();
+        finishTouchPencil(0);
+        return;
+      }
+      startTouchPencil(event);
+      return;
+    }
 
-    if (mode === 'tap' && !layers.canvas) createLayers();
+    if (mode !== 'full') return;
 
-    burst(event.clientX, event.clientY, isTouch ? 6 : Math.round(rand(7, 12)), isTouch ? 0.75 : 1);
+    burst(event.clientX, event.clientY, Math.round(rand(7, 12)), 1);
+  };
+
+  const onPointerUp = (event) => {
+    if (event.pointerType !== 'touch') return;
+    activeTouches.delete(event.pointerId);
+    if (event.pointerId !== activeTouchId) return;
+    finishTouchPencil(260);
+  };
+
+  const onPointerCancel = (event) => {
+    if (event.pointerType !== 'touch') return;
+    activeTouches.delete(event.pointerId);
+    if (activeTouchId !== null && event.pointerId !== activeTouchId) return;
+    clearTouchHover();
+    finishTouchPencil(0);
+  };
+
+  const onScroll = () => {
+    if (activeTouchId !== null) return;
+    clearTouchHover();
+  };
+
+  const onNavigation = () => {
+    activeTouches.clear();
+    clearTouchHover();
+    finishTouchPencil(0);
+    trailPoints.length = 0;
+    clearCanvas();
   };
 
   const onPointerLeaveWindow = (event) => {
@@ -416,6 +585,9 @@
     if (document.hidden) {
       trailPoints.length = 0;
       clearCanvas();
+      clearTouchHover();
+      activeTouches.clear();
+      finishTouchPencil(0);
     }
   };
 
@@ -448,18 +620,28 @@
   const destroyLayers = () => {
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
+    if (touchFadeTimer) window.clearTimeout(touchFadeTimer);
+    touchFadeTimer = 0;
+    activeTouchId = null;
+    activeTouches.clear();
+    clearTouchHover();
     trailPoints.length = 0;
     particles.length = 0;
     layers.canvas?.remove();
     layers.cursor?.remove();
     layers.canvas = null;
     layers.cursor = null;
+    pencilVisible = false;
     document.body.classList.remove('pencil-on');
   };
 
   const bindGlobalListeners = () => {
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerCancel, { passive: true });
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    window.addEventListener('artspace:navigation', onNavigation);
     document.documentElement.addEventListener('pointerleave', onPointerLeaveWindow);
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('resize', onResize, { passive: true });
@@ -468,6 +650,10 @@
   const unbindGlobalListeners = () => {
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerdown', onPointerDown);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerCancel);
+    document.removeEventListener('scroll', onScroll, { capture: true });
+    window.removeEventListener('artspace:navigation', onNavigation);
     document.documentElement.removeEventListener('pointerleave', onPointerLeaveWindow);
     document.removeEventListener('visibilitychange', onVisibilityChange);
     window.removeEventListener('resize', onResize);
@@ -479,8 +665,8 @@
     const off = isDisabledByUser();
     const lowPerf = isLowPerf();
     const wantFull = !lowPerf && finePointerQuery.matches && hoverQuery.matches && !reducedMotionQuery.matches && !off;
-    const wantTap = !lowPerf && !wantFull && !reducedMotionQuery.matches && !off;
-    const next = wantFull ? 'full' : wantTap ? 'tap' : 'off';
+    const wantTouch = !lowPerf && !wantFull && !reducedMotionQuery.matches && !off;
+    const next = wantFull ? 'full' : wantTouch ? 'touch' : 'off';
 
     if (next === mode) return;
     mode = next;
@@ -493,7 +679,7 @@
       refreshGraphite();
       pencilVisible = false;
       if (!listenersBound) { bindGlobalListeners(); listenersBound = true; }
-    } else if (mode === 'tap') {
+    } else if (mode === 'touch') {
       if (!listenersBound) { bindGlobalListeners(); listenersBound = true; }
     } else if (listenersBound) {
       unbindGlobalListeners();

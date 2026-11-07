@@ -10,6 +10,8 @@
   const artistName = artwork.display_name || artwork.username || 'ArtSpace artist';
   const withArtist = typeof showArtist !== 'undefined' && showArtist;
   const loadingMode = typeof eager !== 'undefined' && eager ? 'eager' : 'lazy';
+  const cardOwned = typeof currentUser !== 'undefined' && currentUser && artwork.username === currentUser.username;
+  const cardPinned = typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(artwork.id));
 %>
 <article
   class="pf-art-card"
@@ -23,6 +25,16 @@
   data-created="<%= createdTime %>"
 >
   <span class="pf-art-tape" aria-hidden="true"></span>
+  <% if (cardOwned) { %>
+    <button type="button" class="pf-art-pin<%= cardPinned ? ' is-pinned' : '' %>" data-pin-toggle data-artwork-id="<%= artwork.id %>" data-pinned="<%= cardPinned ? 'true' : 'false' %>" aria-pressed="<%= cardPinned ? 'true' : 'false' %>" title="<%= cardPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+      <span data-pin-label><%= cardPinned ? 'Pinned' : 'Pin' %></span>
+    </button>
+  <% } else if (cardPinned) { %>
+    <span class="pf-art-pin-badge" title="Pinned to homepage">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+    </span>
+  <% } %>
 
   <a class="pf-art-image" href="/art/<%= artwork.id %>" aria-label="Open <%= artwork.title %>">
     <%

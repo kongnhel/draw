@@ -195,6 +195,7 @@
     try {
       const response = await fetch(target.href, {
         credentials: 'same-origin',
+        cache: options.source === 'refresh' ? 'no-store' : 'default',
         headers: {
           Accept: 'text/html,application/xhtml+xml',
           'X-Requested-With': 'XMLHttpRequest'

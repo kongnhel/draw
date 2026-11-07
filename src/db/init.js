@@ -113,6 +113,21 @@ const schemaStatements = [
     CONSTRAINT fk_bookmarks_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+  `CREATE TABLE IF NOT EXISTS artwork_pins (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    artwork_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_artwork_pins_user_artwork (user_id, artwork_id),
+    KEY idx_artwork_pins_user_created (user_id, created_at),
+    KEY idx_artwork_pins_created (created_at),
+    KEY idx_artwork_pins_artwork (artwork_id),
+    CONSTRAINT fk_artwork_pins_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_artwork_pins_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
   `CREATE TABLE IF NOT EXISTS comments (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id INT UNSIGNED NOT NULL,

@@ -1,0 +1,39 @@
+<%
+  const pinnedOwned = typeof currentUser !== 'undefined' && currentUser && artwork.username === currentUser.username;
+  const pinnedSrc = imageTools.cardSrc(artwork, 640);
+  const pinnedSrcset = imageTools.cardSrcset(artwork, [320, 480, 640, 800]);
+%>
+<article class="pinned-card" data-pinned-card data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
+  <span class="pinned-card-tape" aria-hidden="true"></span>
+  <% if (!pinnedOwned) { %>
+    <span class="pinned-card-pin" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+      Pinned
+    </span>
+  <% } %>
+
+  <a class="pinned-card-image" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
+    <img src="<%= pinnedSrc %>"<% if (pinnedSrcset) { %> srcset="<%= pinnedSrcset %>" sizes="(max-width: 640px) 86vw, (max-width: 1080px) 42vw, 340px"<% } %> width="640" height="800" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+  </a>
+
+  <div class="pinned-card-copy">
+    <div class="pinned-card-meta">
+      <span><%= artwork.category_name || 'Original artwork' %></span>
+      <% if (artwork.pinned_at_label) { %>
+        <time>Pinned <%= artwork.pinned_at_label %></time>
+      <% } %>
+    </div>
+    <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+    <a class="pinned-card-artist" href="/profile/<%= artwork.username %>">
+      <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" decoding="async" />
+      <span>by <%= artwork.display_name || artwork.username %></span>
+    </a>
+  </div>
+
+  <% if (pinnedOwned) { %>
+    <button type="button" class="pinned-card-unpin is-pinned" data-pin-toggle data-artwork-id="<%= artwork.id %>" data-pinned="true" aria-pressed="true" title="Unpin from homepage">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+      <span data-pin-label>Pinned</span>
+    </button>
+  <% } %>
+</article>

@@ -19017,3 +19017,7 @@ body {
     font-size: 16px;
   }
 }
+
+.studio-preview-tools {
+  flex-wrap: wrap;
+}

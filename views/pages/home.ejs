@@ -69,71 +69,147 @@
       </div>
     </section>
 
+<%
+  const collageArtworks = bookArtworks.slice(0, 3);
+  const communityArtists = [];
+  const seenCommunityArtists = new Set();
+  bookArtworks.forEach((artwork) => {
+    if (communityArtists.length >= 4 || seenCommunityArtists.has(artwork.username)) return;
+    seenCommunityArtists.add(artwork.username);
+    communityArtists.push(artwork);
+  });
+  const collageNotes = ['Artist community', 'Made with creativity', 'Share your art'];
+%>
+
     <section class="hs-book" id="art-book" data-motion aria-labelledby="book-title">
-      <div class="hs-section-head hs-section-head-inverse">
-        <div class="hs-section-title">
+      <span class="hs-book-tape hs-book-tape-a" aria-hidden="true"></span>
+      <span class="hs-book-tape hs-book-tape-b" aria-hidden="true"></span>
+      <svg class="hs-book-doodle hs-book-doodle-star" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4c2 12 8 18 20 20-12 2-18 8-20 20-2-12-8-18-20-20 12-2 18-8 20-20Z" /></svg>
+      <svg class="hs-book-doodle hs-book-doodle-loop" viewBox="0 0 130 80" aria-hidden="true"><path d="M8 58c18-24 36-30 54-16 14 11 26 10 48-6" /><path d="M96 26c8 4 12 9 14 16" /></svg>
+
+      <div class="hs-book-intro<%= collageArtworks.length ? '' : ' hs-book-intro-solo' %>">
+        <div class="hs-book-copy">
           <span class="hs-eyebrow">A living sketchbook</span>
-          <h2 id="book-title">The community<br><em>sketchbook.</em></h2>
+          <h2 id="book-title" class="hs-book-title">The community<br><span class="hs-book-script">sketchbook<span class="hs-book-period">.</span></span></h2>
+          <svg class="hs-book-underline" viewBox="0 0 320 18" preserveAspectRatio="none" aria-hidden="true"><path d="M3 12C58 4 112 4 166 8s105 5 151-3" pathLength="1" /></svg>
+          <p class="hs-book-lede">A living collection of drawings, paintings, and visual stories &mdash; made by artists, kept by the community. Turn the pages to meet each original work.</p>
+          <div class="hs-book-actions">
+            <a class="hs-btn hs-btn-dark" href="/explore?sort=latest">Explore Artwork <span aria-hidden="true">&nearr;</span></a>
+            <a class="hs-btn hs-btn-outline" href="/upload">Share Your Drawing <span aria-hidden="true">+</span></a>
+          </div>
+          <div class="hs-book-community">
+            <% if (communityArtists.length) { %>
+              <div class="hs-book-avatars">
+                <% communityArtists.forEach((artist) => { %>
+                  <a class="hs-book-avatar" href="/profile/<%= artist.username %>" aria-label="Visit <%= artist.display_name || artist.username %>'s profile">
+                    <img src="<%= artist.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" decoding="async" />
+                  </a>
+                <% }) %>
+              </div>
+            <% } %>
+            <p class="hs-book-meta"><strong><%= bookArtworks.length %></strong> <%= bookArtworks.length === 1 ? 'work' : 'works' %> <span>&middot;</span> <strong><%= homeArtistCount %></strong> <%= homeArtistCount === 1 ? 'artist' : 'artists' %> <span>&middot;</span> Vol. 01</p>
+          </div>
         </div>
-        <div class="hs-section-aside">
-          <p>One book, every artist. Turn the pages to move through the collection, one original work at a time.</p>
-          <span class="hs-book-count"><%= bookArtworks.length %> <%= bookArtworks.length === 1 ? 'work' : 'works' %> · <%= homeArtistCount %> <%= homeArtistCount === 1 ? 'artist' : 'artists' %> · Vol. 01</span>
-        </div>
+
+        <% if (collageArtworks.length) { %>
+          <div class="hs-book-collage" aria-label="Artwork previews from the community">
+            <svg class="hs-book-connect" viewBox="0 0 460 360" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M36 312C114 302 138 216 214 202s84-88 168-102" pathLength="1" />
+              <path d="M86 96c46 8 66 44 112 54" pathLength="1" />
+              <path d="M238 322c54-16 88-40 122-88" pathLength="1" />
+            </svg>
+            <% collageArtworks.forEach((artwork, index) => { %>
+              <%
+                const collageSrc = imageTools.cardSrc(artwork, 520);
+                const collageSrcset = imageTools.cardSrcset(artwork, [240, 360, 520, 720]);
+              %>
+              <div class="hs-collage-item hs-collage-item-<%= index + 1 %>">
+                <a class="hs-collage-card" href="/art/<%= artwork.id %>" data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
+                  <span class="hs-collage-tape" aria-hidden="true"></span>
+                  <img src="<%= collageSrc %>"<% if (collageSrcset) { %> srcset="<%= collageSrcset %>" sizes="(max-width: 760px) 34vw, 220px"<% } %> width="520" height="650" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+                  <span class="hs-collage-meta">
+                    <strong><%= artwork.title %></strong>
+                    <em>by <%= artwork.display_name || artwork.username %></em>
+                  </span>
+                  <span class="hs-collage-open" aria-hidden="true">&nearr;</span>
+                </a>
+                <span class="hs-collage-note hs-collage-note-<%= index + 1 %>"><%= collageNotes[index] %></span>
+              </div>
+            <% }) %>
+            <span class="hs-collage-spark" aria-hidden="true">&#10022;</span>
+          </div>
+        <% } %>
       </div>
 
       <% if (bookArtworks.length) { %>
-        <div class="book-experience" data-art-book data-artwork-count="<%= bookArtworks.length %>">
-          <div class="book-stage">
-            <div class="art-book" data-book-root role="region" aria-label="ArtSpace community art book" tabindex="0">
-              <article class="book-page book-cover" data-book-page data-density="hard">
-                <div class="book-cover-design">
-                  <span class="book-cover-mark">ARTSPACE <span>COMMUNITY EDITION</span></span>
-                  <span class="book-cover-ornament" aria-hidden="true">A</span>
-                  <span class="book-cover-title">The Art<br />Book</span>
-                  <span class="book-cover-note"><%= bookArtworks.length %> original <%= bookArtworks.length === 1 ? 'work' : 'works' %><br />from a creative community</span>
-                  <span class="book-cover-year">VOL. 01 &nbsp; / &nbsp; CAMBODIA & BEYOND</span>
-                </div>
-              </article>
-              <% bookArtworks.forEach((artwork, index) => { %>
-                <article class="book-page" data-book-page data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
-                  <div class="book-page-content">
-                    <a class="book-artwork-link" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
-                      <img data-book-image data-src="<%= artwork.thumbnail_url || artwork.image_url %>" data-fallback-src="<%= artwork.image_url || '' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
-                      <span class="book-image-placeholder" aria-hidden="true"><strong><%= artwork.title %></strong><span>Artwork image unavailable</span></span>
-                    </a>
-                    <div class="book-page-details">
-                      <div class="book-page-heading">
-                        <span class="book-category"><%= artwork.category_name || 'Original artwork' %></span>
-                        <time><%= artwork.created_at_label %></time>
-                      </div>
-                      <a class="book-artwork-title" href="/art/<%= artwork.id %>"><%= artwork.title %></a>
-                      <span class="book-artwork-artist">by <%= artwork.display_name || artwork.username %></span>
-                      <span class="book-page-number"><%= String(index + 1).padStart(2, '0') %></span>
-                    </div>
+        <div class="hs-book-shell">
+          <span class="hs-book-shell-tape" aria-hidden="true"></span>
+          <span class="hs-book-ribbon" aria-hidden="true"></span>
+          <svg class="hs-book-pencil" viewBox="0 0 220 64" aria-hidden="true">
+            <g transform="rotate(-12 110 32)">
+              <path d="M18 25h22v14H18z" fill="#b06a52" stroke="#5d2d22" stroke-width="1" />
+              <path d="M40 23h12v18H40z" fill="#b9b4a8" stroke="#6f6a5e" stroke-width="1" />
+              <path d="M52 20h118l14 12-14 12H52z" fill="#4a473f" stroke="#292824" stroke-width="1.3" />
+              <path d="M170 20l26 12-26 12 4-12z" fill="#e0bb87" stroke="#8a6b45" stroke-width="1" />
+              <path d="M196 29l14 3-14 3z" fill="#2e2c28" />
+              <path d="M56 24h108M56 40h108" stroke="#6b675e" stroke-width="1" />
+            </g>
+          </svg>
+
+          <div class="book-experience" data-art-book data-artwork-count="<%= bookArtworks.length %>">
+            <div class="book-stage">
+              <div class="art-book" data-book-root role="region" aria-label="ArtSpace community art book" tabindex="0">
+                <article class="book-page book-cover" data-book-page data-density="hard">
+                  <div class="book-cover-design">
+                    <span class="book-cover-mark">ARTSPACE <span>COMMUNITY EDITION</span></span>
+                    <span class="book-cover-ornament" aria-hidden="true">A</span>
+                    <span class="book-cover-title">The Art<br />Book</span>
+                    <span class="book-cover-note"><%= bookArtworks.length %> original <%= bookArtworks.length === 1 ? 'work' : 'works' %><br />from a creative community</span>
+                    <span class="book-cover-year">VOL. 01 &nbsp; | &nbsp; CAMBODIA &amp; BEYOND</span>
                   </div>
                 </article>
-              <% }) %>
+                <% bookArtworks.forEach((artwork, index) => { %>
+                  <article class="book-page" data-book-page data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
+                    <div class="book-page-content">
+                      <a class="book-artwork-link" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
+                        <img data-book-image data-src="<%= artwork.thumbnail_url || artwork.image_url %>" data-fallback-src="<%= artwork.image_url || '' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+                        <span class="book-image-placeholder" aria-hidden="true"><strong><%= artwork.title %></strong><span>Artwork image unavailable</span></span>
+                      </a>
+                      <div class="book-page-details">
+                        <div class="book-page-heading">
+                          <span class="book-category"><%= artwork.category_name || 'Original artwork' %></span>
+                          <time><%= artwork.created_at_label %></time>
+                        </div>
+                        <a class="book-artwork-title" href="/art/<%= artwork.id %>"><%= artwork.title %></a>
+                        <span class="book-artwork-artist">by <%= artwork.display_name || artwork.username %></span>
+                        <span class="book-page-number"><%= String(index + 1).padStart(2, '0') %></span>
+                      </div>
+                    </div>
+                  </article>
+                <% }) %>
+              </div>
+            </div>
+            <div class="book-controls">
+              <div class="book-progress">
+                <span class="book-page-counter" data-book-current aria-live="polite">Cover</span>
+                <span class="book-counter-divider">/</span>
+                <span class="book-page-total" data-book-total><%= String(bookArtworks.length).padStart(2, '0') %></span>
+              </div>
+              <p class="book-current-work" data-book-live aria-live="polite">Turn the cover to explore the collection.</p>
+              <div class="book-navigation">
+                <button class="book-nav-button book-close-button" type="button" data-book-close aria-label="Close book" title="Close book" hidden>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                </button>
+                <button class="book-nav-button" type="button" data-book-prev aria-label="Turn to previous page" title="Previous page" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button class="book-nav-button" type="button" data-book-next aria-label="Turn to next page" title="Next page">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              </div>
             </div>
           </div>
-          <div class="book-controls">
-            <div class="book-progress">
-              <span class="book-page-counter" data-book-current aria-live="polite">Cover</span>
-              <span class="book-counter-divider">/</span>
-              <span class="book-page-total" data-book-total><%= String(bookArtworks.length).padStart(2, '0') %></span>
-            </div>
-            <p class="book-current-work" data-book-live aria-live="polite">Turn the cover to explore the collection.</p>
-            <div class="book-navigation">
-              <button class="book-nav-button book-close-button" type="button" data-book-close aria-label="Close book" title="Close book" hidden>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
-              </button>
-              <button class="book-nav-button" type="button" data-book-prev aria-label="Turn to previous page" title="Previous page" disabled>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
-              </button>
-              <button class="book-nav-button" type="button" data-book-next aria-label="Turn to next page" title="Next page">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-            </div>
-          </div>
+          <p class="hs-book-tip" aria-hidden="true"><span>&#8627;</span> turn the page, or tap an artwork to open it</p>
         </div>
       <% } else { %>
         <div class="book-empty-state">
@@ -141,7 +217,42 @@
           <span class="sketch-eyebrow">A new collection begins</span>
           <h3>The first page is still waiting.</h3>
           <p>Be the first to add an artwork to the community book.</p>
-          <a href="/upload" class="hs-btn hs-btn-dark">Upload an artwork <span aria-hidden="true">↗</span></a>
+          <a href="/upload" class="hs-btn hs-btn-dark">Share Your Drawing <span aria-hidden="true">&nearr;</span></a>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="hs-pinned" data-pinned-collection data-motion aria-labelledby="pinned-title">
+      <div class="hs-section-head hs-pinned-head">
+        <div class="hs-section-title">
+          <span class="hs-eyebrow">The pinboard</span>
+          <h2 id="pinned-title">Pinned <em>sketches.</em></h2>
+        </div>
+        <div class="hs-section-aside">
+          <p>Special moments from our creative community, pinned by the artists themselves.</p>
+          <% if (pinnedArtworks.length) { %>
+            <span class="hs-book-count"><%= pinnedArtworks.length %> latest <%= pinnedArtworks.length === 1 ? 'pin' : 'pins' %></span>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (pinnedArtworks.length) { %>
+        <div class="hs-pinned-grid">
+          <% pinnedArtworks.forEach((artwork, index) => { %>
+            <%- include('../partials/pinned-card', { artwork, index }) %>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="hs-pinned-empty">
+          <svg class="hs-pinned-empty-pin" viewBox="0 0 70 80" aria-hidden="true">
+            <path d="M22 10h26l-3 18 12 12v8H13v-8l12-12-3-18Z" />
+            <path d="M35 48v24" />
+            <path d="M18 72c12-4 23-4 34 0" />
+          </svg>
+          <span class="hs-eyebrow">A quiet pinboard</span>
+          <h3>No pinned sketches yet.</h3>
+          <p>Upload a drawing, then pin it to the top of the community sketchbook for everyone to see.</p>
+          <a href="/upload" class="hs-btn hs-btn-dark">Share Your Drawing <span aria-hidden="true">&nearr;</span></a>
         </div>
       <% } %>
     </section>

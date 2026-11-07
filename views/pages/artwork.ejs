@@ -6,6 +6,7 @@
   const artistName = artwork.display_name || artwork.username || 'ArtSpace artist';
   const categoryLabel = artwork.category_name || 'Artwork';
   const isOwner = isAuthenticated && currentUser && currentUser.id === artwork.user_id;
+  const artworkPinned = typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(artwork.id));
   const shareUrl = '/art/' + artwork.id;
 %>
 
@@ -94,6 +95,10 @@
           </button>
 
           <% if (isOwner) { %>
+            <button type="button" class="ad-tool ad-tool-pin<%= artworkPinned ? ' active is-pinned' : '' %>" data-pin-toggle data-artwork-id="<%= artwork.id %>" data-pinned="<%= artworkPinned ? 'true' : 'false' %>" aria-pressed="<%= artworkPinned ? 'true' : 'false' %>" aria-label="<%= artworkPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>" title="<%= artworkPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+              <span class="ad-tool-label" data-pin-label><%= artworkPinned ? 'Pinned' : 'Pin' %></span>
+            </button>
             <a href="/art/<%= artwork.id %>/edit" class="ad-tool ad-tool-ghost" aria-label="Edit this artwork">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17l-1 3Z" /><path d="M13.5 7.5l3 3" /></svg>
               <span class="ad-tool-label">Edit</span>

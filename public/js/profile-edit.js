@@ -24,6 +24,27 @@
 
   let dirty = false;
   let submitting = false;
+  let editorPromise = null;
+
+  const loadEditor = () => {
+    if (window.ArtSpaceImageEditor) return Promise.resolve(window.ArtSpaceImageEditor);
+    if (editorPromise) return editorPromise;
+    editorPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/js/image-editor.js';
+      script.async = true;
+      script.onload = () => {
+        if (window.ArtSpaceImageEditor) resolve(window.ArtSpaceImageEditor);
+        else reject(new Error('The portrait studio is unavailable.'));
+      };
+      script.onerror = () => reject(new Error('The portrait studio is unavailable.'));
+      document.head.appendChild(script);
+    }).catch((error) => {
+      editorPromise = null;
+      throw error;
+    });
+    return editorPromise;
+  };
 
   const markDirty = () => {
     if (dirty) return;
@@ -79,7 +100,12 @@
     }
   };
 
+  const previewUrls = { avatar: '', cover: '' };
+
   const applyPreview = (kind, url) => {
+    if (previewUrls[kind]) URL.revokeObjectURL(previewUrls[kind]);
+    previewUrls[kind] = url;
+
     if (kind === 'avatar') {
       $$('[data-pe-avatar-preview]').forEach((image) => { image.src = url; });
       form.dataset.hasAvatar = 'true';
@@ -121,8 +147,10 @@
     }
 
     if (note) {
-      const size = (file.size / (1024 * 1024)).toFixed(1);
-      note.textContent = `${file.name} · ${size} MB`;
+      const size = file.size < 1024 * 1024
+        ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+      note.textContent = `${file.name} · ${size}`;
       note.classList.remove('is-error');
     }
 
@@ -131,8 +159,75 @@
     markDirty();
   };
 
+  const openMediaEditor = async (input, file, kind) => {
+    if (!file) return;
+
+    const note = noteFor(kind);
+    const studioName = kind === 'cover' ? 'cover studio' : 'portrait studio';
+    const setNote = (text, isError) => {
+      if (!note) return;
+      note.textContent = text;
+      note.classList.toggle('is-error', Boolean(isError));
+    };
+
+    if (!ACCEPTED_TYPES.includes(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+      setNote('That file type is not supported. Use JPG, PNG or WebP.', true);
+      input.value = '';
+      return;
+    }
+
+    if (file.size > MAX_FILE_BYTES) {
+      setNote('That image is larger than 3 MB. Try a smaller file.', true);
+      input.value = '';
+      return;
+    }
+
+    const previousNote = note ? note.textContent : '';
+    const previousError = note ? note.classList.contains('is-error') : false;
+    setNote(`Opening the ${studioName}…`, false);
+    input.value = '';
+
+    try {
+      const editor = await loadEditor();
+      const edited = await editor.open({
+        file,
+        mode: kind === 'cover' ? 'cover' : 'avatar',
+        maxBytes: MAX_FILE_BYTES,
+      });
+
+      if (!edited) {
+        if (note) {
+          note.textContent = previousNote;
+          note.classList.toggle('is-error', previousError);
+        }
+        return;
+      }
+
+      try {
+        const transfer = new DataTransfer();
+        transfer.items.add(edited);
+        input.files = transfer.files;
+      } catch (error) {
+        setNote('This browser could not apply the edited image. Please try again.', true);
+        return;
+      }
+
+      setFile(input, edited);
+    } catch (error) {
+      setNote(error.userMessage || `The ${studioName} could not open. Please try again.`, true);
+    }
+  };
+
   const bindDropZone = (input) => {
-    input.addEventListener('change', () => setFile(input, input.files?.[0]));
+    const kind = input.dataset.peFile;
+    const usesEditor = kind === 'avatar' || kind === 'cover';
+
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (usesEditor) openMediaEditor(input, file, kind);
+      else setFile(input, file);
+    });
 
     const drop = input.closest('[data-pe-drop]');
     if (!drop) return;
@@ -154,6 +249,11 @@
 
       const file = event.dataTransfer?.files?.[0];
       if (!file) return;
+
+      if (usesEditor) {
+        openMediaEditor(input, file, kind);
+        return;
+      }
 
       try {
         const transfer = new DataTransfer();
