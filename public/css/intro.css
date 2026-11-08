@@ -181,9 +181,41 @@ html.intro-pending body {
 }
 
 .intro-sound {
+  color: var(--intro-muted);
+  border-color: var(--intro-line-strong);
+  background: color-mix(in srgb, var(--intro-paper-light) 68%, transparent);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.intro-sound:hover {
+  color: var(--intro-ink);
+  border-color: var(--intro-ink);
+}
+
+.intro-sound[aria-pressed="true"] {
   color: var(--intro-accent);
   border-color: var(--intro-accent);
   background: color-mix(in srgb, var(--intro-accent) 10%, var(--intro-paper-light));
+}
+
+.intro-sound[aria-pressed="false"] .intro-sound-waves {
+  opacity: 0;
+  animation: none;
+}
+
+.intro-sound-mute {
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
+}
+
+.intro-sound[aria-pressed="true"] .intro-sound-mute {
+  opacity: 0;
+}
+
+.intro-sound:focus-visible {
+  outline: 2px dashed var(--intro-accent);
+  outline-offset: 3px;
 }
 
 .intro-sound-waves {
@@ -194,6 +226,10 @@ html.intro-pending body {
 .intro-overlay.has-audio .intro-sound {
   border-style: dashed;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--intro-accent) 12%, transparent);
+}
+
+.intro-sound[aria-pressed="false"] {
+  box-shadow: none;
 }
 
 .intro-overlay.has-audio .intro-sound-waves {

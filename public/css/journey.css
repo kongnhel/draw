@@ -756,3 +756,103 @@
     transform: rotate(var(--journey-tilt));
   }
 }
+
+/* Compact two-column journey on phones. */
+@media (max-width: 560px) {
+  .hs-journey-track {
+    column-gap: 16px;
+  }
+
+  .hs-journey-card {
+    padding: 7px 7px 0;
+  }
+
+  .hs-journey-copy {
+    gap: 4px;
+    padding: 9px 2px 12px;
+  }
+
+  .hs-journey-copy h3 {
+    font-size: 0.92rem;
+    line-height: 1.18;
+  }
+
+  .hs-journey-category {
+    font-size: 0.48rem;
+    letter-spacing: 0.08em;
+  }
+
+  .hs-journey-artist {
+    gap: 4px;
+    font-size: 0.6rem;
+  }
+
+  .hs-journey-artist img {
+    width: 17px;
+    height: 17px;
+  }
+
+  .hs-journey-index {
+    top: 12px;
+    left: 12px;
+    width: 24px;
+    height: 24px;
+    font-size: 0.52rem;
+  }
+
+  .hs-journey-tape {
+    top: -7px;
+    width: 56px;
+    height: 15px;
+  }
+
+  .hs-journey-open,
+  .hs-journey-tip {
+    display: none;
+  }
+
+  .studio-explore-masonry.sketch-journey {
+    column-gap: 16px;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card {
+    padding: 7px 7px 0;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-copy {
+    gap: 4px;
+    padding: 9px 2px 12px;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card h3 {
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-meta {
+    font-size: 0.5rem;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-artist {
+    font-size: 0.6rem;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-artist img {
+    width: 17px;
+    height: 17px;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-metrics {
+    display: none;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-tape {
+    top: -7px;
+    width: 50px;
+    height: 14px;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-open {
+    display: none;
+  }
+}

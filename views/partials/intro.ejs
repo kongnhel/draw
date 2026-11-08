@@ -3,13 +3,14 @@
   <div class="intro-grain" aria-hidden="true"></div>
 
   <div class="intro-topbar">
-    <span class="intro-sound" data-intro-sound-status aria-hidden="true">
-      <svg viewBox="0 0 24 24">
+    <button type="button" class="intro-sound" data-intro-sound-toggle aria-pressed="false" aria-label="Enable intro sound" title="Enable intro sound">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 10v4h4l5 4V6l-5 4H4Z" />
         <path class="intro-sound-waves" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12" />
+        <path class="intro-sound-mute" d="m16.5 9.5 5 5m0-5-5 5" />
       </svg>
-      <span data-intro-sound-label>Tap for sound</span>
-    </span>
+      <span data-intro-sound-label>Sound off</span>
+    </button>
 
     <button type="button" class="intro-skip" data-intro-skip>
       <span>Skip intro</span>

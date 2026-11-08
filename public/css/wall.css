@@ -452,6 +452,63 @@
   }
 }
 
+@media (max-width: 759px) {
+  .hs-wall-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .wall-card {
+    padding: 7px 7px 0;
+  }
+
+  .wall-card-caption {
+    gap: 4px;
+    padding: 9px 2px 12px;
+  }
+
+  .wall-card h3 {
+    font-size: 0.92rem;
+    line-height: 1.18;
+  }
+
+  .wall-card-meta {
+    gap: 4px;
+    font-size: 0.5rem;
+  }
+
+  .wall-card-artist {
+    font-size: 0.6rem;
+  }
+
+  .wall-card-artist img {
+    width: 17px;
+    height: 17px;
+  }
+
+  .wall-card--feature .wall-card-description,
+  .wall-card--wide .wall-card-description {
+    display: none;
+  }
+
+  .wall-card-actions {
+    display: none;
+  }
+
+  .wall-card-tape {
+    top: -7px;
+    width: 56px;
+    height: 15px;
+  }
+
+  .wall-card-pin-badge {
+    top: 8px;
+    left: 8px;
+    padding: 3px 6px;
+    font-size: 0.5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wall-card,
   .wall-card-image img,

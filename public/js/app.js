@@ -835,9 +835,9 @@ const bindFlipbook = () => {
   const playBookCue = (kind) => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    let soundPref = 'on';
-    try { soundPref = localStorage.getItem('artspace-art-sound') || 'on'; } catch { /* private mode */ }
-    if (soundPref === 'off') return;
+    let soundPref = 'off';
+    try { soundPref = localStorage.getItem('artspace-art-sound') || 'off'; } catch { /* private mode */ }
+    if (soundPref !== 'on') return;
 
     try {
       let cue = bookSoundCues.get(kind);
@@ -1115,7 +1115,7 @@ const bindArtViewer = () => {
   let parallaxFrame = 0;
   let frameResizeObserver = null;
   let loadSequence = 0;
-  let soundEnabled = localStorage.getItem('artspace-art-sound') !== 'off';
+  let soundEnabled = localStorage.getItem('artspace-art-sound') === 'on';
   let visualEffectsEnabled = localStorage.getItem('artspace-art-effects') !== 'off';
   let audioContext = null;
   let isZoomed = false;
@@ -3254,7 +3254,12 @@ const initExplorePage = () => {
     pageController.abort();
     if (exploreRequest) exploreRequest.abort();
   });
-  const journey = createSketchJourney(explorePage);
+  const journey = createSketchJourney(explorePage, {
+    getColumns: (container, scope) => {
+      const width = container?.clientWidth || scope.clientWidth || window.innerWidth;
+      return width >= 1040 ? 3 : 2;
+    }
+  });
   registerPageCleanup(() => journey.destroy());
 
   const exploreForm = explorePage.querySelector('[data-explore-form]');
@@ -3576,7 +3581,11 @@ const initHomePage = () => {
 
   const journey = createSketchJourney(homePage, {
     containerSelector: '[data-home-journey]',
-    cardSelector: '[data-journey-card]'
+    cardSelector: '[data-journey-card]',
+    getColumns: (container, scope) => {
+      const width = container?.clientWidth || scope.clientWidth || window.innerWidth;
+      return width >= 1080 ? 3 : 2;
+    }
   });
   registerPageCleanup(() => journey.destroy());
   journey.sync();

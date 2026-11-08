@@ -2,6 +2,7 @@
   'use strict';
 
   const READY_KEY = 'artspace-intro-seen-v1';
+  const SOUND_KEY = 'artspace-intro-sound';
   const DURATION = 3800;
   const ENTRY = 600;
   const GESTURES = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
@@ -35,6 +36,7 @@
   const progressFill = overlay.querySelector('[data-intro-progress]');
   const particles = overlay.querySelector('[data-intro-particles]');
   const soundLabel = overlay.querySelector('[data-intro-sound-label]');
+  const soundButton = overlay.querySelector('[data-intro-sound-toggle]');
   const skipButton = overlay.querySelector('[data-intro-skip]');
   const enterButton = overlay.querySelector('[data-intro-enter]');
   const replayButton = document.querySelector('[data-intro-replay]');
@@ -64,6 +66,7 @@
   let scratchTimer = null;
   let audioCloseTimer = null;
   let audioBound = false;
+  let soundEnabled = readSoundPref();
 
   const trackLength = track.getTotalLength();
   const startPoint = track.getPointAtLength(0);
@@ -83,6 +86,33 @@
     } catch (error) {
       /* private browsing */
     }
+  }
+
+  function readSoundPref() {
+    try {
+      return window.localStorage.getItem(SOUND_KEY) === 'on';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function storeSoundPref() {
+    try {
+      window.localStorage.setItem(SOUND_KEY, soundEnabled ? 'on' : 'off');
+    } catch (error) {
+      /* private browsing */
+    }
+  }
+
+  function updateSoundButton() {
+    const on = soundEnabled;
+    if (soundButton) {
+      soundButton.setAttribute('aria-pressed', String(on));
+      soundButton.setAttribute('aria-label', on ? 'Mute intro sound' : 'Enable intro sound');
+      soundButton.title = on ? 'Mute intro sound' : 'Enable intro sound';
+    }
+    overlay.classList.toggle('has-audio', on && !reduceQuery.matches && active && !completed && !leaving);
+    if (soundLabel) soundLabel.textContent = on ? 'Sound on' : 'Sound off';
   }
 
   function ensureAudio() {
@@ -112,7 +142,7 @@
   }
 
   function startRoomTone() {
-    if (!active || completed || leaving || reduceQuery.matches || roomSource) return;
+    if (!active || completed || leaving || reduceQuery.matches || !soundEnabled || roomSource) return;
     const ctx = ensureAudio();
     if (!ctx) return;
 
@@ -164,7 +194,7 @@
   }
 
   function startScratch() {
-    if (!active || completed || leaving || reduceQuery.matches) return;
+    if (!active || completed || leaving || reduceQuery.matches || !soundEnabled) return;
     if (scratchSource) return;
 
     const ctx = ensureAudio();
@@ -336,11 +366,10 @@
   }
 
   function activateAudio() {
-    if (!active || completed || leaving) return;
+    if (!active || completed || leaving || !soundEnabled || reduceQuery.matches) return;
     const ctx = ensureAudio();
     if (!ctx || ctx.state !== 'running') return;
-    overlay.classList.add('has-audio');
-    if (soundLabel) soundLabel.textContent = 'Sound on';
+    updateSoundButton();
     playEntryTap();
     startRoomTone();
     startScratch();
@@ -348,6 +377,7 @@
   }
 
   function unlockAudio() {
+    if (!soundEnabled) return;
     const ctx = ensureAudio();
     if (!ctx) return;
     if (ctx.state === 'running') {
@@ -360,6 +390,7 @@
   }
 
   function tryAudioNow() {
+    if (!soundEnabled) return;
     const ctx = ensureAudio();
     if (!ctx) return;
     if (ctx.state === 'running') {
@@ -372,7 +403,7 @@
   }
 
   function bindAudioUnlock() {
-    if (audioBound) return;
+    if (!soundEnabled || audioBound) return;
     audioBound = true;
     GESTURES.forEach((type) => {
       window.addEventListener(type, unlockAudio, { capture: true, passive: true });
@@ -593,7 +624,7 @@
     setBackgroundInert(true);
     overlay.setAttribute('aria-hidden', 'false');
     overlay.classList.remove('is-complete', 'is-leaving', 'is-drawing', 'has-audio');
-    if (soundLabel) soundLabel.textContent = 'Tap for sound';
+    updateSoundButton();
 
     if (isReplay) {
       root.classList.add('intro-pending');
@@ -613,8 +644,10 @@
     setPencilAt(startPoint.x + 46, startPoint.y + 132, pencilAngle(0));
     pencil.style.opacity = '0';
     overlay.classList.add('is-drawing');
-    bindAudioUnlock();
-    tryAudioNow();
+    if (soundEnabled) {
+      bindAudioUnlock();
+      tryAudioNow();
+    }
 
     skipButton?.focus({ preventScroll: true });
 
@@ -645,6 +678,23 @@
     }
     beginIntro(true);
   }
+
+  const onIntroSoundToggle = () => {
+    soundEnabled = !soundEnabled;
+    storeSoundPref();
+    if (soundEnabled) {
+      updateSoundButton();
+      if (active && !completed && !leaving) tryAudioNow();
+    } else {
+      stopScratch();
+      stopRoomTone();
+      unbindAudioUnlock();
+      overlay.classList.remove('has-audio');
+      updateSoundButton();
+      closeAudioSoon(300);
+    }
+  };
+  soundButton?.addEventListener('click', onIntroSoundToggle);
 
   skipButton?.addEventListener('click', () => finishIntro('skip'));
   enterButton?.addEventListener('click', () => finishIntro('enter'));

@@ -1,7 +1,7 @@
 /* ==========================================================================
    Sketchbook Interactions — Artwork Magnifier + Global Click Sounds
    Magnifier: exact source-region zoom at 2x (1.5x-3x via data-magnifier-zoom).
-   Sounds: Web Audio synthesized cues, on by default unless muted, toggled anywhere via
+   Sounds: Web Audio synthesized cues, off by default until enabled, toggled anywhere via
    [data-sound-toggle] (footer) and the viewer toolbar [data-viewer-sound].
    Shared preference key with the viewer: "artspace-art-sound".
    ========================================================================== */
@@ -10,7 +10,7 @@
 
   const SOUND_PREF_KEY = 'artspace-art-sound';
   const isSoundOn = () => {
-    try { return localStorage.getItem(SOUND_PREF_KEY) !== 'off'; } catch { return true; }
+    try { return localStorage.getItem(SOUND_PREF_KEY) === 'on'; } catch { return false; }
   };
   const setSoundPref = (on) => {
     try { localStorage.setItem(SOUND_PREF_KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
