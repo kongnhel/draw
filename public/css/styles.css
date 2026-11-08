@@ -16725,30 +16725,6 @@ body.home-body .home-main {
   margin: 0 0 clamp(70px, 8vw, 104px);
 }
 
-.hs-wall-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-  gap: clamp(20px, 2.4vw, 32px);
-}
-
-.hs-wall-grid .art-card {
-  border-radius: 3px 12px 4px 10px;
-  transform: rotate(-0.5deg);
-}
-
-.hs-wall-grid .art-card:nth-child(3n + 2) {
-  transform: rotate(0.7deg);
-}
-
-.hs-wall-grid .art-card:nth-child(3n + 3) {
-  transform: rotate(-0.9deg);
-}
-
-.hs-wall-grid .art-card:hover {
-  transform: rotate(0) translateY(-5px);
-}
-
 .hs-empty {
   margin: 0;
   padding: 34px 0;

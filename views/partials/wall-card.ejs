@@ -1,0 +1,60 @@
+<%
+  const isWide = typeof wide !== 'undefined' && wide;
+  const wallOwned = typeof currentUser !== 'undefined' && currentUser && artwork.username === currentUser.username;
+  const wallPinned = typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(artwork.id));
+  const wallSrc = imageTools.cardSrc(artwork, feature || isWide ? 900 : 480);
+  const wallSrcset = imageTools.cardSrcset(artwork, feature || isWide ? [480, 720, 900, 1200] : [320, 480, 640, 800]);
+  const wallDescription = String(artwork.description || '').trim();
+%>
+<article class="wall-card<%= feature ? ' wall-card--feature' : '' %><%= isWide ? ' wall-card--wide' : '' %>" data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>">
+  <span class="wall-card-tape" aria-hidden="true"></span>
+
+  <div class="wall-card-media">
+    <a class="wall-card-image" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
+      <img src="<%= wallSrc %>"<% if (wallSrcset) { %> srcset="<%= wallSrcset %>" sizes="<%= feature ? '(max-width: 760px) 92vw, (max-width: 1080px) 88vw, 560px' : (isWide ? '(max-width: 760px) 88vw, (max-width: 1080px) 88vw, 780px' : '(max-width: 760px) 88vw, (max-width: 1080px) 44vw, 280px') %>"<% } %> width="640" height="800" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %> by <%= artwork.display_name || artwork.username %>" loading="lazy" decoding="async" />
+    </a>
+
+    <% if (wallPinned && !wallOwned) { %>
+      <span class="wall-card-pin-badge">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+        Pinned
+      </span>
+    <% } %>
+
+    <div class="wall-card-actions">
+      <form method="POST" action="/art/<%= artwork.id %>/like">
+        <button type="submit" class="wall-action wall-action-like<%= artwork.is_liked ? ' active' : '' %>" aria-label="<%= artwork.is_liked ? 'Unlike' : 'Like' %> this artwork" aria-pressed="<%= artwork.is_liked ? 'true' : 'false' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.8a5.4 5.4 0 0 0-7.7 0L12 7l-1.1-1.2a5.4 5.4 0 1 0-7.7 7.7L12 22l8.8-8.5a5.4 5.4 0 0 0 0-7.7Z" /></svg>
+          <span class="sr-only" data-action-label><%= artwork.is_liked ? 'Unlike' : 'Like' %></span><span data-wall-like-count><%= artwork.likes_count || 0 %></span>
+        </button>
+      </form>
+      <form method="POST" action="/art/<%= artwork.id %>/bookmark">
+        <button type="submit" class="wall-action wall-action-save<%= artwork.is_bookmarked ? ' active' : '' %>" aria-label="<%= artwork.is_bookmarked ? 'Remove from saved artworks' : 'Save artwork' %>" aria-pressed="<%= artwork.is_bookmarked ? 'true' : 'false' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5h12v16l-6-3.6-6 3.6v-16Z" /></svg>
+          <span class="sr-only" data-action-label><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></span>
+        </button>
+      </form>
+      <% if (wallOwned) { %>
+        <button type="button" class="wall-action wall-action-pin<%= wallPinned ? ' active' : '' %>" data-pin-toggle data-artwork-id="<%= artwork.id %>" data-pinned="<%= wallPinned ? 'true' : 'false' %>" aria-pressed="<%= wallPinned ? 'true' : 'false' %>" title="<%= wallPinned ? 'Unpin from homepage' : 'Pin to homepage' %>" aria-label="<%= wallPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+        </button>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="wall-card-caption">
+    <div class="wall-card-meta">
+      <span class="wall-card-index">No. <%= String(index + 1).padStart(2, '0') %></span>
+      <span class="wall-card-category"><%= artwork.category_name || 'Original artwork' %></span>
+      <time datetime="<%= artwork.created_at %>"><%= artwork.created_at_label || 'Fresh' %></time>
+    </div>
+    <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+    <% if ((feature || isWide) && wallDescription) { %>
+      <p class="wall-card-description"><%= wallDescription.slice(0, 150) %><% if (wallDescription.length > 150) { %>&hellip;<% } %></p>
+    <% } %>
+    <a class="wall-card-artist" href="/profile/<%= artwork.username %>">
+      <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" decoding="async" />
+      <span>by <%= artwork.display_name || artwork.username %></span>
+    </a>
+  </div>
+</article>

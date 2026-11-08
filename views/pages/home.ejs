@@ -296,13 +296,21 @@
         </div>
         <div class="hs-section-aside">
           <p>New lines, new ideas, and new pages from the community.</p>
+          <% if (latest.length) { %>
+            <span class="hs-book-count"><%= Math.min(latest.length, 6) %> new <%= Math.min(latest.length, 6) === 1 ? 'work' : 'works' %></span>
+          <% } %>
           <a href="/explore?sort=latest" class="hs-link">View all artwork <span aria-hidden="true">↗</span></a>
         </div>
       </div>
       <% if (latest.length) { %>
-        <div class="hs-wall-grid">
-          <% latest.slice(0, 9).forEach((artwork) => { %>
-            <%- include('../partials/art-card', { artwork }) %>
+        <%
+          const wallArtworks = latest.slice(0, 6);
+          const wallEditorial = wallArtworks.length >= 5;
+          const wallWide = wallArtworks.length === 6;
+        %>
+        <div class="hs-wall-grid<%= wallEditorial ? ' is-editorial' : '' %>">
+          <% wallArtworks.forEach((artwork, index) => { %>
+            <%- include('../partials/wall-card', { artwork, index, feature: wallEditorial && index === 0, wide: wallWide && index === wallArtworks.length - 1 }) %>
           <% }) %>
         </div>
       <% } else { %>

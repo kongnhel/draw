@@ -662,6 +662,7 @@ const CSS_BUNDLE_FILES = [
   'sketchbook.css',
   'pins.css',
   'journey.css',
+  'wall.css',
   'admin.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };

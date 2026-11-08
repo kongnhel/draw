@@ -2547,24 +2547,226 @@ const initUploadPage = () => {
   updateReadiness();
 };
 
+const createJourneySound = () => {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+
+  const STORAGE_KEY = 'artspace-journey-sound';
+  let context = null;
+  let noiseBuffer = null;
+  let scratchSource = null;
+  let scratchGain = null;
+  let scratchStopTimer = 0;
+  let lastTapAt = 0;
+  let enabled = false;
+  let destroyed = false;
+
+  try {
+    enabled = window.localStorage.getItem(STORAGE_KEY) === 'on';
+  } catch (error) {
+    enabled = false;
+  }
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'journey-sound';
+  button.setAttribute('aria-pressed', 'false');
+  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z" /><path class="journey-sound-waves" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12" /><path class="journey-sound-mute" d="m16.5 9.5 5 5m0-5-5 5" /></svg><span data-journey-sound-label>Sound off</span>';
+  document.body.appendChild(button);
+
+  const label = button.querySelector('[data-journey-sound-label]');
+
+  const updateButton = () => {
+    button.classList.toggle('is-on', enabled);
+    button.setAttribute('aria-pressed', String(enabled));
+    button.setAttribute('aria-label', enabled ? 'Disable pencil sound' : 'Enable pencil sound');
+    button.title = enabled ? 'Disable pencil sound' : 'Enable pencil sound';
+    if (label) label.textContent = enabled ? 'Sound on' : 'Sound off';
+  };
+
+  const ensureContext = () => {
+    if (destroyed) return null;
+    if (!context) {
+      try {
+        context = new AudioContextClass();
+        const length = Math.max(1, Math.floor(context.sampleRate * 1.2));
+        noiseBuffer = context.createBuffer(1, length, context.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+
+        scratchSource = context.createBufferSource();
+        scratchSource.buffer = noiseBuffer;
+        scratchSource.loop = true;
+
+        const highpass = context.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 450;
+
+        const bandpass = context.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.value = 1850;
+        bandpass.Q.value = 0.8;
+
+        scratchGain = context.createGain();
+        scratchGain.gain.value = 0;
+        scratchSource.connect(highpass).connect(bandpass).connect(scratchGain).connect(context.destination);
+        scratchSource.start();
+      } catch (error) {
+        context = null;
+        return null;
+      }
+    }
+    if (context.state === 'suspended') context.resume().catch(() => {});
+    return context;
+  };
+
+  const stopScratch = (immediate = false) => {
+    if (scratchStopTimer) {
+      window.clearTimeout(scratchStopTimer);
+      scratchStopTimer = 0;
+    }
+    if (!scratchGain || !context) return;
+    const now = context.currentTime;
+    scratchGain.gain.cancelScheduledValues(now);
+    scratchGain.gain.setTargetAtTime(0, now, immediate ? 0.03 : 0.12);
+  };
+
+  const startScratch = () => {
+    if (!enabled || destroyed || document.hidden) return;
+    const ctx = ensureContext();
+    if (!ctx || !scratchGain) return;
+    const now = ctx.currentTime;
+    scratchGain.gain.cancelScheduledValues(now);
+    scratchGain.gain.setTargetAtTime(0.16, now, 0.06);
+    if (scratchStopTimer) window.clearTimeout(scratchStopTimer);
+    scratchStopTimer = window.setTimeout(() => {
+      scratchStopTimer = 0;
+      stopScratch();
+    }, 180);
+  };
+
+  const tap = () => {
+    if (!enabled || destroyed || document.hidden) return;
+    const ctx = ensureContext();
+    if (!ctx || !noiseBuffer) return;
+    const nowMs = performance.now();
+    if (nowMs - lastTapAt < 120) return;
+    lastTapAt = nowMs;
+
+    const now = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1150;
+    filter.Q.value = 0.7;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    source.connect(filter).connect(gain).connect(ctx.destination);
+    source.start(now);
+    source.stop(now + 0.16);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(130, now);
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.0001, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+    osc.connect(oscGain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  };
+
+  const setVisible = (visible) => {
+    button.classList.toggle('is-visible', Boolean(visible) && !destroyed);
+    if (!visible) stopScratch(true);
+  };
+
+  const onButtonClick = () => {
+    enabled = !enabled;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, enabled ? 'on' : 'off');
+    } catch (error) {}
+    if (enabled) ensureContext();
+    else stopScratch(true);
+    updateButton();
+  };
+
+  const onVisibilityChange = () => {
+    if (document.hidden) stopScratch(true);
+  };
+
+  button.addEventListener('click', onButtonClick);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  if (enabled) {
+    const unlock = () => {
+      ensureContext();
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+    window.addEventListener('keydown', unlock, { once: true });
+  }
+
+  updateButton();
+
+  return {
+    setVisible,
+    startScratch,
+    stopScratch,
+    tap,
+    destroy() {
+      destroyed = true;
+      if (scratchStopTimer) window.clearTimeout(scratchStopTimer);
+      button.removeEventListener('click', onButtonClick);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      button.remove();
+      try { scratchSource?.stop(); } catch (error) {}
+      try { context?.close(); } catch (error) {}
+      context = null;
+    }
+  };
+};
+
 const createSketchJourney = (scope, options = {}) => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const containerSelector = options.containerSelector || '[data-explore-masonry]';
   const cardSelector = options.cardSelector || '[data-explore-card]';
+  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const clamp01 = (value) => Math.max(0, Math.min(1, value));
+
   let container = null;
   let svg = null;
   let cards = [];
+  let segments = [];
+  let revealedIds = new Set();
   let resizeObserver = null;
   let mutationObserver = null;
   let intersectionObserver = null;
+  let reducedMotionListener = null;
   let listeners = null;
   let frame = 0;
+  let updateFrame = 0;
+  let fallbackTimer = 0;
   let signature = '';
   let hoveredIndex = -1;
   let destroyed = false;
   let currentColumns = 3;
+  let reducedMotion = reducedMotionQuery.matches;
+  let sound = null;
+  let inView = false;
+  let journeyTop = 0;
+  let journeyBottom = 0;
+  let lastProgress = -1;
+  let hasUpdated = false;
 
   const getCards = () => (container ? Array.from(container.querySelectorAll(cardSelector)) : []);
+  const cardId = (card, index) => String(card.dataset.artworkId || index);
 
   const getColumns = () => {
     if (typeof options.getColumns === 'function') {
@@ -2611,21 +2813,145 @@ const createSketchJourney = (scope, options = {}) => {
     path.dataset.from = String(index);
     path.dataset.to = String(index + 1);
     path.style.setProperty('--journey-path-index', String(Math.min(index, 14)));
+    path.style.strokeDashoffset = '1';
     fragment.appendChild(path);
+    return path;
+  };
+
+  const prepareCards = () => {
+    cards.forEach((card, index) => {
+      const id = cardId(card, index);
+      if (index === 0) revealedIds.add(id);
+      const revealed = reducedMotion || index === 0 || revealedIds.has(id);
+      card.classList.toggle('journey-card-pending', !revealed);
+      card.classList.toggle('journey-card-revealed', revealed);
+    });
+  };
+
+  const revealCard = (card, index, playSound) => {
+    const id = cardId(card, index);
+    if (revealedIds.has(id)) return false;
+    revealedIds.add(id);
+    card.classList.remove('journey-card-pending');
+    card.classList.add('journey-card-revealed');
+    if (playSound) sound?.tap();
+    return true;
+  };
+
+  const revealAll = () => {
+    cards.forEach((card, index) => {
+      revealedIds.add(cardId(card, index));
+      card.classList.remove('journey-card-pending');
+      card.classList.add('journey-card-revealed');
+    });
+    segments.forEach((segment) => {
+      segment.main.style.strokeDashoffset = '0';
+      segment.ghost.style.strokeDashoffset = '0';
+    });
+  };
+
+  const updateProgress = () => {
+    updateFrame = 0;
+    try {
+    if (destroyed || !container) return;
+
+    if (reducedMotion) {
+      revealAll();
+      sound?.setVisible(false);
+      hasUpdated = true;
+      return;
+    }
+
+    if (!cards.length) {
+      sound?.setVisible(false);
+      return;
+    }
+
+    if (cards.length < 2) {
+      revealAll();
+      sound?.setVisible(false);
+      return;
+    }
+
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+    const span = journeyBottom - journeyTop;
+    const progress = clamp01(span > 0 ? (scrollY + viewportHeight * 0.55 - journeyTop) / span : 1);
+    const increased = hasUpdated && progress > lastProgress + 0.0005;
+    let drawing = false;
+
+    segments.forEach((segment) => {
+      let local = segment.end > segment.start ? (progress - segment.start) / (segment.end - segment.start) : 1;
+      local = clamp01(local);
+      if (progress >= segment.start && progress < segment.end) local = Math.max(local, 0.035);
+      if (local > 0.001 && local < 0.999) drawing = true;
+      segment.main.style.strokeDashoffset = String(1 - local);
+      segment.ghost.style.strokeDashoffset = String(1 - Math.max(0, local - 0.045));
+    });
+
+    cards.forEach((card, index) => {
+      if (index === 0) return;
+      const segment = segments[index - 1];
+      if (!segment) return;
+      if (progress >= segment.end - 0.001 || progress >= 0.999) {
+        revealCard(card, index, increased);
+      }
+    });
+
+    if (progress >= 0.999) {
+      cards.forEach((card, index) => {
+        if (index > 0) revealCard(card, index, false);
+      });
+      sound?.stopScratch();
+    } else if (increased && drawing) {
+      sound?.startScratch();
+    } else {
+      sound?.stopScratch();
+    }
+
+    sound?.setVisible(inView && !document.hidden);
+    lastProgress = progress;
+    hasUpdated = true;
+
+    if (fallbackTimer) {
+      window.clearTimeout(fallbackTimer);
+      fallbackTimer = 0;
+    }
+    } catch (error) {
+      revealAll();
+      sound?.setVisible(false);
+    }
+  };
+
+  const scheduleUpdate = () => {
+    if (destroyed || updateFrame) return;
+    updateFrame = window.requestAnimationFrame(updateProgress);
+  };
+
+  const scheduleDraw = () => {
+    if (destroyed || frame) return;
+    frame = window.requestAnimationFrame(draw);
   };
 
   const draw = () => {
     frame = 0;
+    try {
     if (destroyed || !container || !svg) return;
 
     cards = getCards();
     if (!cards.length) {
       svg.replaceChildren();
+      segments = [];
       signature = '';
+      sound?.setVisible(false);
       return;
     }
 
+    if (!reducedMotion && !sound && cards.length > 1) sound = createJourneySound();
+
     applyLayout();
+    container.classList.add('journey-measuring');
+    cards.forEach((card) => card.classList.remove('journey-card-pending', 'journey-card-revealed'));
 
     const containerRect = container.getBoundingClientRect();
     const width = Math.max(1, Math.round(container.clientWidth));
@@ -2646,7 +2972,12 @@ const createSketchJourney = (scope, options = {}) => {
     const nextSignature = `${width}x${height}|${currentColumns}|${points
       .map((point) => `${Math.round(point.left)},${Math.round(point.top)},${Math.round(point.width)},${Math.round(point.height)}`)
       .join(';')}`;
-    if (nextSignature === signature) return;
+    if (nextSignature === signature) {
+      prepareCards();
+      window.requestAnimationFrame(() => container?.classList.remove('journey-measuring'));
+      scheduleUpdate();
+      return;
+    }
     signature = nextSignature;
 
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -2654,6 +2985,7 @@ const createSketchJourney = (scope, options = {}) => {
     svg.setAttribute('height', String(height));
 
     const fragment = document.createDocumentFragment();
+    const connections = [];
     for (let index = 0; index < points.length - 1; index += 1) {
       const from = points[index];
       const to = points[index + 1];
@@ -2690,12 +3022,50 @@ const createSketchJourney = (scope, options = {}) => {
         ghostD = `M ${(startX + 1.5).toFixed(1)} ${(startY + 1).toFixed(1)} C ${(c1x + 2).toFixed(1)} ${(c1y + 2).toFixed(1)}, ${(c2x - 2).toFixed(1)} ${(c2y - 2).toFixed(1)}, ${(endX - 1.5).toFixed(1)} ${(endY + 1).toFixed(1)}`;
       }
 
-      appendPath(fragment, ghostD, index, true);
-      appendPath(fragment, d, index, false);
+      const ghostPath = appendPath(fragment, ghostD, index, true);
+      const mainPath = appendPath(fragment, d, index, false);
+      connections.push({ main: mainPath, ghost: ghostPath });
     }
 
     svg.replaceChildren(fragment);
+
+    const weights = connections.map(({ main }) => {
+      try {
+        return Math.max(1, main.getTotalLength());
+      } catch (error) {
+        return 1;
+      }
+    });
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+    let accumulated = 0;
+    segments = connections.map((connection, index) => {
+      const start = accumulated / totalWeight;
+      accumulated += weights[index];
+      return { ...connection, start, end: accumulated / totalWeight };
+    });
+
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const top = Math.min(...points.map((point) => point.top));
+    const bottom = Math.max(...points.map((point) => point.bottom));
+    journeyTop = containerRect.top + scrollY + top;
+    journeyBottom = containerRect.top + scrollY + bottom;
+
     hoveredIndex = -1;
+    prepareCards();
+    hasUpdated = false;
+    lastProgress = -1;
+    window.requestAnimationFrame(() => container?.classList.remove('journey-measuring'));
+    scheduleUpdate();
+
+    if (fallbackTimer) window.clearTimeout(fallbackTimer);
+    fallbackTimer = window.setTimeout(() => {
+      fallbackTimer = 0;
+      if (!hasUpdated) revealAll();
+    }, 2500);
+    } catch (error) {
+      revealAll();
+      container?.classList.remove("journey-measuring");
+    }
   };
 
   const setHover = (index) => {
@@ -2708,19 +3078,29 @@ const createSketchJourney = (scope, options = {}) => {
     });
   };
 
-  const schedule = () => {
-    if (destroyed || frame) return;
-    frame = window.requestAnimationFrame(draw);
-  };
-
   const teardown = () => {
     if (frame) {
       window.cancelAnimationFrame(frame);
       frame = 0;
     }
+    if (updateFrame) {
+      window.cancelAnimationFrame(updateFrame);
+      updateFrame = 0;
+    }
+    if (fallbackTimer) {
+      window.clearTimeout(fallbackTimer);
+      fallbackTimer = 0;
+    }
+    revealAll();
+    sound?.destroy();
+    sound = null;
     resizeObserver?.disconnect();
     mutationObserver?.disconnect();
     intersectionObserver?.disconnect();
+    if (reducedMotionListener) {
+      reducedMotionQuery.removeEventListener?.('change', reducedMotionListener);
+      reducedMotionListener = null;
+    }
     listeners?.abort();
     resizeObserver = null;
     mutationObserver = null;
@@ -2728,7 +3108,7 @@ const createSketchJourney = (scope, options = {}) => {
     listeners = null;
 
     if (container) {
-      container.classList.remove('sketch-journey', 'is-visible');
+      container.classList.remove('sketch-journey', 'is-visible', 'journey-measuring');
       container.removeAttribute('data-journey-cols');
       container.removeAttribute('data-journey-narrow');
       container.querySelector('.sketch-journey-lines')?.remove();
@@ -2737,8 +3117,15 @@ const createSketchJourney = (scope, options = {}) => {
     container = null;
     svg = null;
     cards = [];
+    segments = [];
+    revealedIds = new Set();
     signature = '';
     hoveredIndex = -1;
+    inView = false;
+    journeyTop = 0;
+    journeyBottom = 0;
+    lastProgress = -1;
+    hasUpdated = false;
   };
 
   const bindHover = (signal) => {
@@ -2772,33 +3159,62 @@ const createSketchJourney = (scope, options = {}) => {
 
     cards = getCards();
     listeners = new AbortController();
-    container.addEventListener('load', schedule, { capture: true, signal: listeners.signal });
-    window.addEventListener('resize', schedule, { passive: true, signal: listeners.signal });
+    container.addEventListener('load', scheduleDraw, { capture: true, signal: listeners.signal });
+    window.addEventListener('resize', scheduleDraw, { passive: true, signal: listeners.signal });
+    window.addEventListener('scroll', scheduleUpdate, { passive: true, signal: listeners.signal });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        sound?.stopScratch();
+        sound?.setVisible(false);
+      } else {
+        scheduleUpdate();
+      }
+    }, { signal: listeners.signal });
+
+    if (!reducedMotion && cards.length > 1) sound = createJourneySound();
 
     if ('ResizeObserver' in window) {
-      resizeObserver = new ResizeObserver(schedule);
+      resizeObserver = new ResizeObserver(scheduleDraw);
       resizeObserver.observe(container);
       cards.forEach((card) => resizeObserver.observe(card));
     }
 
     if ('MutationObserver' in window) {
-      mutationObserver = new MutationObserver(schedule);
+      mutationObserver = new MutationObserver(scheduleDraw);
       mutationObserver.observe(container, { childList: true });
     }
 
     if ('IntersectionObserver' in window) {
       intersectionObserver = new IntersectionObserver((entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        container?.classList.add('is-visible');
-        intersectionObserver?.disconnect();
-        intersectionObserver = null;
+        const entry = entries[0];
+        inView = Boolean(entry && entry.isIntersecting);
+        if (inView) container?.classList.add('is-visible');
+        sound?.setVisible(inView);
+        scheduleUpdate();
       }, { threshold: 0.04, rootMargin: '0px 0px -8% 0px' });
       intersectionObserver.observe(container);
     } else {
+      inView = true;
       container.classList.add('is-visible');
+      sound?.setVisible(true);
     }
 
+    reducedMotionListener = (event) => {
+      reducedMotion = event.matches;
+      if (reducedMotion) {
+        revealAll();
+        sound?.destroy();
+        sound = null;
+        container?.classList.add('is-visible');
+      } else {
+        if (!sound) sound = createJourneySound();
+        scheduleDraw();
+      }
+    };
+    reducedMotionQuery.addEventListener?.('change', reducedMotionListener);
+
     bindHover(listeners.signal);
+    scheduleDraw();
   };
 
   const sync = () => {
@@ -2816,9 +3232,8 @@ const createSketchJourney = (scope, options = {}) => {
     } else {
       cards = getCards();
       if (resizeObserver) cards.forEach((card) => resizeObserver.observe(card));
+      scheduleDraw();
     }
-
-    schedule();
   };
 
   const destroy = () => {
@@ -2826,7 +3241,7 @@ const createSketchJourney = (scope, options = {}) => {
     teardown();
   };
 
-  return { sync, refresh: schedule, destroy };
+  return { sync, refresh: scheduleDraw, destroy };
 };
 
 const initExplorePage = () => {
@@ -3216,7 +3631,7 @@ const syncPinButtons = (artworkId, pinned) => {
         ? 'Pinned'
         : (button.hasAttribute('data-pin-label-long') ? 'Pin to homepage' : 'Pin');
     }
-    if (button.classList.contains('ad-tool-pin') || button.classList.contains('ad-showcase-pin') || button.classList.contains('hs-hero-pin')) {
+    if (button.classList.contains('ad-tool-pin') || button.classList.contains('ad-showcase-pin') || button.classList.contains('hs-hero-pin') || button.classList.contains('wall-action-pin')) {
       button.title = pinned ? 'Unpin from homepage' : 'Pin to homepage';
       button.setAttribute('aria-label', pinned ? 'Unpin from the homepage' : 'Pin to the homepage');
     }
@@ -3336,6 +3751,36 @@ const handlePinClick = async (event) => {
 };
 
 document.addEventListener('click', handlePinClick);
+
+document.addEventListener('artwork:like-changed', (event) => {
+  const id = String(event.detail.id);
+  document.querySelectorAll('.wall-card').forEach((card) => {
+    if (String(card.dataset.artworkId) !== id) return;
+    const button = card.querySelector('.wall-action-like');
+    const count = card.querySelector('[data-wall-like-count]');
+    if (count) count.textContent = String(event.detail.likes);
+    if (!button) return;
+    button.classList.toggle('active', Boolean(event.detail.liked));
+    button.setAttribute('aria-pressed', String(Boolean(event.detail.liked)));
+    button.setAttribute('aria-label', event.detail.liked ? 'Unlike this artwork' : 'Like this artwork');
+    const label = button.querySelector('[data-action-label]');
+    if (label) label.textContent = event.detail.liked ? 'Unlike' : 'Like';
+  });
+});
+
+document.addEventListener('artwork:bookmark-changed', (event) => {
+  const id = String(event.detail.id);
+  document.querySelectorAll('.wall-card').forEach((card) => {
+    if (String(card.dataset.artworkId) !== id) return;
+    const button = card.querySelector('.wall-action-save');
+    if (!button) return;
+    button.classList.toggle('active', Boolean(event.detail.saved));
+    button.setAttribute('aria-pressed', String(Boolean(event.detail.saved)));
+    button.setAttribute('aria-label', event.detail.saved ? 'Remove from saved artworks' : 'Save artwork');
+    const label = button.querySelector('[data-action-label]');
+    if (label) label.textContent = event.detail.saved ? 'Saved' : 'Save';
+  });
+});
 
 const initPage = () => {
   bindQuickActions();
