@@ -114,7 +114,6 @@
       </div>
       <nav class="studio-explore-sort" aria-label="Sort artwork">
         <a href="/explore?category=<%= encodeURIComponent(filter) %>&amp;sort=latest<% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="<%= sort === 'latest' ? 'is-active' : '' %>" data-explore-link data-explore-sort="latest" <%= sort === 'latest' ? 'aria-current="page"' : '' %>>Latest</a>
-        <a href="/explore?category=<%= encodeURIComponent(filter) %>&amp;sort=views<% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="<%= sort === 'views' ? 'is-active' : '' %>" data-explore-link data-explore-sort="views" <%= sort === 'views' ? 'aria-current="page"' : '' %>>Most viewed</a>
         <a href="/explore?category=<%= encodeURIComponent(filter) %>&amp;sort=popular<% if (query) { %>&amp;q=<%= encodeURIComponent(query) %><% } %>" class="<%= sort === 'popular' ? 'is-active' : '' %>" data-explore-link data-explore-sort="popular" <%= sort === 'popular' ? 'aria-current="page"' : '' %>>Most liked</a>
       </nav>
     </div>

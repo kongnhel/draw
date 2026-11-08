@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,6 +8,7 @@
     <title><%= pageTitle || 'ArtSpace' %></title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a312b'/%3E%3Cpath d='M9 23l2-6 9-9 4 4-9 9-6 2Z' fill='none' stroke='%23f7f1e6' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E" />
     <meta name="description" content="ArtSpace is a premium art and drawing social platform for artists and art lovers." />
+    <meta name="theme-color" content="#171717" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <% if (typeof imagekitOrigin !== 'undefined' && imagekitOrigin) { %>
@@ -32,7 +33,10 @@
         try {
           var root = document.documentElement;
           var theme = localStorage.getItem('artspace-sketchbook-theme');
-          if (theme === 'dark' || theme === 'light') root.setAttribute('data-theme', theme);
+          var activeTheme = theme === 'light' ? 'light' : 'dark';
+          root.setAttribute('data-theme', activeTheme);
+          var themeColor = document.querySelector('meta[name="theme-color"]');
+          if (themeColor) themeColor.setAttribute('content', activeTheme === 'light' ? '#f8f5ed' : '#171717');
 
           var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
           var memory = Number(navigator.deviceMemory) || 8;
@@ -65,7 +69,8 @@
     const bgSceneValue = String(bgSceneSource || '').trim().toLowerCase();
     const bodyTitle = typeof pageTitle === 'string' ? pageTitle : '';
   %>
-  <body data-theme="light" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Login') || bodyTitle.includes('Register') ? 'auth-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %> <%= bodyTitle.includes('Edit artwork') ? 'edit-body' : '' %>">
+  <body data-theme="dark" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Login') || bodyTitle.includes('Register') ? 'auth-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Admin') ? 'admin-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %> <%= bodyTitle.includes('Edit artwork') ? 'edit-body' : '' %>">
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <%- include('./intro') %>
     <div class="bg-falling" aria-hidden="true">
       <canvas class="bg-falling-canvas" data-bg-falling data-scene="<%= bgSceneValue %>"></canvas>
@@ -254,4 +259,4 @@
         </div>
       <% } %>
 
-      <main class="container main-content <%= pageTitle === 'ArtSpace | Discover original artwork' ? 'home-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Explore') ? 'explore-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.includes('Edit artwork') ? 'edit-main' : '' %>">
+      <main id="main-content" class="container main-content <%= pageTitle === 'ArtSpace | Discover original artwork' ? 'home-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.startsWith('Explore') ? 'explore-main' : '' %> <%= typeof pageTitle === 'string' && pageTitle.includes('Edit artwork') ? 'edit-main' : '' %>">

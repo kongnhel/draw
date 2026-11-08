@@ -1,112 +1,275 @@
 <%- include('../partials/header') %>
 
-<div class="page-header">
-  <div>
-    <h1>Admin dashboard</h1>
-    <div class="page-subtitle">Moderate users, review artwork, and manage the community.</div>
-  </div>
-</div>
+<%
+  const noticeMessages = {
+    'artwork-hidden': 'Artwork hidden from the public sketchbook. Its open reports were resolved.',
+    'artwork-restored': 'Artwork restored to the public sketchbook.',
+    'artwork-deleted': 'Artwork permanently deleted.',
+    'user-suspended': 'Artist account suspended.',
+    'user-active': 'Artist account reactivated.',
+    'report-resolved': 'Report resolved.',
+    'report-dismissed': 'Report dismissed.',
+    'user-protected': 'That account is protected and cannot be changed here.',
+    missing: 'That record could not be found. It may already have been updated.'
+  };
+  const currentTab = typeof activeTab === 'string' ? activeTab : 'overview';
+%>
 
-<div class="grid-3" style="margin-bottom: 26px;">
-  <div class="admin-card">
-    <h3>Total users</h3>
-    <div style="font-size: 2rem; font-weight: 700;"><%= users.length %></div>
-  </div>
-  <div class="admin-card">
-    <h3>Recent artworks</h3>
-    <div style="font-size: 2rem; font-weight: 700;"><%= artworks.length %></div>
-  </div>
-  <div class="admin-card">
-    <h3>Reports</h3>
-    <div style="font-size: 2rem; font-weight: 700;"><%= reports.length %></div>
-  </div>
-</div>
+<div class="admin-studio" data-admin-studio>
 
-<div class="dashboard-card" style="margin-bottom: 24px;">
-  <h3>Users</h3>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Joined</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% users.forEach((user) => { %>
-          <tr>
-            <td><%= user.display_name %></td>
-            <td><%= user.email %></td>
-            <td><span class="pill"><%= user.role %></span></td>
-            <td><%= new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-</div>
+  <section class="admin-hero" aria-labelledby="admin-title">
+    <div>
+      <span class="admin-kicker">ArtSpace / studio control room</span>
+      <h1 id="admin-title">Admin <em>studio.</em></h1>
+      <p>Moderate artwork, manage artists, and keep the community sketchbook healthy. Every action here changes what the community sees.</p>
+    </div>
+    <div class="admin-hero-stamp">
+      <span>Signed in as</span>
+      <strong><%= adminUser.display_name || adminUser.username %></strong>
+      <span>Studio admin</span>
+    </div>
+  </section>
 
-<div class="dashboard-card" style="margin-bottom: 24px;">
-  <h3>Reports</h3>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Artwork</th>
-          <th>Reporter</th>
-          <th>Reason</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
+  <% if (notice && noticeMessages[notice]) { %>
+    <p class="admin-notice" role="status"><%= noticeMessages[notice] %></p>
+  <% } %>
+
+  <div class="admin-stats" aria-label="Studio statistics">
+    <div class="admin-stat">
+      <span>Artists</span>
+      <strong><%= stats.users %></strong>
+      <a href="#users">Manage artists</a>
+    </div>
+    <div class="admin-stat">
+      <span>Published works</span>
+      <strong><%= stats.artworks %></strong>
+      <a href="#artworks">Moderate artwork</a>
+    </div>
+    <div class="admin-stat">
+      <span>Open reports</span>
+      <strong><%= stats.openReports %></strong>
+      <a href="#reports">Review reports</a>
+    </div>
+    <div class="admin-stat">
+      <span>Homepage pins</span>
+      <strong><%= stats.pins %></strong>
+      <a href="/">View homepage</a>
+    </div>
+    <div class="admin-stat">
+      <span>Hidden works</span>
+      <strong><%= stats.hidden %></strong>
+      <a href="#artworks">Restore artwork</a>
+    </div>
+  </div>
+
+  <div class="admin-toolbar">
+    <label class="admin-search">
+      <span class="sr-only">Search artists, artworks, and reports</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6" /><path d="m16 16 4.5 4.5" /></svg>
+      <input type="search" placeholder="Search artists, artworks, reports..." autocomplete="off" data-admin-search />
+    </label>
+    <nav class="admin-tabs" aria-label="Admin sections">
+      <a href="#artworks" class="admin-tab<%= currentTab === 'overview' || currentTab === 'artworks' ? ' is-active' : '' %>" data-admin-tab>Artwork</a>
+      <a href="#users" class="admin-tab<%= currentTab === 'users' ? ' is-active' : '' %>" data-admin-tab>Artists</a>
+      <a href="#reports" class="admin-tab<%= currentTab === 'reports' ? ' is-active' : '' %>" data-admin-tab>Reports <sup><%= stats.openReports %></sup></a>
+    </nav>
+  </div>
+
+  <section class="admin-panel" id="artworks" aria-labelledby="admin-artworks-title">
+    <div class="admin-panel-head">
+      <div>
+        <h2 id="admin-artworks-title">Artwork <em>moderation.</em></h2>
+        <p><%= artworks.length %> recent <%= artworks.length === 1 ? 'work' : 'works' %> in the studio.</p>
+      </div>
+      <label class="admin-filter">
+        Status
+        <select data-admin-status-filter>
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="hidden">Hidden</option>
+          <option value="removed">Removed</option>
+        </select>
+      </label>
+    </div>
+
+    <% if (artworks.length) { %>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th scope="col">Artwork</th>
+              <th scope="col">Category</th>
+              <th scope="col">Status</th>
+              <th scope="col">Reports</th>
+              <th scope="col">Added</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% artworks.forEach((artwork) => { %>
+              <tr data-admin-row data-admin-group="artworks" data-status="<%= artwork.status %>" data-search="<%= [artwork.title, artwork.display_name, artwork.username, artwork.category_name, artwork.status].filter(Boolean).join(' ') %>">
+                <td>
+                  <div class="admin-art-cell">
+                    <img class="admin-art-thumb" src="<%= artwork.thumbnail_url || artwork.image_url %>" data-fallback-src="/images/default-artwork.svg" alt="" loading="lazy" decoding="async" />
+                    <a href="/art/<%= artwork.id %>">
+                      <strong><%= artwork.title %></strong>
+                      <small>by <%= artwork.display_name %> · @<%= artwork.username %></small>
+                    </a>
+                  </div>
+                </td>
+                <td><%= artwork.category_name || 'Uncategorized' %></td>
+                <td><span class="admin-status is-<%= artwork.status %>"><%= artwork.status %></span></td>
+                <td>
+                  <% if (Number(artwork.open_reports) > 0) { %>
+                    <span class="admin-status is-report"><%= artwork.open_reports %> open</span>
+                  <% } else { %>
+                    <span class="muted-copy">None</span>
+                  <% } %>
+                </td>
+                <td><%= artwork.created_label %></td>
+                <td>
+                  <div class="admin-actions">
+                    <a class="admin-action" href="/art/<%= artwork.id %>">View</a>
+                    <% if (artwork.status === 'active') { %>
+                      <form method="POST" action="/admin/artworks/<%= artwork.id %>/status" onsubmit="return confirm('Hide this artwork from the public sketchbook?');">
+                        <input type="hidden" name="status" value="hidden" />
+                        <button type="submit" class="admin-action">Hide</button>
+                      </form>
+                    <% } else { %>
+                      <form method="POST" action="/admin/artworks/<%= artwork.id %>/status" onsubmit="return confirm('Restore this artwork to the public sketchbook?');">
+                        <input type="hidden" name="status" value="active" />
+                        <button type="submit" class="admin-action">Restore</button>
+                      </form>
+                    <% } %>
+                    <form method="POST" action="/admin/artworks/<%= artwork.id %>/delete" onsubmit="return confirm('Delete this artwork permanently? This cannot be undone.');">
+                      <button type="submit" class="admin-action is-danger">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="admin-empty" data-admin-empty="artworks" hidden>No artworks match this filter.</p>
+    <% } else { %>
+      <div class="admin-empty"><strong>No artwork yet.</strong>Uploads will appear here for moderation.</div>
+    <% } %>
+  </section>
+
+  <section class="admin-panel" id="users" aria-labelledby="admin-users-title">
+    <div class="admin-panel-head">
+      <div>
+        <h2 id="admin-users-title">Artist <em>accounts.</em></h2>
+        <p><%= users.length %> <%= users.length === 1 ? 'account' : 'accounts' %> in the community.</p>
+      </div>
+    </div>
+
+    <% if (users.length) { %>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th scope="col">Artist</th>
+              <th scope="col">Email</th>
+              <th scope="col">Role</th>
+              <th scope="col">Works</th>
+              <th scope="col">Status</th>
+              <th scope="col">Joined</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% users.forEach((user) => { %>
+              <% const isSelf = Number(user.id) === Number(adminUser.id); %>
+              <tr data-admin-row data-admin-group="users" data-search="<%= [user.name, user.username, user.email, user.role, user.status].filter(Boolean).join(' ') %>">
+                <td>
+                  <div class="admin-user-cell">
+                    <img src="<%= user.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" />
+                    <span>
+                      <strong><%= user.name || user.username %></strong>
+                      <small>@<%= user.username %></small>
+                    </span>
+                  </div>
+                </td>
+                <td><%= user.email %></td>
+                <td><span class="admin-status"><%= user.role %></span></td>
+                <td><%= user.artwork_count %></td>
+                <td><span class="admin-status is-<%= user.status %>"><%= user.status %></span></td>
+                <td><%= user.joined_label %></td>
+                <td>
+                  <div class="admin-actions">
+                    <a class="admin-action" href="/profile/<%= user.username %>">Profile</a>
+                    <% if (isSelf || user.role === 'admin') { %>
+                      <button type="button" class="admin-action" disabled title="Protected account">Protected</button>
+                    <% } else if (user.status === 'active') { %>
+                      <form method="POST" action="/admin/users/<%= user.id %>/status" onsubmit="return confirm('Suspend this artist account? They will not be able to sign in.');">
+                        <input type="hidden" name="status" value="suspended" />
+                        <button type="submit" class="admin-action is-danger">Suspend</button>
+                      </form>
+                    <% } else { %>
+                      <form method="POST" action="/admin/users/<%= user.id %>/status" onsubmit="return confirm('Reactivate this artist account?');">
+                        <input type="hidden" name="status" value="active" />
+                        <button type="submit" class="admin-action">Reactivate</button>
+                      </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="admin-empty" data-admin-empty="users" hidden>No artists match this search.</p>
+    <% } else { %>
+      <div class="admin-empty"><strong>No artists yet.</strong>New accounts will appear here.</div>
+    <% } %>
+  </section>
+
+  <section class="admin-panel" id="reports" aria-labelledby="admin-reports-title">
+    <div class="admin-panel-head">
+      <div>
+        <h2 id="admin-reports-title">Community <em>reports.</em></h2>
+        <p><%= reports.length %> open <%= reports.length === 1 ? 'report' : 'reports' %> waiting for review.</p>
+      </div>
+    </div>
+
+    <% if (reports.length) { %>
+      <div class="admin-report-list">
         <% reports.forEach((report) => { %>
-          <tr>
-            <td><%= report.artwork_title || 'Artwork' %></td>
-            <td><%= report.reporter_username || 'Unknown' %></td>
-            <td><%= report.reason || 'Inappropriate content' %></td>
-            <td>
-              <form method="POST" action="/admin/report/<%= report.id %>/clear" style="display:inline;">
-                <button type="submit" class="btn btn-ghost">Clear</button>
+          <article class="admin-report-card" data-admin-row data-admin-group="reports" data-search="<%= [report.artwork_title, report.artist_name, report.artist_username, report.reporter_name, report.reporter_username, report.reason].filter(Boolean).join(' ') %>">
+            <a href="/art/<%= report.artwork_id %>" aria-label="View <%= report.artwork_title %>">
+              <img src="<%= report.thumbnail_url || report.image_url %>" data-fallback-src="/images/default-artwork.svg" alt="" loading="lazy" decoding="async" />
+            </a>
+            <div class="admin-report-copy">
+              <h3><a href="/art/<%= report.artwork_id %>"><%= report.artwork_title %></a></h3>
+              <small>by <%= report.artist_name %> · reported by <%= report.reporter_name %> · <%= report.created_label %></small>
+              <p class="admin-report-reason">&ldquo;<%= report.reason || 'No reason provided.' %>&rdquo;</p>
+            </div>
+            <div class="admin-actions">
+              <a class="admin-action" href="/art/<%= report.artwork_id %>">View</a>
+              <form method="POST" action="/admin/reports/<%= report.id %>/resolve" onsubmit="return confirm('Mark this report as resolved?');">
+                <button type="submit" class="admin-action">Resolve</button>
               </form>
-              <% if (report.target_type === 'artwork' && report.target_id) { %>
-                <form method="POST" action="/admin/art/<%= report.target_id %>/hide" style="display:inline; margin-left: 8px;">
-                  <button type="submit" class="btn btn-primary">Hide artwork</button>
-                </form>
-              <% } %>
-            </td>
-          </tr>
+              <form method="POST" action="/admin/reports/<%= report.id %>/dismiss" onsubmit="return confirm('Dismiss this report?');">
+                <button type="submit" class="admin-action">Dismiss</button>
+              </form>
+              <form method="POST" action="/admin/artworks/<%= report.artwork_id %>/status" onsubmit="return confirm('Hide this artwork from the public sketchbook?');">
+                <input type="hidden" name="status" value="hidden" />
+                <button type="submit" class="admin-action is-danger">Hide art</button>
+              </form>
+            </div>
+          </article>
         <% }) %>
-      </tbody>
-    </table>
-  </div>
+      </div>
+      <p class="admin-empty" data-admin-empty="reports" hidden>No reports match this search.</p>
+    <% } else { %>
+      <div class="admin-empty"><strong>No open reports.</strong>The sketchbook is in good shape.</div>
+    <% } %>
+  </section>
+
 </div>
 
-<div class="dashboard-card">
-  <h3>Moderation queue</h3>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Artwork</th>
-          <th>Artist</th>
-          <th>Category</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% artworks.forEach((artwork) => { %>
-          <tr>
-            <td><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></td>
-            <td><%= artwork.username %></td>
-            <td><%= artwork.category_name %></td>
-            <td><%= new Date(artwork.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-</div>
+<script src="/js/admin.js?v=<%= assetVersion %>" defer></script>
 
 <%- include('../partials/footer') %>

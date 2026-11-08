@@ -14,11 +14,12 @@
     <section class="hs-hero" data-motion aria-labelledby="hero-title">
       <div class="hs-hero-copy">
         <span class="hs-eyebrow">Cambodian creative community</span>
-        <h1 id="hero-title">Every line begins <span>with a story.</span></h1>
-        <p class="hs-lede">A living sketchbook for original drawing, painting, and visual storytelling — made by artists, kept by the community.</p>
+        <h1 id="hero-title">A living <span>sketchbook.</span></h1>
+        <p class="hs-hero-sub">The community sketchbook.</p>
+        <p class="hs-lede">Original drawings, paintings, and visual stories — made by artists, kept by the community. Every line begins with a story, and every page is still being written.</p>
         <div class="hs-hero-actions">
-          <a href="#art-book" class="hs-btn hs-btn-dark">Open the sketchbook <span aria-hidden="true">↓</span></a>
-          <a href="/explore" class="hs-link">Browse the gallery <span aria-hidden="true">↗</span></a>
+          <a href="/explore?sort=latest" class="hs-btn hs-btn-dark">Explore Artwork <span aria-hidden="true">↗</span></a>
+          <a href="/upload" class="hs-btn hs-btn-outline">Share Your Drawing <span aria-hidden="true">+</span></a>
         </div>
         <dl class="hs-stats">
           <div>
@@ -45,7 +46,7 @@
           %>
           <a href="/art/<%= heroArtwork.id %>" class="hs-feature home-hero-feature" aria-label="View <%= heroArtwork.title %> by <%= heroArtistName %>">
             <span class="hs-feature-mat">
-              <img src="<%= heroSrc %>"<% if (heroSrcset) { %> srcset="<%= heroSrcset %>" sizes="(max-width: 480px) 40vw, (max-width: 1080px) 46vw, 480px"<% } %> width="480" height="600" data-home-feature-image data-fallback-src="/images/default-artwork.svg" alt="<%= heroArtwork.title %>" loading="eager" fetchpriority="high" decoding="async">
+              <img src="<%= heroSrc %>"<% if (heroSrcset) { %> srcset="<%= heroSrcset %>" sizes="(max-width: 480px) 40vw, (max-width: 1080px) 46vw, 480px"<% } %> width="480" height="600" data-home-feature-image data-fallback-src="/images/default-artwork.svg" alt="<%= heroArtwork.title %> by <%= heroArtistName %>" loading="eager" fetchpriority="high" decoding="async">
             </span>
             <span class="hs-feature-meta">
               <span class="hs-feature-kicker">Plate <%= String(heroArtworkIndex).padStart(2, '0') %> · <%= heroArtwork.category_name || 'Original artwork' %></span>
@@ -73,7 +74,7 @@
             <span data-pin-label><%= heroPinned ? 'Pinned' : 'Pin to homepage' %></span>
           </button>
         <% } %>
-        <p class="hs-hero-note"><span aria-hidden="true">✦</span> Original work,<br>pinned with care.</p>
+        <p class="hs-hero-note"><span aria-hidden="true">✦</span> Every line begins<br>with a story.</p>
       </div>
     </section>
 
@@ -97,8 +98,8 @@
 
       <div class="hs-book-intro<%= collageArtworks.length ? '' : ' hs-book-intro-solo' %>">
         <div class="hs-book-copy">
-          <span class="hs-eyebrow">A living sketchbook</span>
-          <h2 id="book-title" class="hs-book-title">The community<br><span class="hs-book-script">sketchbook<span class="hs-book-period">.</span></span></h2>
+          <span class="hs-eyebrow">Turn the pages</span>
+          <h2 id="book-title" class="hs-book-title">Inside the<br><span class="hs-book-script">book<span class="hs-book-period">.</span></span></h2>
           <svg class="hs-book-underline" viewBox="0 0 320 18" preserveAspectRatio="none" aria-hidden="true"><path d="M3 12C58 4 112 4 166 8s105 5 151-3" pathLength="1" /></svg>
           <p class="hs-book-lede">A living collection of drawings, paintings, and visual stories &mdash; made by artists, kept by the community. Turn the pages to meet each original work.</p>
           <div class="hs-book-actions">
@@ -237,7 +238,7 @@
           <h2 id="pinned-title">Pinned <em>sketches.</em></h2>
         </div>
         <div class="hs-section-aside">
-          <p>Special moments from our creative community, pinned by the artists themselves.</p>
+          <p>Little masterpieces worth remembering — pinned by the artists themselves.</p>
           <% if (pinnedArtworks.length) { %>
             <span class="hs-book-count"><%= pinnedArtworks.length %> latest <%= pinnedArtworks.length === 1 ? 'pin' : 'pins' %></span>
           <% } %>
@@ -264,6 +265,28 @@
         </div>
       <% } %>
     </section>
+
+    <% if (typeof journeyArtworks !== 'undefined' && journeyArtworks.length > 1) { %>
+    <section class="hs-journey" id="sketch-journey" data-motion aria-labelledby="journey-title">
+      <div class="hs-section-head">
+        <div class="hs-section-title">
+          <span class="hs-eyebrow">The connected sketchbook</span>
+          <h2 id="journey-title">Follow the <em>line.</em></h2>
+        </div>
+        <div class="hs-section-aside">
+          <p>One drawing leads to another. Trace the pencil through the works the community loves most.</p>
+          <a href="/explore?sort=popular" class="hs-link">Explore the collection <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+      <div class="hs-journey-track" data-home-journey aria-label="Connected artwork journey">
+        <svg class="sketch-journey-lines" aria-hidden="true" focusable="false"></svg>
+        <% journeyArtworks.forEach((artwork, index) => { %>
+          <%- include('../partials/journey-card', { artwork, index }) %>
+        <% }) %>
+      </div>
+      <p class="hs-journey-tip" aria-hidden="true"><span>↳</span> follow the pencil from page to page</p>
+    </section>
+    <% } %>
 
     <section class="hs-wall" data-motion aria-labelledby="wall-title">
       <div class="hs-section-head">
@@ -308,6 +331,20 @@
               <span class="hs-artist-count"><strong><%= artistSpotlight.art_count || 0 %></strong> <%= Number(artistSpotlight.art_count) === 1 ? 'work' : 'works' %> in the collection</span>
               <a href="/profile/<%= artistSpotlight.username %>" class="hs-link">Visit artist profile <span aria-hidden="true">↗</span></a>
             </div>
+            <% if (typeof artistSpotlightArtworks !== 'undefined' && artistSpotlightArtworks.length) { %>
+              <div class="hs-artist-previews" aria-label="Artwork by <%= artistSpotlight.display_name || artistSpotlight.username %>">
+                <% artistSpotlightArtworks.forEach((artwork) => { %>
+                  <%
+                    const previewSrc = imageTools.cardSrc(artwork, 320);
+                    const previewSrcset = imageTools.cardSrcset(artwork, [160, 240, 320, 480]);
+                  %>
+                  <a class="hs-artist-preview" href="/art/<%= artwork.id %>" data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="View <%= artwork.title %>">
+                    <img src="<%= previewSrc %>"<% if (previewSrcset) { %> srcset="<%= previewSrcset %>" sizes="(max-width: 640px) 28vw, 140px"<% } %> width="320" height="400" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+                  </a>
+                <% }) %>
+                <a class="hs-artist-previews-more" href="/profile/<%= artistSpotlight.username %>">See the full collection <span aria-hidden="true">↗</span></a>
+              </div>
+            <% } %>
           </div>
         </div>
       <% } else { %>
@@ -371,12 +408,12 @@
 
     <section class="hs-final" data-motion>
       <div class="hs-final-poster">
-        <span class="hs-eyebrow">The sketchbook closes here</span>
-        <h2>Your next page<br>is still <em>blank.</em></h2>
-        <p>Join a creative space where every idea starts as a line on paper — and every line finds an audience.</p>
+        <span class="hs-eyebrow">The sketchbook never closes</span>
+        <h2>Every sketch<br>tells a <em>story.</em></h2>
+        <p>Share your creativity, discover new perspectives, and become part of our growing art community.</p>
         <div class="hs-final-actions">
-          <a href="/upload" class="hs-btn hs-btn-light">Start creating <span aria-hidden="true">↗</span></a>
-          <a href="/explore" class="hs-link hs-link-light">Wander the gallery <span aria-hidden="true">↗</span></a>
+          <a href="<%= isAuthenticated ? '/upload' : '/register' %>" class="hs-btn hs-btn-light">Start Your Sketchbook <span aria-hidden="true">↗</span></a>
+          <a href="/explore" class="hs-link hs-link-light">Explore the gallery <span aria-hidden="true">↗</span></a>
         </div>
         <svg class="hs-final-doodle" viewBox="0 0 240 200" fill="none" aria-hidden="true">
           <path d="M40 150c40-16 74-48 96-92l18 10c-20 46-54 80-98 96l-16-14Z" />

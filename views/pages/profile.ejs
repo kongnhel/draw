@@ -158,9 +158,9 @@
       <dt>Followers</dt>
     </div>
     <div class="pf-note">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3.2" /></svg>
-      <dd><%= numeral(stats.totalViews) %></dd>
-      <dt>Total views</dt>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+      <dd><%= numeral(stats.totalPins) %></dd>
+      <dt>Pinned works</dt>
     </div>
   </dl>
 
@@ -367,7 +367,7 @@
           <div><dt>Behind this work</dt><dd><%= numeral(artworks.length) %> public pages</dd></div>
           <div><dt>Appreciation</dt><dd><%= numeral(stats.totalLikes) %> likes</dd></div>
           <div><dt>People following</dt><dd><%= numeral(stats.followers) %></dd></div>
-          <div><dt>Views collected</dt><dd><%= numeral(stats.totalViews) %></dd></div>
+          <div><dt>Pinned to homepage</dt><dd><%= numeral(stats.totalPins) %></dd></div>
         </dl>
       </section>
 

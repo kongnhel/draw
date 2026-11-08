@@ -172,6 +172,24 @@ const schemaStatements = [
     CONSTRAINT fk_notifications_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+  `CREATE TABLE IF NOT EXISTS reports (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    artwork_id INT UNSIGNED NOT NULL,
+    reporter_id INT UNSIGNED NOT NULL,
+    reason VARCHAR(500) DEFAULT NULL,
+    status ENUM('open', 'resolved', 'dismissed') NOT NULL DEFAULT 'open',
+    resolved_by INT UNSIGNED DEFAULT NULL,
+    resolved_at DATETIME DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_reports_status_created (status, created_at),
+    KEY idx_reports_artwork (artwork_id),
+    KEY idx_reports_reporter (reporter_id),
+    CONSTRAINT fk_reports_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE,
+    CONSTRAINT fk_reports_reporter FOREIGN KEY (reporter_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_reports_resolver FOREIGN KEY (resolved_by) REFERENCES users (id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
   `CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id INT UNSIGNED NOT NULL,

@@ -576,27 +576,27 @@
   --sketch-muted: var(--hs-dark-muted);
   --sketch-brass: var(--hs-brass);
   --sketch-rust: var(--hs-rust);
-  --sketch-line: rgba(241, 233, 219, 0.2);
-  --sketch-paper: #202720;
+  --sketch-line: rgba(245, 242, 235, 0.2);
+  --sketch-paper: #202020;
 
   color: var(--hs-dark-ink);
-  border-color: rgba(241, 233, 219, 0.12);
+  border-color: rgba(245, 242, 235, 0.12);
   background:
-    radial-gradient(circle at 12% 6%, rgba(169, 130, 77, 0.18), transparent 33%),
-    radial-gradient(circle at 88% 94%, rgba(116, 128, 106, 0.14), transparent 36%),
-    repeating-linear-gradient(0deg, transparent 0, transparent 31px, rgba(248, 245, 237, 0.025) 32px),
-    linear-gradient(180deg, #262e27, #1f2621 62%, #1b211d);
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.36), inset 0 0 0 1px rgba(248, 245, 237, 0.04);
+    radial-gradient(circle at 12% 6%, rgba(184, 154, 114, 0.16), transparent 33%),
+    radial-gradient(circle at 88% 94%, rgba(245, 242, 235, 0.05), transparent 36%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 31px, rgba(245, 242, 235, 0.022) 32px),
+    linear-gradient(180deg, #262626, #202020 62%, #1b1b1b);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(245, 242, 235, 0.04);
 }
 
 :root[data-theme='dark'] .hs-book::before {
-  border-color: rgba(241, 233, 219, 0.1);
+  border-color: rgba(245, 242, 235, 0.1);
 }
 
 :root[data-theme='dark'] .hs-book-shell::before {
-  border-color: rgba(241, 233, 219, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.12));
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.22);
+  border-color: rgba(245, 242, 235, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.14));
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.24);
 }
 
 :root[data-theme='dark'] .hs-book .book-page-counter {
@@ -610,7 +610,7 @@
 }
 
 :root[data-theme='dark'] .hs-book .book-nav-button {
-  border-color: rgba(241, 233, 219, 0.24);
+  border-color: rgba(245, 242, 235, 0.24);
   color: var(--hs-dark-ink);
   background: rgba(255, 255, 255, 0.06);
 }

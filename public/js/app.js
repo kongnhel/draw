@@ -64,6 +64,7 @@ const applyTheme = (theme) => {
   const safeTheme = theme === 'light' ? 'light' : 'dark';
   root.setAttribute('data-theme', safeTheme);
   localStorage.setItem(themeStorageKey, safeTheme);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', safeTheme === 'light' ? '#f8f5ed' : '#171717');
 
   if (toggleButton) {
     toggleButton.setAttribute('aria-label', safeTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
@@ -71,7 +72,7 @@ const applyTheme = (theme) => {
   }
 };
 
-applyTheme(localStorage.getItem(themeStorageKey) || 'light');
+applyTheme(localStorage.getItem(themeStorageKey) || 'dark');
 
 const setActionLabel = (button, text) => {
   const label = button?.querySelector('[data-action-label]');
@@ -2546,8 +2547,10 @@ const initUploadPage = () => {
   updateReadiness();
 };
 
-const createSketchJourney = (explorePage) => {
+const createSketchJourney = (scope, options = {}) => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  const containerSelector = options.containerSelector || '[data-explore-masonry]';
+  const cardSelector = options.cardSelector || '[data-explore-card]';
   let container = null;
   let svg = null;
   let cards = [];
@@ -2561,10 +2564,13 @@ const createSketchJourney = (explorePage) => {
   let destroyed = false;
   let currentColumns = 3;
 
-  const getCards = () => (container ? Array.from(container.querySelectorAll('[data-explore-card]')) : []);
+  const getCards = () => (container ? Array.from(container.querySelectorAll(cardSelector)) : []);
 
   const getColumns = () => {
-    const width = container?.clientWidth || explorePage.clientWidth || window.innerWidth;
+    if (typeof options.getColumns === 'function') {
+      return options.getColumns(container, scope);
+    }
+    const width = container?.clientWidth || scope.clientWidth || window.innerWidth;
     if (width >= 1040) return 3;
     if (width >= 560) return 2;
     return 1;
@@ -2739,14 +2745,14 @@ const createSketchJourney = (explorePage) => {
     if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
     container.addEventListener('pointerover', (event) => {
-      const target = event.target instanceof Element ? event.target.closest('[data-explore-card]') : null;
+      const target = event.target instanceof Element ? event.target.closest(cardSelector) : null;
       if (!target) return;
       const index = cards.indexOf(target);
       if (index !== -1) setHover(index);
     }, { signal });
 
     container.addEventListener('pointerout', (event) => {
-      const target = event.target instanceof Element ? event.target.closest('[data-explore-card]') : null;
+      const target = event.target instanceof Element ? event.target.closest(cardSelector) : null;
       if (!target) return;
       if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) return;
       setHover(-1);
@@ -2797,7 +2803,7 @@ const createSketchJourney = (explorePage) => {
 
   const sync = () => {
     if (destroyed) return;
-    const next = explorePage.querySelector('[data-explore-masonry]');
+    const next = scope.querySelector(containerSelector);
     if (!next) {
       teardown();
       return;
@@ -3152,6 +3158,13 @@ const initHomePage = () => {
       window.history.replaceState(null, '', hash);
     });
   });
+
+  const journey = createSketchJourney(homePage, {
+    containerSelector: '[data-home-journey]',
+    cardSelector: '[data-journey-card]'
+  });
+  registerPageCleanup(() => journey.destroy());
+  journey.sync();
 };
 
 const PIN_TOAST_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>';

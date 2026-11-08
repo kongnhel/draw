@@ -450,6 +450,8 @@ const ASSET_VERSION = (() => {
     'public/css/journey.css',
     'public/css/image-editor.css',
     'public/js/intro.js',
+    'public/js/auth.js',
+    'public/js/admin.js',
     'public/js/app.js',
     'public/js/spa-nav.js',
     'public/js/navbar.js',
@@ -564,6 +566,20 @@ function requireAuthJson(req, res, next) {
   res.redirect('/login');
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.session || !req.session.user) return res.redirect('/login');
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).render('pages/error', {
+      message: 'You do not have permission to open the admin studio.',
+      pageTitle: 'ArtSpace | Not available',
+      isAuthenticated: true,
+      currentUser: req.session.user,
+      unreadNotifications: 0
+    });
+  }
+  return next();
+}
+
 function respondPinSuccess(req, res, payload) {
   if (requestWantsJson(req)) {
     res.json({
@@ -645,7 +661,8 @@ const CSS_BUNDLE_FILES = [
   'intro.css',
   'sketchbook.css',
   'pins.css',
-  'journey.css'
+  'journey.css',
+  'admin.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 
@@ -788,7 +805,7 @@ app.get('/', async (req, res, next) => {
                 u.avatar, u.bio,
                 COUNT(a.id) AS art_count
            FROM users u
-           LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1
+           LEFT JOIN artworks a ON a.user_id = u.id AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
            GROUP BY u.id
            ORDER BY art_count DESC
            LIMIT 1`
@@ -796,7 +813,7 @@ app.get('/', async (req, res, next) => {
       db.execute(
         `SELECT c.slug, c.name, COUNT(a.id) AS count
            FROM categories c
-           LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
+           LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
            GROUP BY c.id
            ORDER BY c.sort_order`
       ),
@@ -821,6 +838,18 @@ app.get('/', async (req, res, next) => {
       ? Math.max(0, (bookArtworks || []).findIndex((artwork) => Number(artwork.id) === Number(heroArtwork.id)))
       : 0;
     const artistSpotlight = (artistRows && artistRows[0]) || null;
+    const journeyArtworks = [...(bookArtworks || [])]
+      .sort((a, b) => {
+        const likesDiff = (Number(b.likes_count) || 0) - (Number(a.likes_count) || 0);
+        if (likesDiff !== 0) return likesDiff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      })
+      .slice(0, 5);
+    const artistSpotlightArtworks = artistSpotlight
+      ? (bookArtworks || [])
+        .filter((artwork) => artwork.username === artistSpotlight.username)
+        .slice(0, 3)
+      : [];
     const visibleCategories = (categoryRows || []).map((category) => ({
       slug: category.slug,
       name: category.name,
@@ -843,7 +872,9 @@ app.get('/', async (req, res, next) => {
       heroArtworkIndex,
       bookArtworks: bookArtworks || [],
       latest,
+      journeyArtworks,
       artistSpotlight,
+      artistSpotlightArtworks,
       visibleCategories,
       homeArtistCount,
       liveCategoryCount: visibleCategories.filter((category) => Number(category.count) > 0).length,
@@ -893,7 +924,7 @@ app.get('/explore', async (req, res, next) => {
       db.execute(
         `SELECT c.slug, c.name, COUNT(a.id) AS count
            FROM categories c
-           LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1
+           LEFT JOIN artworks a ON a.category_id = c.id AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
            GROUP BY c.id
            ORDER BY c.sort_order`
       ),
@@ -925,7 +956,7 @@ app.get('/explore', async (req, res, next) => {
           ${whereClause}`,
         queryParams
       ),
-      db.execute("SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1"),
+      db.execute("SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"),
       db.execute("SELECT COUNT(DISTINCT user_id) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1"),
       db.execute(
         `SELECT u.id, u.username,
@@ -960,7 +991,7 @@ app.get('/explore', async (req, res, next) => {
       ? (categories.find((category) => category.slug === filter) || null)
       : null;
 
-    const mediumCount = categories.length;
+    const mediumCount = categories.filter((category) => category.count > 0).length;
     const spotlightArtwork = (artworks && artworks.length > 0) ? artworks[0] : null;
     const loadedItems = artworks ? artworks.length : 0;
     const pinnedIds = await getPinnedArtworkIds(viewerId);
@@ -1487,6 +1518,16 @@ app.get('/profile/:username', async (req, res, next) => {
     );
     const totalLikes = Number((likeCountRows && likeCountRows[0] && likeCountRows[0].count) || 0);
 
+    const pinCountRows = await db.execute(
+      `SELECT COUNT(*) AS count
+         FROM artwork_pins p
+         INNER JOIN artworks a ON a.id = p.artwork_id
+        WHERE p.user_id = ? AND a.user_id = ?
+          AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'`,
+      [profileUser.id, profileUser.id]
+    );
+    const totalPins = Number((pinCountRows && pinCountRows[0] && pinCountRows[0].count) || 0);
+
     const requestedTab = ['artworks', 'liked', 'saved', 'pinned'].includes(req.query.tab) ? req.query.tab : 'artworks';
     const activeTab = (requestedTab === 'saved' || requestedTab === 'pinned') && !isOwner ? 'artworks' : requestedTab;
     const pinnedIds = await getPinnedArtworkIds(viewerId);
@@ -1502,6 +1543,7 @@ app.get('/profile/:username', async (req, res, next) => {
       stats: {
         totalArtworks,
         totalLikes,
+        totalPins,
         followers: 0,
         totalViews: 0
       },
@@ -1591,7 +1633,8 @@ app.get('/art/:id', async (req, res, next) => {
       comments: [],
       related: relatedRows || [],
       artistStats: { isFollowing: false },
-      pinnedIds
+      pinnedIds,
+      reportStatus: typeof req.query.report === 'string' ? req.query.report : null
     });
   } catch (err) {
     next(err);
@@ -1939,6 +1982,69 @@ app.post('/art/:id/delete', requireAuth, async (req, res, next) => {
   }
 });
 
+app.post('/art/:id/report', requireAuth, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const rows = await db.execute(
+      "SELECT id, user_id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      [artworkId]
+    );
+    const artwork = (rows && rows[0]) || null;
+
+    if (!artwork) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    if (Number(artwork.user_id) === Number(req.session.user.id)) {
+      if (requestWantsJson(req)) {
+        res.status(400).json({ ok: false, error: 'You cannot report your own artwork.' });
+        return;
+      }
+      res.redirect(`/art/${artworkId}?report=self`);
+      return;
+    }
+
+    const existing = await db.execute(
+      "SELECT id FROM reports WHERE artwork_id = ? AND reporter_id = ? AND status = 'open' LIMIT 1",
+      [artworkId, req.session.user.id]
+    );
+
+    if (existing && existing.length) {
+      if (requestWantsJson(req)) {
+        res.status(409).json({ ok: false, error: 'You already have an open report for this artwork.' });
+        return;
+      }
+      res.redirect(`/art/${artworkId}?report=exists`);
+      return;
+    }
+
+    const reason = String(req.body.reason || '').trim().slice(0, 500) || 'Reported from the artwork page.';
+    await db.execute(
+      "INSERT INTO reports (artwork_id, reporter_id, reason, status) VALUES (?, ?, ?, 'open')",
+      [artworkId, req.session.user.id, reason]
+    );
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, reported: true });
+      return;
+    }
+    res.redirect(`/art/${artworkId}?report=sent`);
+  } catch (err) {
+    console.error('Artwork report failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not send that report. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
 // 8. Search Page Route
 app.get('/search', async (req, res, next) => {
   try {
@@ -2003,7 +2109,193 @@ app.get('/forgot-password', (req, res) => {
 app.get('/dashboard', requireAuth, (req, res) => {
   return res.redirect('/profile/' + encodeURIComponent(req.session.user.username));
 });
-app.get('/admin', (req, res) => res.redirect('/'));
+app.get('/admin', requireAdmin, async (req, res, next) => {
+  try {
+    const [userCountRows, artworkCountRows, reportCountRows, pinCountRows, hiddenCountRows, users, artworks, reports] = await Promise.all([
+      db.execute('SELECT COUNT(*) AS count FROM users'),
+      db.execute("SELECT COUNT(*) AS count FROM artworks WHERE status = 'active'"),
+      db.execute("SELECT COUNT(*) AS count FROM reports WHERE status = 'open'"),
+      db.execute(
+        `SELECT COUNT(*) AS count
+           FROM artwork_pins p
+           INNER JOIN artworks a ON a.id = p.artwork_id
+          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'`
+      ),
+      db.execute("SELECT COUNT(*) AS count FROM artworks WHERE status <> 'active'"),
+      db.execute(
+        `SELECT u.id, u.name, u.username, u.email, u.role, u.status, u.avatar, u.created_at,
+                DATE_FORMAT(u.created_at, '%b %d, %Y') AS joined_label,
+                COUNT(a.id) AS artwork_count
+           FROM users u
+           LEFT JOIN artworks a ON a.user_id = u.id AND a.status = 'active'
+          GROUP BY u.id
+          ORDER BY u.created_at DESC
+          LIMIT 100`
+      ),
+      db.execute(
+        `SELECT a.id, a.title, a.thumbnail_url, a.image_url, a.status, a.visibility, a.created_at,
+                DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_label,
+                u.username, COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                c.name AS category_name,
+                (SELECT COUNT(*) FROM reports r WHERE r.artwork_id = a.id AND r.status = 'open') AS open_reports
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           LEFT JOIN categories c ON c.id = a.category_id
+          ORDER BY a.created_at DESC
+          LIMIT 100`
+      ),
+      db.execute(
+        `SELECT r.id, r.reason, r.status, r.created_at,
+                DATE_FORMAT(r.created_at, '%b %d, %Y') AS created_label,
+                a.id AS artwork_id, a.title AS artwork_title, a.thumbnail_url, a.image_url,
+                artist.username AS artist_username,
+                COALESCE(NULLIF(artist.name, ''), artist.username) AS artist_name,
+                reporter.username AS reporter_username,
+                COALESCE(NULLIF(reporter.name, ''), reporter.username) AS reporter_name
+           FROM reports r
+           INNER JOIN artworks a ON a.id = r.artwork_id
+           INNER JOIN users artist ON artist.id = a.user_id
+           INNER JOIN users reporter ON reporter.id = r.reporter_id
+          WHERE r.status = 'open'
+          ORDER BY r.created_at DESC
+          LIMIT 100`
+      )
+    ]);
+
+    const count = (rows) => Number((rows && rows[0] && rows[0].count) || 0);
+
+    res.render('pages/admin', {
+      pageTitle: 'ArtSpace | Admin studio',
+      adminUser: req.session.user,
+      stats: {
+        users: count(userCountRows),
+        artworks: count(artworkCountRows),
+        openReports: count(reportCountRows),
+        pins: count(pinCountRows),
+        hidden: count(hiddenCountRows)
+      },
+      users: users || [],
+      artworks: artworks || [],
+      reports: reports || [],
+      activeTab: ['overview', 'artworks', 'users', 'reports'].includes(req.query.tab) ? req.query.tab : 'overview',
+      notice: typeof req.query.notice === 'string' ? req.query.notice : null
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/admin/artworks/:id/status', requireAdmin, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    const nextStatus = req.body.status === 'hidden' ? 'hidden' : 'active';
+    if (!Number.isFinite(artworkId)) {
+      res.status(404).render('pages/error', {
+        message: 'The artwork you requested could not be found.',
+        pageTitle: 'ArtSpace | Page not found',
+        isAuthenticated: true,
+        currentUser: req.session.user,
+        unreadNotifications: 0
+      });
+      return;
+    }
+
+    const result = await db.execute('UPDATE artworks SET status = ?, updated_at = NOW() WHERE id = ?', [nextStatus, artworkId]);
+    if (!result || result.affectedRows === 0) {
+      res.redirect('/admin?tab=artworks&notice=missing#artworks');
+      return;
+    }
+
+    if (nextStatus === 'hidden') {
+      await db.execute(
+        "UPDATE reports SET status = 'resolved', resolved_by = ?, resolved_at = NOW() WHERE artwork_id = ? AND status = 'open'",
+        [req.session.user.id, artworkId]
+      );
+    }
+
+    res.redirect(`/admin?tab=artworks&notice=${nextStatus === 'hidden' ? 'artwork-hidden' : 'artwork-restored'}#artworks`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/admin/artworks/:id/delete', requireAdmin, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      res.redirect('/admin?tab=artworks&notice=missing#artworks');
+      return;
+    }
+
+    const rows = await db.execute(
+      'SELECT id, user_id, title, image_url, thumbnail_url FROM artworks WHERE id = ? LIMIT 1',
+      [artworkId]
+    );
+    const artwork = (rows && rows[0]) || null;
+
+    if (!artwork) {
+      res.redirect('/admin?tab=artworks&notice=missing#artworks');
+      return;
+    }
+
+    await db.execute('DELETE FROM notifications WHERE artwork_id = ?', [artworkId]);
+    await db.execute('DELETE FROM artworks WHERE id = ?', [artworkId]);
+    await deleteArtworkMedia(artwork);
+
+    res.redirect('/admin?tab=artworks&notice=artwork-deleted#artworks');
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/admin/users/:id/status', requireAdmin, async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const nextStatus = req.body.status === 'suspended' ? 'suspended' : 'active';
+    if (!Number.isFinite(userId) || userId === Number(req.session.user.id)) {
+      res.redirect('/admin?tab=users&notice=user-protected#users');
+      return;
+    }
+
+    const rows = await db.execute('SELECT id, role FROM users WHERE id = ? LIMIT 1', [userId]);
+    const user = (rows && rows[0]) || null;
+
+    if (!user) {
+      res.redirect('/admin?tab=users&notice=missing#users');
+      return;
+    }
+
+    if (user.role === 'admin') {
+      res.redirect('/admin?tab=users&notice=user-protected#users');
+      return;
+    }
+
+    await db.execute('UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?', [nextStatus, userId]);
+    res.redirect(`/admin?tab=users&notice=${nextStatus === 'suspended' ? 'user-suspended' : 'user-active'}#users`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/admin/reports/:id/:action', requireAdmin, async (req, res, next) => {
+  try {
+    const reportId = parseInt(req.params.id, 10);
+    const action = req.params.action === 'dismiss' ? 'dismissed' : 'resolved';
+    if (!Number.isFinite(reportId)) {
+      res.redirect('/admin?tab=reports&notice=missing#reports');
+      return;
+    }
+
+    const result = await db.execute(
+      "UPDATE reports SET status = ?, resolved_by = ?, resolved_at = NOW() WHERE id = ? AND status = 'open'",
+      [action, req.session.user.id, reportId]
+    );
+
+    res.redirect(`/admin?tab=reports&notice=${result && result.affectedRows ? `report-${action}` : 'missing'}#reports`);
+  } catch (err) {
+    next(err);
+  }
+});
 app.get('/profile-edit', requireAuth, (req, res) => {
   return res.redirect('/profile/' + encodeURIComponent(req.session.user.username));
 });
