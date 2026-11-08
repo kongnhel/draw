@@ -231,41 +231,6 @@
       <% } %>
     </section>
 
-    <section class="hs-pinned" data-pinned-collection data-motion aria-labelledby="pinned-title">
-      <div class="hs-section-head hs-pinned-head">
-        <div class="hs-section-title">
-          <span class="hs-eyebrow">The pinboard</span>
-          <h2 id="pinned-title">Pinned <em>sketches.</em></h2>
-        </div>
-        <div class="hs-section-aside">
-          <p>Little masterpieces worth remembering — pinned by the artists themselves.</p>
-          <% if (pinnedArtworks.length) { %>
-            <span class="hs-book-count"><%= pinnedArtworks.length %> latest <%= pinnedArtworks.length === 1 ? 'pin' : 'pins' %></span>
-          <% } %>
-        </div>
-      </div>
-
-      <% if (pinnedArtworks.length) { %>
-        <div class="hs-pinned-grid">
-          <% pinnedArtworks.forEach((artwork, index) => { %>
-            <%- include('../partials/pinned-card', { artwork, index }) %>
-          <% }) %>
-        </div>
-      <% } else { %>
-        <div class="hs-pinned-empty">
-          <svg class="hs-pinned-empty-pin" viewBox="0 0 70 80" aria-hidden="true">
-            <path d="M22 10h26l-3 18 12 12v8H13v-8l12-12-3-18Z" />
-            <path d="M35 48v24" />
-            <path d="M18 72c12-4 23-4 34 0" />
-          </svg>
-          <span class="hs-eyebrow">A quiet pinboard</span>
-          <h3>No pinned sketches yet.</h3>
-          <p>Upload a drawing, then pin it to the top of the community sketchbook for everyone to see.</p>
-          <a href="/upload" class="hs-btn hs-btn-dark">Share Your Drawing <span aria-hidden="true">&nearr;</span></a>
-        </div>
-      <% } %>
-    </section>
-
     <% if (typeof journeyArtworks !== 'undefined' && journeyArtworks.length > 1) { %>
     <section class="hs-journey" id="sketch-journey" data-motion aria-labelledby="journey-title">
       <div class="hs-section-head">
