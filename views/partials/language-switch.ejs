@@ -1,0 +1,19 @@
+<nav class="lang-switch <%= typeof className !== 'undefined' ? className : '' %>" aria-label="<%= typeof t === 'function' ? t('Language') : 'Language' %>">
+  <a
+    href="/language/km?next=<%= encodeURIComponent(typeof currentPath !== 'undefined' ? currentPath : '/') %>"
+    class="lang-option<%= locale === 'km' ? ' is-active' : '' %>"
+    hreflang="km"
+    lang="km"
+    data-language-switch="km" data-no-spa="true"
+    <%= locale === 'km' ? 'aria-current="true"' : '' %>
+  >KH</a>
+  <span class="lang-sep" aria-hidden="true">|</span>
+  <a
+    href="/language/en?next=<%= encodeURIComponent(typeof currentPath !== 'undefined' ? currentPath : '/') %>"
+    class="lang-option<%= locale === 'en' ? ' is-active' : '' %>"
+    hreflang="en"
+    lang="en"
+    data-language-switch="en" data-no-spa="true"
+    <%= locale === 'en' ? 'aria-current="true"' : '' %>
+  >EN</a>
+</nav>

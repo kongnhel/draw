@@ -58,15 +58,15 @@
             const spotlightSrc = imageTools.transformUrl(spotlightArtwork.image_url || spotlightArtwork.thumbnail_url, 900);
             const spotlightSrcset = imageTools.srcset(spotlightArtwork.image_url, [480, 720, 900, 1200]);
           %>
-          <img src="<%= spotlightSrc %>"<% if (spotlightSrcset) { %> srcset="<%= spotlightSrcset %>" sizes="(max-width: 720px) 92vw, 520px"<% } %> data-fallback-src="<%= spotlightArtwork.thumbnail_url || '' %>" alt="<%= spotlightArtwork.title %>" fetchpriority="high" decoding="async" />
+          <img src="<%= spotlightSrc %>"<% if (spotlightSrcset) { %> srcset="<%= spotlightSrcset %>" sizes="(max-width: 720px) 92vw, 520px"<% } %> data-fallback-src="<%= spotlightArtwork.thumbnail_url || '' %>" alt="<%= spotlightArtwork.title %>" fetchpriority="high" decoding="async" data-i18n-skip />
           <span class="studio-explore-spotlight-placeholder" aria-hidden="true">
             <svg viewBox="0 0 80 80"><path d="M15 62 26 24l29-12 8 29-23 23-25-2Z" /><path d="m26 24 29 17M35 64l-9-40" /></svg>
-            <strong><%= spotlightArtwork.title %></strong>
+            <strong data-i18n-skip><%= spotlightArtwork.title %></strong>
             <small>Artwork image unavailable</small>
           </span>
           <span class="studio-explore-spotlight-caption">
             <small><%= spotlightArtwork.category_name || 'Original artwork' %></small>
-            <strong><%= spotlightArtwork.title %></strong>
+            <strong data-i18n-skip><%= spotlightArtwork.title %></strong>
             <em>by <%= spotlightArtwork.display_name || spotlightArtwork.username %></em>
           </span>
         </a>
@@ -140,8 +140,8 @@
               <i aria-hidden="true"></i>
             </span>
             <span class="studio-explore-artist-copy">
-              <strong><%= artist.display_name || artist.username %></strong>
-              <small><%= artist.bio ? artist.bio.substring(0, 62) : 'Artist in the ArtSpace community.' %></small>
+              <strong data-i18n-skip><%= artist.display_name || artist.username %></strong>
+              <small<%- artist.bio && artist.bio.trim() ? ' data-i18n-skip' : '' %>><%= artist.bio ? artist.bio.substring(0, 62) : 'Artist in the ArtSpace community.' %></small>
               <em><%= artist.art_count %> <%= artist.art_count === 1 ? 'work' : 'works' %> <span>/</span> <%= artist.likes_count %> loves</em>
             </span>
             <svg class="studio-explore-artist-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M9 5h10v10" /></svg>

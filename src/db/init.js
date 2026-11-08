@@ -39,6 +39,7 @@ const schemaStatements = [
     website VARCHAR(255) DEFAULT NULL,
     instagram VARCHAR(100) DEFAULT NULL,
     twitter VARCHAR(100) DEFAULT NULL,
+    locale VARCHAR(5) NOT NULL DEFAULT 'km',
     role ENUM('user', 'artist', 'admin') NOT NULL DEFAULT 'user',
     status ENUM('active', 'pending', 'suspended') NOT NULL DEFAULT 'active',
     email_verified_at DATETIME DEFAULT NULL,
@@ -253,7 +254,8 @@ async function ensureUserProfileColumns(targetPool = pool) {
     ['cover_image', 'VARCHAR(500) DEFAULT NULL'],
     ['website', 'VARCHAR(255) DEFAULT NULL'],
     ['instagram', 'VARCHAR(100) DEFAULT NULL'],
-    ['twitter', 'VARCHAR(100) DEFAULT NULL']
+    ['twitter', 'VARCHAR(100) DEFAULT NULL'],
+    ['locale', "VARCHAR(5) NOT NULL DEFAULT 'km'"]
   ];
 
   for (const [name, definition] of additions) {

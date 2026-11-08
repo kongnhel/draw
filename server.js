@@ -11,6 +11,7 @@ const sharp = require('sharp');
 const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const ImageKit = require('imagekit');
@@ -26,6 +27,7 @@ process.on('uncaughtException', (error) => {
 });
 
 const { db, getPool } = require('./src/db/init');
+const i18n = require('./src/i18n');
 
 // Initialize ImageKit SDK (credentials must come from environment variables)
 let ik = null;
@@ -451,7 +453,10 @@ const ASSET_VERSION = (() => {
     'public/css/image-editor.css',
     'public/css/book-slider.css',
     'public/css/book-slider-tailwind.css',
+    'public/css/language.css',
+    'public/css/studio-compact.css',
     'public/js/book-slider.js',
+    'public/js/i18n.js',
     'public/js/intro.js',
     'public/js/auth.js',
     'public/js/admin.js',
@@ -668,7 +673,9 @@ const CSS_BUNDLE_FILES = [
   'wall.css',
   'admin.css',
   'book-slider-tailwind.css',
-  'book-slider.css'
+  'book-slider.css',
+  'language.css',
+  'studio-compact.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 
@@ -742,6 +749,7 @@ app.get('/css/bundle.css', (req, res, next) => {
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'artspace-dev-secret',
@@ -770,6 +778,62 @@ app.use((req, res, next) => {
   res.locals.imageTools = imageTools;
   res.locals.imagekitOrigin = imagekitOrigin;
   next();
+});
+
+// Locale, shared translator helpers and the Khmer phrase dictionary for JS UI.
+app.use((req, res, next) => {
+  const locale = i18n.getRequestLocale(req);
+  req.locale = locale;
+  res.locals.locale = locale;
+  res.locals.currentPath = req.originalUrl || '/';
+  res.locals.t = (phrase, vars) => i18n.t(locale, phrase, vars);
+  res.locals.i18nClient = locale === 'km' ? i18n.clientDictionary() : null;
+  next();
+});
+
+// Translate the final server-rendered HTML. This covers every EJS page,
+// including admin, dashboard, errors, modals and the existing sketchbook UI.
+app.use((req, res, next) => {
+  const originalSend = res.send;
+  res.send = function sendTranslated(body) {
+    try {
+      const type = String(res.get('Content-Type') || '');
+      const isHtml = type.includes('text/html') || (typeof body === 'string' && body.includes('<!DOCTYPE html'));
+      if (req.locale === 'km' && isHtml && typeof body === 'string') {
+        body = i18n.translateHtml(body, req.locale);
+      }
+    } catch (error) {
+      console.error('Locale render translation failed:', error && (error.message || error));
+    }
+    return originalSend.call(this, body);
+  };
+  next();
+});
+
+// Language switch: set the cookie, remember the preference for signed-in users,
+// and return to the exact route the visitor was reading.
+app.get('/language/:locale', async (req, res) => {
+  const locale = String(req.params.locale || '');
+  if (!i18n.SUPPORTED.includes(locale)) {
+    res.redirect('/');
+    return;
+  }
+
+  i18n.setLocaleCookie(res, locale);
+
+  if (req.session && req.session.user) {
+    req.session.user.locale = locale;
+    try {
+      await db.execute('UPDATE users SET locale = ? WHERE id = ?', [locale, req.session.user.id]);
+    } catch (error) {
+      console.error('Could not save user locale:', error && (error.message || error));
+    }
+  }
+
+  const next = typeof req.query.next === 'string' && req.query.next.startsWith('/') && !req.query.next.startsWith('//')
+    ? req.query.next
+    : '/';
+  res.redirect(next);
 });
 
 // ----------------------------------------------------
@@ -1228,9 +1292,9 @@ app.post('/register', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await db.execute(
-      `INSERT INTO users (username, email, password, name, role, status)
-       VALUES (?, ?, ?, ?, 'artist', 'active')`,
-      [username, email, passwordHash, displayName]
+      `INSERT INTO users (username, email, password, name, locale, role, status)
+       VALUES (?, ?, ?, ?, ?, 'artist', 'active')`,
+      [username, email, passwordHash, displayName, req.locale || 'km']
     );
 
     req.session.user = {
@@ -1239,8 +1303,10 @@ app.post('/register', async (req, res, next) => {
       email,
       display_name: displayName,
       avatar: null,
-      role: 'artist'
+      role: 'artist',
+      locale: req.locale || 'km'
     };
+    i18n.setLocaleCookie(res, req.session.user.locale);
     res.redirect('/');
   } catch (err) {
     next(err);
@@ -1254,7 +1320,7 @@ app.post('/login', async (req, res, next) => {
     const password = String(req.body.password || '');
 
     const rows = await db.execute(
-      `SELECT id, name, username, email, password, role, status, avatar
+      `SELECT id, name, username, email, password, role, status, avatar, locale
          FROM users
         WHERE email = ? OR username = ?
         LIMIT 1`,
@@ -1290,8 +1356,10 @@ app.post('/login', async (req, res, next) => {
       email: user.email,
       display_name: user.name || user.username,
       avatar: user.avatar || null,
-      role: user.role
+      role: user.role,
+      locale: i18n.SUPPORTED.includes(user.locale) ? user.locale : 'km'
     };
+    i18n.setLocaleCookie(res, req.session.user.locale);
     res.redirect('/');
   } catch (err) {
     next(err);

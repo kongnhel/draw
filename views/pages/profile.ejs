@@ -109,13 +109,13 @@
 
     <div class="pf-identity">
       <div class="pf-avatar-wrap">
-        <img class="pf-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" />
+        <img class="pf-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" data-i18n-skip />
         <span class="pf-tape" aria-hidden="true"></span>
       </div>
 
       <div class="pf-identity-copy">
-        <h1 class="pf-name"><%= profileUser.display_name %></h1>
-        <p class="pf-handle">@<%= profileUser.username %><% if (memberSince) { %><span class="pf-dot" aria-hidden="true">·</span>Sketching since <%= memberSince %><% } %></p>
+        <h1 class="pf-name" data-i18n-skip><%= profileUser.display_name %></h1>
+        <p class="pf-handle"><span data-i18n-skip>@<%= profileUser.username %></span><% if (memberSince) { %><span class="pf-dot" aria-hidden="true">·</span>Sketching since <%= memberSince %><% } %></p>
       </div>
 
       <div class="pf-hero-actions">
@@ -175,7 +175,7 @@
           <svg viewBox="0 0 60 60" aria-hidden="true"><path d="M8 44 14 30 38 8l8 8L24 40 8 44Z" /><path d="M33 13l8 8" /><path d="M12 36l6 6" /></svg>
         </div>
 
-        <p class="pf-bio"><%= profileUser.bio && profileUser.bio.trim() ? profileUser.bio : 'This artist is sketching their way into the community — fresh pages, honest lines, everyday wonder.' %></p>
+        <p class="pf-bio"<%- profileUser.bio && profileUser.bio.trim() ? ' data-i18n-skip' : '' %>><%= profileUser.bio && profileUser.bio.trim() ? profileUser.bio : 'This artist is sketching their way into the community — fresh pages, honest lines, everyday wonder.' %></p>
 
         <% if (profileUser.website || profileUser.instagram || profileUser.twitter) { %>
           <ul class="pf-socials">
@@ -217,7 +217,7 @@
                 <span class="pf-notebook-index"><%= String(index + 1).padStart(2, '0') %></span>
                 <span class="pf-notebook-meta">
                   <span><%= artwork.category_name || 'Artwork' %></span>
-                  <strong><%= artwork.title %></strong>
+                  <strong data-i18n-skip><%= artwork.title %></strong>
                 </span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
               </a>
@@ -356,10 +356,10 @@
       <section class="pf-card pf-specimen" aria-label="Artist card">
         <span class="pf-specimen-label" aria-hidden="true">The Artist's Table</span>
         <div class="pf-specimen-top">
-          <img class="pf-specimen-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" loading="lazy" />
+          <img class="pf-specimen-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" loading="lazy" data-i18n-skip />
           <div class="pf-specimen-copy">
-            <h3><%= profileUser.display_name %></h3>
-            <p>@<%= profileUser.username %></p>
+            <h3 data-i18n-skip><%= profileUser.display_name %></h3>
+            <p data-i18n-skip>@<%= profileUser.username %></p>
             <span class="pf-role"><%= profileUser.role === 'admin' ? 'Studio keeper' : (profileUser.is_verified ? 'Verified artist' : 'Artist on ArtSpace') %></span>
           </div>
         </div>
@@ -379,10 +379,10 @@
               const latestSrc = imageTools.cardSrc(latest, 480);
               const latestSrcset = imageTools.cardSrcset(latest, [320, 480, 640]);
             %>
-            <img src="<%= latestSrc %>"<% if (latestSrcset) { %> srcset="<%= latestSrcset %>" sizes="(max-width: 640px) 88vw, 300px"<% } %> data-fallback-src="/images/default-artwork.svg" alt="<%= latest.title %>" loading="lazy" decoding="async" />
+            <img src="<%= latestSrc %>"<% if (latestSrcset) { %> srcset="<%= latestSrcset %>" sizes="(max-width: 640px) 88vw, 300px"<% } %> data-fallback-src="/images/default-artwork.svg" alt="<%= latest.title %>" loading="lazy" decoding="async" data-i18n-skip />
             <span class="pf-pinned-meta">
               <span><%= latest.category_name || 'Artwork' %></span>
-              <strong><%= latest.title %></strong>
+              <strong data-i18n-skip><%= latest.title %></strong>
             </span>
           </a>
         </section>

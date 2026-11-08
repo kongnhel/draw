@@ -46,11 +46,11 @@
           %>
           <a href="/art/<%= heroArtwork.id %>" class="hs-feature home-hero-feature" aria-label="View <%= heroArtwork.title %> by <%= heroArtistName %>">
             <span class="hs-feature-mat">
-              <img src="<%= heroSrc %>"<% if (heroSrcset) { %> srcset="<%= heroSrcset %>" sizes="(max-width: 480px) 40vw, (max-width: 1080px) 46vw, 480px"<% } %> width="480" height="600" data-home-feature-image data-fallback-src="/images/default-artwork.svg" alt="<%= heroArtwork.title %> by <%= heroArtistName %>" loading="eager" fetchpriority="high" decoding="async">
+              <img src="<%= heroSrc %>"<% if (heroSrcset) { %> srcset="<%= heroSrcset %>" sizes="(max-width: 480px) 40vw, (max-width: 1080px) 46vw, 480px"<% } %> width="480" height="600" data-home-feature-image data-fallback-src="/images/default-artwork.svg" alt="<%= heroArtwork.title %> by <%= heroArtistName %>" loading="eager" fetchpriority="high" decoding="async" data-i18n-skip>
             </span>
             <span class="hs-feature-meta">
               <span class="hs-feature-kicker">Plate <%= String(heroArtworkIndex).padStart(2, '0') %> · <%= heroArtwork.category_name || 'Original artwork' %></span>
-              <strong><%= heroArtwork.title %></strong>
+              <strong data-i18n-skip><%= heroArtwork.title %></strong>
               <span class="hs-feature-artist">by <%= heroArtistName %></span>
             </span>
             <span class="hs-feature-arrow" aria-hidden="true">↗</span>
@@ -175,12 +175,12 @@
         <div class="hs-artist-card">
           <span class="hs-artist-quote" aria-hidden="true">“</span>
           <div class="hs-artist-portrait">
-            <img src="<%= artistSpotlight.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= artistSpotlight.display_name || artistSpotlight.username %>" loading="lazy">
+            <img src="<%= artistSpotlight.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= artistSpotlight.display_name || artistSpotlight.username %>" loading="lazy" data-i18n-skip>
             <span class="hs-artist-sticker">Artist<br>in focus</span>
           </div>
           <div class="hs-artist-copy">
-            <h3><%= artistSpotlight.display_name || artistSpotlight.username %></h3>
-            <blockquote><%= artistSpotlight.bio || 'Part of a growing community sharing original drawings, paintings, and visual stories.' %></blockquote>
+            <h3 data-i18n-skip><%= artistSpotlight.display_name || artistSpotlight.username %></h3>
+            <blockquote<%- artistSpotlight.bio && artistSpotlight.bio.trim() ? ' data-i18n-skip' : '' %>><%= artistSpotlight.bio || 'Part of a growing community sharing original drawings, paintings, and visual stories.' %></blockquote>
             <div class="hs-artist-meta">
               <span class="hs-artist-count"><strong><%= artistSpotlight.art_count || 0 %></strong> <%= Number(artistSpotlight.art_count) === 1 ? 'work' : 'works' %> in the collection</span>
               <a href="/profile/<%= artistSpotlight.username %>" class="hs-link">Visit artist profile <span aria-hidden="true">↗</span></a>
@@ -193,7 +193,7 @@
                     const previewSrcset = imageTools.cardSrcset(artwork, [160, 240, 320, 480]);
                   %>
                   <a class="hs-artist-preview" href="/art/<%= artwork.id %>" data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="View <%= artwork.title %>">
-                    <img src="<%= previewSrc %>"<% if (previewSrcset) { %> srcset="<%= previewSrcset %>" sizes="(max-width: 640px) 28vw, 140px"<% } %> width="320" height="400" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+                    <img src="<%= previewSrc %>"<% if (previewSrcset) { %> srcset="<%= previewSrcset %>" sizes="(max-width: 640px) 28vw, 140px"<% } %> width="320" height="400" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" data-i18n-skip />
                   </a>
                 <% }) %>
                 <a class="hs-artist-previews-more" href="/profile/<%= artistSpotlight.username %>">See the full collection <span aria-hidden="true">↗</span></a>

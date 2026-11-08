@@ -7,7 +7,7 @@
   %>
   <div class="art-card-media">
     <a href="/art/<%= artwork.id %>">
-      <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 300px"<% } %> width="480" height="600" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+      <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 300px"<% } %> width="480" height="600" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" data-i18n-skip />
     </a>
     <% if (cardPinned && !cardOwned) { %>
       <span class="pin-badge" title="Pinned to homepage">
@@ -27,13 +27,13 @@
       <span><%= artwork.created_at_label || 'Fresh' %></span>
     </div>
 
-    <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
-    <p><%= artwork.description ? artwork.description.substring(0, 105) : 'Original piece from the creator.' %>...</p>
+    <h3 data-i18n-skip><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+    <p<%- artwork.description ? ' data-i18n-skip' : '' %>><%= artwork.description ? artwork.description.substring(0, 105) : 'Original piece from the creator.' %>...</p>
 
     <div class="artist-row">
       <a href="/profile/<%= artwork.username %>" class="artist-mini">
-        <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= artwork.display_name || artwork.username %>" loading="lazy" decoding="async" />
-        <span><%= artwork.display_name || artwork.username %></span>
+        <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= artwork.display_name || artwork.username %>" loading="lazy" decoding="async" data-i18n-skip />
+        <span data-i18n-skip><%= artwork.display_name || artwork.username %></span>
       </a>
 
       <div class="metric-inline">

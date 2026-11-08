@@ -312,6 +312,12 @@ const bindPortfolioCollection = () => {
   applyFilters(false);
 };
 
+const autoResizeTextarea = (textarea, maxHeight = 170) => {
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+};
+
 const bindArtworkEditPreview = () => {
   const form = document.querySelector('[data-artwork-edit-form]');
   if (!form) return;
@@ -337,11 +343,138 @@ const bindArtworkEditPreview = () => {
     if (descriptionCount && descriptionInput) {
       descriptionCount.textContent = `${descriptionInput.value.length}/1200`;
     }
+    autoResizeTextarea(descriptionInput);
   };
 
   form.addEventListener('input', update);
   form.addEventListener('change', update);
   update();
+};
+
+const bindArtworkEditForm = () => {
+  const page = document.querySelector('.ae-page--compact');
+  const form = page?.querySelector('[data-artwork-edit-form]');
+  if (!page || !form) return;
+
+  const saveButton = form.querySelector('[data-ae-save]');
+  const saveLabel = form.querySelector('[data-ae-save-label]');
+  const status = form.querySelector('[data-ae-save-status]');
+  const initialLabel = saveLabel?.textContent || 'Save changes';
+  const unsavedMessage = page.dataset.aeUnsavedMessage || 'You have unsaved changes. Leave without saving?';
+  const savingLabel = page.dataset.aeSavingLabel || 'Saving…';
+  const successLabel = page.dataset.aeSuccessLabel || 'Saved. Returning to artwork…';
+  const savedLabel = page.dataset.aeSavedLabel || 'Saved';
+  const errorLabel = page.dataset.aeErrorLabel || 'We could not save your changes. Please try again.';
+  const serialize = () => JSON.stringify([...new FormData(form).entries()]);
+  const initial = serialize();
+  let dirty = false;
+  let isSubmitting = false;
+
+  const setStatus = (message, type = '') => {
+    if (!status) return;
+    status.textContent = message;
+    status.hidden = !message;
+    status.classList.toggle('is-error', type === 'error');
+    status.classList.toggle('is-success', type === 'success');
+  };
+
+  const syncDirty = () => {
+    dirty = serialize() !== initial;
+  };
+
+  const handleInput = () => syncDirty();
+
+  const beforeUnload = (event) => {
+    if (!dirty || isSubmitting) return;
+    event.preventDefault();
+    event.returnValue = '';
+  };
+
+  const confirmLeave = (event) => {
+    if (!dirty || isSubmitting) return;
+    const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+    if (!link) return;
+    if (link.target === '_blank' || link.hasAttribute('download')) return;
+    const href = link.getAttribute('href') || '';
+    if (!href || href.startsWith('#')) return;
+    if (!window.confirm(unsavedMessage)) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    }
+  };
+
+  const submit = async (event) => {
+    if (isSubmitting) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!form.checkValidity()) {
+      return;
+    }
+
+    event.preventDefault();
+    isSubmitting = true;
+    dirty = false;
+    form.setAttribute('aria-busy', 'true');
+    if (saveButton) saveButton.disabled = true;
+    if (saveButton) saveButton.classList.add('is-loading');
+    if (saveLabel) saveLabel.textContent = savingLabel;
+    setStatus(savingLabel);
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: new URLSearchParams(new FormData(form)),
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        }
+      });
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = null;
+      }
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || errorLabel);
+      }
+
+      setStatus(successLabel, 'success');
+      if (saveLabel) saveLabel.textContent = savedLabel;
+      window.setTimeout(() => {
+        window.location.assign(payload.artworkUrl || `/art/${form.dataset.artworkId || ''}`);
+      }, 700);
+    } catch (error) {
+      isSubmitting = false;
+      syncDirty();
+      form.removeAttribute('aria-busy');
+      if (saveButton) saveButton.disabled = false;
+      if (saveButton) saveButton.classList.remove('is-loading');
+      if (saveLabel) saveLabel.textContent = initialLabel;
+      setStatus(error.message || errorLabel, 'error');
+    }
+  };
+
+  const handleDeleteStart = () => { isSubmitting = true; };
+  const handleDeleteFailed = () => { isSubmitting = false; syncDirty(); };
+
+  form.addEventListener('input', handleInput);
+  form.addEventListener('change', handleInput);
+  form.addEventListener('submit', submit);
+  document.addEventListener('click', confirmLeave, true);
+  document.addEventListener('artwork-delete:start', handleDeleteStart);
+  document.addEventListener('artwork-delete:failed', handleDeleteFailed);
+  window.addEventListener('beforeunload', beforeUnload);
+  registerPageCleanup(() => {
+    document.removeEventListener('click', confirmLeave, true);
+    document.removeEventListener('artwork-delete:start', handleDeleteStart);
+    document.removeEventListener('artwork-delete:failed', handleDeleteFailed);
+    window.removeEventListener('beforeunload', beforeUnload);
+  });
 };
 
 const bindArtworkDeleteDialog = () => {
@@ -443,6 +576,7 @@ const bindArtworkDeleteDialog = () => {
       button.disabled = true;
     });
     setStatus('Deleting this page…');
+    document.dispatchEvent(new CustomEvent('artwork-delete:start'));
 
     try {
       const response = await fetch(form.action, {
@@ -468,6 +602,7 @@ const bindArtworkDeleteDialog = () => {
       window.setTimeout(() => window.location.assign(redirectUrl), 650);
     } catch (error) {
       isDeleting = false;
+      document.dispatchEvent(new CustomEvent('artwork-delete:failed'));
       resetButtons();
       setStatus(error.message || 'We could not delete this artwork. Please try again.', 'error');
     }
@@ -1336,6 +1471,7 @@ const bindArtViewer = () => {
 
       const title = document.createElement('span');
       title.textContent = record.title;
+      title.setAttribute('data-i18n-skip', '');
       button.append(thumbnail, title);
       relatedList.appendChild(button);
     });
@@ -2072,6 +2208,7 @@ const initUploadPage = () => {
   const formErrorText = uploadPage.querySelector('[data-upload-form-error-text]');
   const dismissError = uploadPage.querySelector('[data-upload-dismiss-error]');
   const titleInput = uploadPage.querySelector('#title');
+  const descriptionInput = uploadPage.querySelector('#description');
   const categoryInput = uploadPage.querySelector('#category');
   const publishButton = uploadPage.querySelector('[data-upload-publish]');
   const publishLabel = uploadPage.querySelector('[data-upload-publish-label]');
@@ -2521,6 +2658,8 @@ const initUploadPage = () => {
   dismissError?.addEventListener('click', clearFormError);
   titleInput?.addEventListener('input', updateReadiness);
   categoryInput?.addEventListener('change', updateReadiness);
+  descriptionInput?.addEventListener('input', () => autoResizeTextarea(descriptionInput));
+  autoResizeTextarea(descriptionInput);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -3795,6 +3934,7 @@ const initPage = () => {
   bindQuickActions();
   bindPortfolioCollection();
   bindArtworkEditPreview();
+  bindArtworkEditForm();
   bindArtworkDeleteDialog();
   bindProfileFlash();
   bindCommentForms();

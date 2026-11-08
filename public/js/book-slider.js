@@ -88,7 +88,7 @@
         </div>
         <div class="asb-caption">
           <span class="asb-meta">${medium} · ${year}</span>
-          <h2>${title}</h2>
+          <h2 data-i18n-skip>${title}</h2>
           <p>by ${artist}</p>
         </div>
         <span class="asb-folio">${folio}</span>

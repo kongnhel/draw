@@ -112,7 +112,7 @@
                   <div class="admin-art-cell">
                     <img class="admin-art-thumb" src="<%= artwork.thumbnail_url || artwork.image_url %>" data-fallback-src="/images/default-artwork.svg" alt="" loading="lazy" decoding="async" />
                     <a href="/art/<%= artwork.id %>">
-                      <strong><%= artwork.title %></strong>
+                      <strong data-i18n-skip><%= artwork.title %></strong>
                       <small>by <%= artwork.display_name %> · @<%= artwork.username %></small>
                     </a>
                   </div>
@@ -187,12 +187,12 @@
                   <div class="admin-user-cell">
                     <img src="<%= user.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" />
                     <span>
-                      <strong><%= user.name || user.username %></strong>
-                      <small>@<%= user.username %></small>
+                      <strong data-i18n-skip><%= user.name || user.username %></strong>
+                      <small data-i18n-skip>@<%= user.username %></small>
                     </span>
                   </div>
                 </td>
-                <td><%= user.email %></td>
+                <td data-i18n-skip><%= user.email %></td>
                 <td><span class="admin-status"><%= user.role %></span></td>
                 <td><%= user.artwork_count %></td>
                 <td><span class="admin-status is-<%= user.status %>"><%= user.status %></span></td>
@@ -242,9 +242,9 @@
               <img src="<%= report.thumbnail_url || report.image_url %>" data-fallback-src="/images/default-artwork.svg" alt="" loading="lazy" decoding="async" />
             </a>
             <div class="admin-report-copy">
-              <h3><a href="/art/<%= report.artwork_id %>"><%= report.artwork_title %></a></h3>
+              <h3 data-i18n-skip><a href="/art/<%= report.artwork_id %>"><%= report.artwork_title %></a></h3>
               <small>by <%= report.artist_name %> · reported by <%= report.reporter_name %> · <%= report.created_label %></small>
-              <p class="admin-report-reason">&ldquo;<%= report.reason || 'No reason provided.' %>&rdquo;</p>
+              <p class="admin-report-reason" data-i18n-skip>&ldquo;<%= report.reason || 'No reason provided.' %>&rdquo;</p>
             </div>
             <div class="admin-actions">
               <a class="admin-action" href="/art/<%= report.artwork_id %>">View</a>

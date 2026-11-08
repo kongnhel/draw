@@ -1,0 +1,1304 @@
+body.upload-body .main-content {
+  width: min(1080px, calc(100% - 32px));
+  max-width: none;
+  padding: 14px 0 56px;
+}
+
+body.edit-body .main-content.edit-main {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.studio-upload-page--compact {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.studio-upload-page--compact .studio-upload-kicker {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  line-height: 1.3;
+}
+
+.studio-upload-page--compact .studio-upload-tape,
+.studio-upload-page--compact .studio-upload-handnote,
+.studio-upload-page--compact .studio-upload-doodle,
+.studio-upload-page--compact .studio-upload-hero-seal,
+.studio-upload-page--compact .studio-upload-margin-line {
+  display: none;
+}
+
+.studio-upload-page--compact .studio-upload-hero {
+  min-height: 0;
+  padding: 16px 20px;
+  border-radius: 12px 16px 11px 14px / 15px 12px 17px 12px;
+  box-shadow: 0 8px 22px rgba(72, 57, 31, 0.1);
+}
+
+.studio-upload-page--compact .studio-upload-hero::before {
+  inset: 6px;
+  border-radius: 9px 12px 8px 11px / 11px 9px 13px 9px;
+}
+
+.studio-upload-page--compact .studio-upload-hero::after {
+  opacity: 0.22;
+}
+
+.studio-upload-page--compact .studio-upload-hero-copy {
+  max-width: 760px;
+}
+
+.studio-upload-page--compact .studio-upload-hero h1 {
+  margin: 3px 0 4px;
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: clamp(31px, 4.2vw, 43px);
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+}
+
+.studio-upload-page--compact .studio-upload-hero h1 span::after {
+  bottom: 0;
+  height: 2px;
+}
+
+.studio-upload-page--compact .studio-upload-subtitle {
+  max-width: 620px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.studio-upload-page--compact .studio-upload-workspace {
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.studio-upload-page--compact .studio-upload-sheet,
+.studio-upload-page--compact .studio-upload-notebook {
+  padding: 15px 17px 13px;
+  border-radius: 11px 15px 10px 13px / 14px 11px 15px 10px;
+  box-shadow: 0 6px 17px rgba(72, 57, 31, 0.09);
+}
+
+.studio-upload-page--compact .studio-upload-step {
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-upload-page--compact .studio-upload-step-number {
+  width: 27px;
+  height: 27px;
+  font-size: 13px;
+  transform: none;
+}
+
+.studio-upload-page--compact .studio-upload-step h2 {
+  margin: 1px 0 0;
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: 21px;
+  line-height: 1.05;
+}
+
+.studio-upload-page--compact .studio-dropzone {
+  min-height: 286px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 9px 13px 8px 12px / 12px 9px 13px 9px;
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.studio-upload-page--compact .studio-dropzone:hover {
+  transform: none;
+  box-shadow: inset 0 0 0 1px rgba(191, 90, 67, 0.16);
+}
+
+.studio-upload-page--compact .studio-dropzone::after {
+  inset: 5px;
+  border-radius: 7px 10px 6px 9px / 9px 7px 10px 7px;
+}
+
+.studio-upload-page--compact .studio-upload-illustration {
+  width: 88px;
+  height: 78px;
+  margin-bottom: 4px;
+  animation: none;
+  opacity: 0.8;
+  stroke-width: 1.2;
+}
+
+.studio-upload-page--compact .studio-dropzone-empty h3 {
+  margin: 2px 0 3px;
+  font-size: 21px;
+  line-height: 1.1;
+}
+
+.studio-upload-page--compact .studio-dropzone-copy {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.studio-upload-page--compact .studio-format-row {
+  gap: 4px;
+  margin-top: 9px;
+}
+
+.studio-upload-page--compact .studio-format-row span {
+  padding: 2px 5px;
+  font-size: 7.5px;
+}
+
+.studio-upload-page--compact .studio-format-row em {
+  margin-left: 2px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+}
+
+.studio-upload-page--compact .studio-upload-preview {
+  gap: 8px;
+}
+
+.studio-upload-page--compact .studio-preview-frame {
+  min-height: 240px;
+  max-height: 302px;
+  padding: 7px;
+  border-radius: 8px 12px 7px 10px / 10px 8px 11px 8px;
+}
+
+.studio-upload-page--compact .studio-preview-frame img {
+  max-height: 286px;
+  border-radius: 2px;
+  box-shadow: 0 8px 20px rgba(58, 46, 27, 0.18);
+}
+
+.studio-upload-page--compact .studio-preview-tools {
+  gap: 6px;
+}
+
+.studio-upload-page--compact .studio-upload-mini-btn {
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 5px 7px 5px 6px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+}
+
+.studio-upload-page--compact .studio-upload-mini-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.studio-upload-page--compact .studio-upload-file {
+  margin-top: 8px;
+  padding: 6px 8px;
+}
+
+.studio-upload-page--compact .studio-upload-file-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.studio-upload-page--compact .studio-upload-file-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.studio-upload-page--compact .studio-upload-file-copy strong {
+  font-size: 10px;
+}
+
+.studio-upload-page--compact .studio-upload-file-copy em,
+.studio-upload-page--compact .studio-upload-file-ready {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+}
+
+.studio-upload-page--compact .studio-upload-error {
+  margin-top: 8px;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+
+.studio-upload-page--compact .studio-upload-stage-note {
+  margin-top: 9px;
+  padding-top: 7px;
+}
+
+.studio-upload-page--compact .studio-upload-stage-note p {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.studio-upload-page--compact .studio-upload-intro {
+  display: none;
+}
+
+.studio-upload-page--compact .studio-upload-fields {
+  gap: 10px;
+  margin-top: 11px;
+}
+
+.studio-upload-page--compact .studio-upload-row {
+  gap: 10px;
+}
+
+.studio-upload-page--compact .studio-upload-field {
+  gap: 3px;
+}
+
+.studio-upload-page--compact .studio-upload-field > label,
+.studio-upload-page--compact .studio-visibility legend {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.studio-upload-page--compact .studio-required {
+  font-size: 10px;
+}
+
+.studio-upload-page--compact .studio-field-hint {
+  font-size: 7.5px;
+}
+
+.studio-upload-page--compact .studio-upload-field input,
+.studio-upload-page--compact .studio-upload-field textarea,
+.studio-upload-page--compact .studio-upload-field select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 6px 9px 6px 8px / 8px 6px 9px 6px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.studio-upload-page--compact .studio-upload-field textarea {
+  min-height: 72px;
+  max-height: 170px;
+  resize: none;
+  overflow-y: auto;
+}
+
+.studio-upload-page--compact .studio-upload-field input::placeholder,
+.studio-upload-page--compact .studio-upload-field textarea::placeholder {
+  font-size: 11.5px;
+}
+
+.studio-upload-page--compact .studio-upload-field input:focus,
+.studio-upload-page--compact .studio-upload-field textarea:focus,
+.studio-upload-page--compact .studio-upload-field select:focus {
+  box-shadow: 0 0 0 3px rgba(191, 90, 67, 0.1);
+}
+
+.studio-upload-page--compact .studio-select-wrap::after {
+  right: 11px;
+  width: 5px;
+  height: 5px;
+}
+
+.studio-upload-page--compact .studio-upload-field select {
+  padding-right: 28px;
+}
+
+.studio-upload-page--compact .studio-field-help {
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.studio-upload-page--compact .studio-visibility legend {
+  margin-bottom: 6px;
+}
+
+.studio-upload-page--compact .studio-visibility-grid {
+  gap: 6px;
+}
+
+.studio-upload-page--compact .studio-visibility-card > span {
+  min-height: 0;
+  padding: 8px 9px;
+  border-radius: 7px 10px 6px 9px / 9px 7px 10px 7px;
+}
+
+.studio-upload-page--compact .studio-visibility-card strong {
+  gap: 5px;
+  font-size: 10.5px;
+}
+
+.studio-upload-page--compact .studio-visibility-card strong svg {
+  width: 13px;
+  height: 13px;
+}
+
+.studio-upload-page--compact .studio-visibility-card em {
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.studio-upload-page--compact .studio-upload-progress {
+  margin-top: 10px;
+  padding: 9px 11px;
+}
+
+.studio-upload-page--compact .studio-upload-progress-heading strong {
+  margin-top: 0;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 13px;
+}
+
+.studio-upload-page--compact .studio-upload-progress-percent {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 18px;
+  min-width: 43px;
+}
+
+.studio-upload-page--compact .studio-upload-progress-track {
+  height: 12px;
+  margin: 8px 0 5px;
+}
+
+.studio-upload-page--compact .studio-upload-progress-detail {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9.5px;
+}
+
+.studio-upload-actionbar {
+  display: block;
+}
+
+.studio-upload-page--compact .studio-upload-actions {
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.studio-upload-page--compact .studio-publish-btn {
+  min-height: 42px;
+  padding: 8px 14px;
+  border-radius: 7px 10px 7px 9px / 9px 7px 10px 7px;
+  box-shadow: 2px 3px 0 rgba(45, 42, 36, 0.12);
+  font-size: 9.5px;
+}
+
+.studio-upload-page--compact .studio-publish-btn:hover:not(:disabled) {
+  box-shadow: 3px 4px 0 rgba(164, 70, 51, 0.12);
+  transform: translateY(-1px);
+}
+
+.studio-upload-page--compact .studio-draft-btn {
+  min-height: 42px;
+  padding: 6px 12px;
+  border-radius: 7px 10px 7px 9px / 9px 7px 10px 7px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 10.5px;
+}
+
+.studio-upload-page--compact .studio-upload-readiness {
+  margin: 8px 0 0;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.studio-upload-page--compact .studio-upload-success {
+  margin-top: 12px;
+  padding: 24px 20px 20px;
+  border-radius: 13px 18px 12px 16px / 17px 13px 18px 12px;
+}
+
+.studio-upload-page--compact .studio-success-art {
+  height: 160px;
+  width: 46%;
+  margin-top: 10px;
+}
+
+.studio-upload-page--compact .studio-upload-success h2 {
+  margin: 8px 0 6px;
+  font-size: clamp(22px, 4vw, 30px);
+}
+
+.studio-upload-page--compact .studio-success-note {
+  max-width: 420px;
+  font-size: 11px;
+}
+
+.studio-upload-page--compact .studio-success-actions {
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.studio-upload-page--compact .studio-success-actions .studio-btn {
+  min-height: 40px;
+  font-size: 10px;
+}
+
+.ae-page--compact {
+  width: min(1080px, calc(100% - 32px));
+  padding: 0 0 52px;
+}
+
+.ae-page--compact .ae-topbar {
+  gap: 10px;
+  padding: 2px 0 0;
+}
+
+.ae-page--compact .ae-back-link {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.ae-page--compact .ae-back-link svg,
+.ae-page--compact .ae-view-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ae-page--compact .ae-page-code {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.13em;
+}
+
+.ae-page--compact .ae-hero {
+  min-height: 0;
+  align-items: center;
+  padding: 11px 0 13px;
+}
+
+.ae-page--compact .ae-hero-copy {
+  max-width: 760px;
+}
+
+.ae-page--compact .ae-kicker {
+  gap: 5px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.ae-page--compact .ae-hero h1 {
+  margin: 3px 0 0;
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: clamp(32px, 4.3vw, 44px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+
+.ae-page--compact .ae-hero h1 span::after {
+  bottom: 0;
+  height: 2px;
+  border-bottom-width: 2px;
+}
+
+.ae-page--compact .ae-hero p {
+  max-width: 590px;
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ae-page--compact .ae-hero-doodle {
+  display: none;
+}
+
+.ae-page--compact .ae-layout {
+  grid-template-columns: minmax(0, 1.55fr) minmax(252px, 0.65fr);
+  gap: clamp(12px, 2vw, 18px);
+}
+
+.ae-page--compact .ae-form-card {
+  padding: 15px 18px 13px;
+  border-radius: 9px 12px 8px 11px / 11px 9px 12px 8px;
+  box-shadow: 0 6px 17px rgba(58, 42, 27, 0.09);
+}
+
+.ae-page--compact .ae-form-card::before {
+  width: 48px;
+  height: 13px;
+  margin-left: -24px;
+  top: -7px;
+}
+
+.ae-page--compact .ae-section-head {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ae-page--compact .ae-step {
+  width: 27px;
+  height: 27px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 11px;
+  transform: none;
+}
+
+.ae-page--compact .ae-section-kicker {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+
+.ae-page--compact .ae-section-head h2 {
+  margin: 1px 0 0;
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: 20px;
+  line-height: 1.05;
+}
+
+.ae-page--compact .ae-section-doodle {
+  display: none;
+}
+
+.ae-page--compact .ae-field {
+  gap: 3px;
+  margin-top: 9px;
+}
+
+.ae-page--compact .ae-label-row {
+  gap: 8px;
+}
+
+.ae-page--compact .ae-field label,
+.ae-page--compact .ae-label-row label {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.4;
+}
+
+.ae-page--compact .ae-required,
+.ae-page--compact .ae-optional,
+.ae-page--compact .ae-counter {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 8.5px;
+}
+
+.ae-page--compact .ae-counter {
+  font-size: 9.5px;
+}
+
+.ae-page--compact .ae-field input,
+.ae-page--compact .ae-field textarea,
+.ae-page--compact .ae-field select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 6px 9px 6px 8px / 8px 6px 9px 6px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.ae-page--compact .ae-field input#title {
+  padding: 5px 10px;
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.ae-page--compact .ae-field textarea {
+  min-height: 70px;
+  max-height: 170px;
+  resize: none;
+  overflow-y: auto;
+}
+
+.ae-page--compact .ae-field input::placeholder,
+.ae-page--compact .ae-field textarea::placeholder {
+  font-size: 11.5px;
+}
+
+.ae-page--compact .ae-field input:focus,
+.ae-page--compact .ae-field textarea:focus,
+.ae-page--compact .ae-field select:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ae-brass) 13%, transparent);
+}
+
+.ae-page--compact .ae-select-wrap select {
+  padding-right: 30px;
+}
+
+.ae-page--compact .ae-select-wrap svg {
+  right: 11px;
+  width: 13px;
+  height: 13px;
+}
+
+.ae-page--compact .ae-hint {
+  margin-top: 1px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.ae-page--compact .ae-rule {
+  margin: 13px 0 11px;
+}
+
+.ae-page--compact .ae-actions {
+  gap: 7px;
+  margin-top: 14px;
+  padding-top: 11px;
+}
+
+.ae-page--compact .ae-save,
+.ae-page--compact .ae-cancel {
+  min-height: 40px;
+  padding: 0 13px;
+  border-radius: 6px 9px 6px 8px / 8px 6px 9px 6px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.ae-page--compact .ae-save svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ae-page--compact .ae-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 1px 2px 0 var(--ae-line);
+}
+
+.ae-page--compact .ae-save-note {
+  flex-basis: 180px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9.5px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.ae-page--compact .ae-save-status {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 6px 9px;
+  border: 1px dashed var(--ae-line);
+  border-radius: 5px 8px 5px 7px / 7px 5px 8px 5px;
+  color: var(--ae-ink-soft);
+  background: color-mix(in srgb, var(--ae-brass) 8%, var(--ae-paper));
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ae-page--compact .ae-save-status.is-success {
+  color: var(--ae-sage);
+  background: color-mix(in srgb, var(--ae-sage) 9%, var(--ae-paper));
+  border-color: color-mix(in srgb, var(--ae-sage) 40%, var(--ae-line));
+}
+
+.ae-page--compact .ae-save-status.is-error {
+  color: var(--ae-accent);
+  background: color-mix(in srgb, var(--ae-accent) 8%, var(--ae-paper));
+  border-color: color-mix(in srgb, var(--ae-accent) 42%, var(--ae-line));
+}
+
+.ae-page--compact .ae-save.is-loading {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.ae-page--compact .ae-save.is-loading > svg {
+  display: none;
+}
+
+.ae-page--compact .ae-save-spinner {
+  display: none;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid color-mix(in srgb, var(--ae-paper-light) 35%, transparent);
+  border-top-color: var(--ae-paper-light);
+  border-radius: 50%;
+  animation: ae-save-spin 0.7s linear infinite;
+}
+
+.ae-page--compact .ae-save.is-loading .ae-save-spinner {
+  display: inline-block;
+}
+
+@keyframes ae-save-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ae-page--compact .ae-side {
+  top: 86px;
+  gap: 10px;
+}
+
+.ae-page--compact .ae-preview-card {
+  padding: 9px 9px 10px;
+  border-radius: 7px 10px 6px 9px / 9px 7px 10px 7px;
+  box-shadow: 3px 4px 0 var(--ae-paper-deep), 0 10px 20px rgba(58, 42, 27, 0.1);
+  transform: none;
+}
+
+.ae-page--compact .ae-preview-label {
+  top: -9px;
+  left: 10px;
+  padding: 0 7px;
+  border-radius: 3px 5px 3px 4px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+  line-height: 1.6;
+  transform: none;
+}
+
+.ae-page--compact .ae-preview-tape {
+  top: -6px;
+  right: 13px;
+  width: 35px;
+  height: 11px;
+}
+
+.ae-page--compact .ae-preview-frame {
+  height: 214px;
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: 4px;
+  border-radius: 2px 5px 3px 4px;
+}
+
+.ae-page--compact .ae-preview-frame img {
+  object-fit: contain;
+}
+
+.ae-page--compact .ae-preview-copy {
+  padding: 7px 2px 0;
+}
+
+.ae-page--compact .ae-preview-meta {
+  gap: 7px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.ae-page--compact .ae-visibility {
+  padding: 1px 5px;
+  font-size: 7.5px;
+}
+
+.ae-page--compact .ae-preview-copy h2 {
+  margin: 4px 0 0;
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: 1.3rem;
+  line-height: 1.1;
+}
+
+.ae-page--compact .ae-preview-id {
+  margin-top: 2px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 8px;
+}
+
+.ae-page--compact .ae-note-card {
+  padding: 11px 12px;
+}
+
+.ae-page--compact .ae-note-doodle {
+  width: 31px;
+  height: 31px;
+}
+
+.ae-page--compact .ae-note-card h2 {
+  margin: 3px 0 4px;
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: 1.1rem;
+}
+
+.ae-page--compact .ae-note-card > p {
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ae-page--compact .ae-note-card ul {
+  display: none;
+}
+
+.ae-page--compact .ae-view-link {
+  padding: 6px 8px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ae-page--compact .ae-danger-card {
+  padding: 12px;
+}
+
+.ae-page--compact .ae-danger-label {
+  top: -10px;
+  left: 9px;
+  padding: 0 7px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 8px;
+  line-height: 1.6;
+  transform: none;
+}
+
+.ae-page--compact .ae-danger-card h2 {
+  font-family: "Caveat", "Kantumruy Pro", cursive;
+  font-size: 1.15rem;
+}
+
+.ae-page--compact .ae-danger-card p {
+  margin: 4px 0 8px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ae-page--compact .ae-delete-open {
+  min-height: 34px;
+  padding: 0 9px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ae-page--compact .ae-delete-open svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ae-page--compact .ae-modal {
+  padding: 14px;
+}
+
+.ae-page--compact .ae-modal-card {
+  width: min(420px, 100%);
+  padding: 20px 18px 16px;
+}
+
+.ae-page--compact .ae-modal-card h2 {
+  font-size: 1.8rem;
+}
+
+.ae-page--compact .ae-modal-card > p {
+  font-size: 0.78rem;
+}
+
+.ae-page--compact .ae-modal-cancel,
+.ae-page--compact .ae-modal-delete {
+  min-height: 38px;
+  font-family: "Inter", "Kantumruy Pro", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+html[lang="km"] .studio-upload-page--compact,
+html[lang="km"] .ae-page--compact {
+  line-height: 1.7;
+}
+
+html[lang="km"] .studio-upload-page--compact .studio-upload-hero h1,
+html[lang="km"] .ae-page--compact .ae-hero h1 {
+  line-height: 1.16;
+}
+
+html[lang="km"] .studio-upload-page--compact .studio-upload-field > label,
+html[lang="km"] .studio-upload-page--compact .studio-visibility legend,
+html[lang="km"] .ae-page--compact .ae-field label,
+html[lang="km"] .ae-page--compact .ae-label-row label {
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 760px) {
+  body.upload-body .main-content {
+    width: calc(100% - 20px);
+    padding: 8px 0 96px;
+  }
+
+  .studio-upload-page--compact .studio-upload-hero {
+    padding: 12px 13px;
+    border-radius: 9px 12px 8px 11px / 11px 9px 12px 8px;
+  }
+
+  .studio-upload-page--compact .studio-upload-hero h1 {
+    font-size: clamp(27px, 9vw, 34px);
+    line-height: 1.05;
+  }
+
+  .studio-upload-page--compact .studio-upload-subtitle {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .studio-upload-page--compact .studio-upload-workspace {
+    gap: 10px;
+    margin-top: 9px;
+  }
+
+  .studio-upload-page--compact .studio-upload-sheet,
+  .studio-upload-page--compact .studio-upload-notebook {
+    padding: 12px 11px 11px;
+    border-radius: 9px 12px 8px 10px / 11px 9px 12px 8px;
+  }
+
+  .studio-upload-page--compact .studio-upload-step h2 {
+    font-size: 18px;
+  }
+
+  .studio-upload-page--compact .studio-upload-step-number {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
+
+  .studio-upload-page--compact .studio-dropzone {
+    min-height: 208px;
+    padding: 10px;
+  }
+
+  .studio-upload-page--compact .studio-upload-illustration {
+    width: 62px;
+    height: 55px;
+  }
+
+  .studio-upload-page--compact .studio-dropzone-empty h3 {
+    font-size: 18px;
+  }
+
+  .studio-upload-page--compact .studio-dropzone-copy {
+    font-size: 10.5px;
+  }
+
+  .studio-upload-page--compact .studio-format-row {
+    margin-top: 7px;
+  }
+
+  .studio-upload-page--compact .studio-preview-frame {
+    min-height: 174px;
+    max-height: 222px;
+    padding: 6px;
+  }
+
+  .studio-upload-page--compact .studio-preview-frame img {
+    max-height: 208px;
+  }
+
+  .studio-upload-page--compact .studio-preview-tools {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .studio-upload-page--compact .studio-upload-mini-btn {
+    min-height: 32px;
+    font-size: 8.5px;
+  }
+
+  .studio-upload-page--compact .studio-upload-stage-note {
+    display: none;
+  }
+
+  .studio-upload-page--compact .studio-upload-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .studio-upload-page--compact .studio-upload-fields {
+    gap: 9px;
+  }
+
+  .studio-upload-page--compact .studio-upload-field input,
+  .studio-upload-page--compact .studio-upload-field textarea,
+  .studio-upload-page--compact .studio-upload-field select {
+    min-height: 44px;
+    font-size: 16px;
+    scroll-margin-bottom: 96px;
+  }
+
+  .studio-upload-page--compact .studio-upload-field textarea {
+    min-height: 76px;
+    max-height: 160px;
+  }
+
+  .studio-upload-page--compact .studio-upload-field input::placeholder,
+  .studio-upload-page--compact .studio-upload-field textarea::placeholder {
+    font-size: 14px;
+  }
+
+  .studio-upload-page--compact .studio-visibility-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .studio-upload-page--compact .studio-visibility-card > span {
+    padding: 7px 8px;
+  }
+
+  .studio-upload-page--compact .studio-visibility-card em {
+    font-size: 8.5px;
+  }
+
+  .studio-upload-actionbar {
+    position: fixed;
+    z-index: 80;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 7px;
+    background: var(--upload-paper);
+    border: 1px solid var(--upload-line);
+    border-radius: 11px 14px 10px 13px / 13px 11px 14px 10px;
+    box-shadow: 0 7px 24px rgba(44, 36, 23, 0.2);
+  }
+
+  .studio-upload-page--compact .studio-upload-actions {
+    margin-top: 0;
+    gap: 6px;
+    flex-direction: row;
+  }
+
+  .studio-upload-page--compact .studio-publish-btn {
+    width: auto;
+    min-height: 44px;
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 9.5px;
+  }
+
+  .studio-upload-page--compact .studio-draft-btn {
+    width: auto;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding-inline: 10px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .studio-upload-page--compact .studio-upload-readiness {
+    order: -1;
+    margin: 0;
+    font-size: 9.5px;
+    line-height: 1.3;
+  }
+
+  .studio-upload-page--compact .studio-upload-progress {
+    margin-top: 9px;
+    padding: 8px 9px;
+  }
+
+  .studio-upload-page--compact .studio-upload-progress-heading strong {
+    font-size: 12px;
+  }
+
+  .studio-upload-page--compact .studio-upload-success {
+    margin-top: 9px;
+    padding: 20px 13px 16px;
+  }
+
+  .studio-upload-page--compact .studio-success-art {
+    width: 56%;
+    height: 135px;
+  }
+
+  .studio-upload-page--compact .studio-success-actions {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .studio-upload-page--compact .studio-success-actions .studio-btn {
+    flex: 1;
+    width: auto;
+  }
+
+  .ae-page--compact {
+    width: calc(100% - 20px);
+    padding-bottom: 92px;
+  }
+
+  .ae-page--compact .ae-topbar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .ae-page--compact .ae-hero {
+    align-items: flex-start;
+    padding: 8px 0 10px;
+  }
+
+  .ae-page--compact .ae-hero h1 {
+    font-size: clamp(27px, 9vw, 34px);
+    line-height: 1.05;
+  }
+
+  .ae-page--compact .ae-hero p {
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .ae-page--compact .ae-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .ae-page--compact .ae-form-card {
+    padding: 11px 10px 10px;
+    border-radius: 8px 11px 7px 10px / 10px 8px 11px 7px;
+  }
+
+  .ae-page--compact .ae-section-head h2 {
+    font-size: 18px;
+  }
+
+  .ae-page--compact .ae-section-head {
+    margin-bottom: 8px;
+  }
+
+  .ae-page--compact .ae-field {
+    margin-top: 8px;
+  }
+
+  .ae-page--compact .ae-field input,
+  .ae-page--compact .ae-field textarea,
+  .ae-page--compact .ae-field select {
+    min-height: 44px;
+    font-size: 16px;
+    scroll-margin-bottom: 88px;
+  }
+
+  .ae-page--compact .ae-field input#title {
+    font-size: 1.25rem;
+  }
+
+  .ae-page--compact .ae-field textarea {
+    min-height: 72px;
+    max-height: 155px;
+  }
+
+  .ae-page--compact .ae-field input::placeholder,
+  .ae-page--compact .ae-field textarea::placeholder {
+    font-size: 14px;
+  }
+
+  .ae-page--compact .ae-hint {
+    font-size: 9px;
+  }
+
+  .ae-page--compact .ae-actions {
+    flex-direction: row;
+    position: fixed;
+    z-index: 80;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 7px;
+    background: var(--ae-paper-light);
+    border: 1px solid var(--ae-line);
+    border-radius: 10px 13px 9px 12px / 12px 10px 13px 9px;
+    box-shadow: 0 7px 24px rgba(35, 27, 18, 0.2);
+  }
+
+  .ae-page--compact .ae-save {
+    width: auto;
+    min-height: 44px;
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 10.5px;
+  }
+
+  .ae-page--compact .ae-cancel {
+    width: auto;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding-inline: 12px;
+    font-size: 10.5px;
+  }
+
+  .ae-page--compact .ae-save-note {
+    display: none;
+  }
+
+  .ae-page--compact .ae-save-status {
+    order: -1;
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 9.5px;
+  }
+
+  .ae-page--compact .ae-side {
+    position: static;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .ae-page--compact .ae-preview-card {
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .ae-page--compact .ae-preview-frame {
+    height: 188px;
+  }
+
+  .ae-page--compact .ae-note-card {
+    display: none;
+  }
+
+  .ae-page--compact .ae-danger-card {
+    padding: 11px;
+  }
+
+  .ae-page--compact .ae-danger-card p {
+    max-width: 340px;
+  }
+
+  .ae-page--compact .ae-modal {
+    padding: 10px;
+  }
+
+  .ae-page--compact .ae-modal-card {
+    padding: 18px 14px 13px;
+  }
+}
+
+@media (max-width: 360px) {
+  .studio-upload-page--compact .studio-visibility-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .studio-upload-page--compact .studio-draft-btn {
+    padding-inline: 8px;
+    font-size: 9px;
+  }
+
+  .ae-page--compact .ae-save,
+  .ae-page--compact .ae-cancel {
+    font-size: 9.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-upload-page--compact *,
+  .studio-upload-page--compact *::before,
+  .studio-upload-page--compact *::after,
+  .ae-page--compact *,
+  .ae-page--compact *::before,
+  .ae-page--compact *::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

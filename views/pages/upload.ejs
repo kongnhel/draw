@@ -1,6 +1,6 @@
 <%- include('../partials/header') %>
 
-<div class="studio-upload-page" data-upload-studio>
+<div class="studio-upload-page studio-upload-page--compact" data-upload-studio>
   <header class="studio-upload-hero">
     <span class="studio-upload-tape studio-upload-tape-left" aria-hidden="true"></span>
     <span class="studio-upload-tape studio-upload-tape-right" aria-hidden="true"></span>
@@ -151,7 +151,7 @@
 
         <div class="studio-upload-field">
           <label for="description">Description <span class="studio-field-hint">optional</span></label>
-          <textarea id="description" name="description" rows="4" maxlength="1200" placeholder="What story lives inside this drawing?"><%= typeof formValues !== 'undefined' && formValues.description ? formValues.description : '' %></textarea>
+          <textarea id="description" name="description" rows="3" maxlength="1200" placeholder="What story lives inside this drawing?"><%= typeof formValues !== 'undefined' && formValues.description ? formValues.description : '' %></textarea>
         </div>
 
         <div class="studio-upload-row">
@@ -237,18 +237,20 @@
         <p class="studio-upload-progress-detail" data-upload-progress-detail>Keep this page open while the ink dries.</p>
       </div>
 
-      <div class="studio-upload-actions">
-        <button type="submit" class="studio-publish-btn" data-upload-publish disabled>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 18.5 1.3-4.3L17 3.5c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.4 17.3 5 18.5Z" /><path d="m16.2 4.3 3.4 3.4M5 18.5l3.1-.9" /></svg>
-          <span data-upload-publish-label>Publish Artwork</span>
-          <span class="studio-publish-spinner" aria-hidden="true"></span>
-        </button>
-        <button type="submit" class="studio-draft-btn" name="save_as_draft" value="on" data-upload-draft disabled>
-          Save as draft
-        </button>
-      </div>
+      <div class="studio-upload-actionbar">
+        <div class="studio-upload-actions">
+          <button type="submit" class="studio-publish-btn" data-upload-publish disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 18.5 1.3-4.3L17 3.5c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.4 17.3 5 18.5Z" /><path d="m16.2 4.3 3.4 3.4M5 18.5l3.1-.9" /></svg>
+            <span data-upload-publish-label>Publish Artwork</span>
+            <span class="studio-publish-spinner" aria-hidden="true"></span>
+          </button>
+          <button type="submit" class="studio-draft-btn" name="save_as_draft" value="on" data-upload-draft disabled>
+            Save as draft
+          </button>
+        </div>
 
-      <p class="studio-upload-readiness" data-upload-readiness>Add a drawing, a title, and a category to publish.</p>
+        <p class="studio-upload-readiness" data-upload-readiness>Add a drawing, a title, and a category to publish.</p>
+      </div>
     </section>
   </form>
 

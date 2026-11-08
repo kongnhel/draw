@@ -45,6 +45,7 @@
       src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 320px"<% } %>
       data-fallback-src="/images/default-artwork.svg"
       alt="<%= artwork.title %>"
+      data-i18n-skip
       loading="<%= loadingMode %>"
       decoding="async"
     />
@@ -57,7 +58,7 @@
       <time datetime="<%= createdIso %>"><%= dateLabel %></time>
     </div>
 
-    <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
+    <h3 data-i18n-skip><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
 
     <% if (withArtist) { %>
       <a class="pf-art-artist" href="/profile/<%= artwork.username %>">

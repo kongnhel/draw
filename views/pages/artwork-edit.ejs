@@ -12,7 +12,12 @@
   const deleteRedirect = `/profile/${encodeURIComponent(currentUser.username)}?tab=artworks&deleted=1`;
 %>
 
-<div class="ae-page">
+<div class="ae-page ae-page--compact"
+  data-ae-unsaved-message="<%= typeof t === 'function' ? t('You have unsaved changes. Leave without saving?') : 'You have unsaved changes. Leave without saving?' %>"
+  data-ae-saving-label="<%= typeof t === 'function' ? t('Saving…') : 'Saving…' %>"
+  data-ae-success-label="<%= typeof t === 'function' ? t('Saved. Returning to artwork…') : 'Saved. Returning to artwork…' %>"
+  data-ae-error-label="<%= typeof t === 'function' ? t('We could not save your changes. Please try again.') : 'We could not save your changes. Please try again.' %>"
+  data-ae-saved-label="<%= typeof t === 'function' ? t('Saved') : 'Saved' %>">
   <div class="ae-topbar">
     <a class="ae-back-link" href="/art/<%= artwork.id %>">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
@@ -37,7 +42,7 @@
 
   <div class="ae-layout">
     <section class="ae-form-card">
-      <form action="/art/<%= artwork.id %>/edit" method="POST" data-artwork-edit-form>
+      <form action="/art/<%= artwork.id %>/edit" method="POST" data-artwork-edit-form data-artwork-id="<%= artwork.id %>">
         <% if (typeof error !== 'undefined' && error) { %>
           <div class="ae-alert" role="alert">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 3.5 19h17L12 4Z" /><path d="M12 9v4M12 16.5h.01" /></svg>
@@ -70,7 +75,7 @@
               <label for="description">Description <span class="ae-optional">optional</span></label>
               <span class="ae-counter" data-ae-description-count><%= descriptionLength %>/1200</span>
             </div>
-            <textarea id="description" name="description" rows="7" maxlength="1200" data-ae-description><%= artwork.description || '' %></textarea>
+            <textarea id="description" name="description" rows="3" maxlength="1200" data-ae-description><%= artwork.description || '' %></textarea>
             <p class="ae-hint">A few honest words about the page: the moment, the material, the mood.</p>
           </div>
         </div>
@@ -110,12 +115,14 @@
         </div>
 
         <div class="ae-actions">
-          <button type="submit" class="ae-save">
+          <button type="submit" class="ae-save" data-ae-save>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 18.5 1.3-4.3L17 3.5c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.4 17.3 5 18.5Z" /><path d="m16.2 4.3 3.4 3.4M5 18.5l3.1-.9" /></svg>
-            <span>Save changes</span>
+            <span data-ae-save-label>Save changes</span>
+            <span class="ae-save-spinner" aria-hidden="true"></span>
           </button>
           <a class="ae-cancel" href="/art/<%= artwork.id %>">Cancel</a>
           <span class="ae-save-note">The public artwork page updates as soon as you save.</span>
+          <p class="ae-save-status" data-ae-save-status role="status" aria-live="polite" hidden></p>
         </div>
       </form>
     </section>

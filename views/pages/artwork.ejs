@@ -33,7 +33,7 @@
             const detailSrc = imageTools.transformUrl(artwork.image_url, 1200);
             const detailSrcset = imageTools.srcset(artwork.image_url, [640, 960, 1200, 1600], 82);
           %>
-          <img src="<%= detailSrc %>"<% if (detailSrcset) { %> srcset="<%= detailSrcset %>" sizes="(max-width: 900px) 92vw, 720px"<% } %> alt="<%= artwork.title %>" loading="eager" fetchpriority="high" decoding="async" />
+          <img src="<%= detailSrc %>"<% if (detailSrcset) { %> srcset="<%= detailSrcset %>" sizes="(max-width: 900px) 92vw, 720px"<% } %> alt="<%= artwork.title %>" loading="eager" fetchpriority="high" decoding="async" data-i18n-skip />
           <span class="ad-zoom-hint" aria-hidden="true">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v4M15 5h4v4M9 19H5v-4M15 19h4v-4" /></svg>
             Immersive view
@@ -73,20 +73,20 @@
           <%= categoryLabel %>
         </span>
 
-        <h1 class="ad-title"><%= artwork.title %></h1>
+        <h1 class="ad-title" data-i18n-skip><%= artwork.title %></h1>
 
         <p class="ad-byline">
-          By <a class="ad-byline-link" href="/profile/<%= artwork.username %>"><%= artistName %></a>
+          By <a class="ad-byline-link" href="/profile/<%= artwork.username %>" data-i18n-skip><%= artistName %></a>
           <span class="ad-byline-dot" aria-hidden="true">·</span>
           <time datetime="<%= Number.isNaN(artworkDate.getTime()) ? '' : artworkDate.toISOString() %>"><%= artworkDateLabel %></time>
         </p>
 
-        <p class="ad-description"><%= artwork.description && artwork.description.trim() ? artwork.description : 'The artist left this piece without words — let the lines speak for themselves.' %></p>
+        <p class="ad-description"<%- artwork.description && artwork.description.trim() ? ' data-i18n-skip' : '' %>><%= artwork.description && artwork.description.trim() ? artwork.description : 'The artist left this piece without words — let the lines speak for themselves.' %></p>
 
         <% const tagList = artwork.tags ? artwork.tags.split(' ') : []; %>
         <% const visibleTags = tagList.map((tag) => tag.trim()).filter((tag) => tag && !/^effect:/i.test(tag)); %>
         <% if (visibleTags.length) { %>
-          <div class="ad-tags" aria-label="Tags">
+          <div class="ad-tags" aria-label="Tags" data-i18n-skip>
             <% visibleTags.forEach((tag) => { %>
               <span class="ad-tag"><%= tag %></span>
             <% }) %>
@@ -186,13 +186,13 @@
         <span class="ad-artist-label" aria-hidden="true">The Artist Behind This Work</span>
 
         <div class="ad-artist-main">
-          <a class="ad-artist-avatar" href="/profile/<%= artwork.username %>" aria-label="View <%= artistName %>'s profile">
+          <a class="ad-artist-avatar" href="/profile/<%= artwork.username %>" aria-label="View <%= artistName %>'s profile" data-i18n-skip>
             <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= artistName %>" loading="lazy" />
           </a>
           <div class="ad-artist-meta">
-            <h2 class="ad-artist-name"><a href="/profile/<%= artwork.username %>"><%= artistName %></a></h2>
-            <p class="ad-artist-username">@<%= artwork.username %></p>
-            <p class="ad-artist-bio"><%= artwork.bio && artwork.bio.trim() ? artwork.bio : 'Sharing original work with the ArtSpace community.' %></p>
+            <h2 class="ad-artist-name" data-i18n-skip><a href="/profile/<%= artwork.username %>"><%= artistName %></a></h2>
+            <p class="ad-artist-username" data-i18n-skip>@<%= artwork.username %></p>
+            <p class="ad-artist-bio"<%- artwork.bio && artwork.bio.trim() ? ' data-i18n-skip' : '' %>><%= artwork.bio && artwork.bio.trim() ? artwork.bio : 'Sharing original work with the ArtSpace community.' %></p>
           </div>
           <svg class="ad-artist-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 5.4L20 9.6l-4.3 3.9 1.3 5.6L12 16.2 7 19.1l1.3-5.6L4 9.6l5.8-1.2L12 3Z" /></svg>
         </div>
@@ -226,13 +226,13 @@
         <% comments.forEach((comment) => { %>
           <% const commentDate = new Date(comment.created_at); const commentDateLabel = Number.isNaN(commentDate.getTime()) ? '' : commentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); %>
           <article class="comment-item ad-comment">
-            <img class="ad-comment-avatar" src="<%= comment.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= comment.display_name || comment.username %>" loading="lazy" />
+            <img class="ad-comment-avatar" src="<%= comment.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= comment.display_name || comment.username %>" loading="lazy" data-i18n-skip />
             <div class="comment-body">
               <div class="ad-comment-head">
-                <strong><%= comment.display_name || comment.username %></strong>
+                <strong data-i18n-skip><%= comment.display_name || comment.username %></strong>
                 <% if (commentDateLabel) { %><time class="ad-comment-date" datetime="<%= commentDate.toISOString() %>"><%= commentDateLabel %></time><% } %>
               </div>
-              <p><%= comment.body %></p>
+              <p data-i18n-skip><%= comment.body %></p>
             </div>
           </article>
         <% }) %>
