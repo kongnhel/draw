@@ -449,6 +449,9 @@ const ASSET_VERSION = (() => {
     'public/css/pins.css',
     'public/css/journey.css',
     'public/css/image-editor.css',
+    'public/css/book-slider.css',
+    'public/css/book-slider-tailwind.css',
+    'public/js/book-slider.js',
     'public/js/intro.js',
     'public/js/auth.js',
     'public/js/admin.js',
@@ -663,7 +666,9 @@ const CSS_BUNDLE_FILES = [
   'pins.css',
   'journey.css',
   'wall.css',
-  'admin.css'
+  'admin.css',
+  'book-slider-tailwind.css',
+  'book-slider.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 

@@ -1,0 +1,47 @@
+<div id="artspace-book-slider" class="asb-root" data-asb-root>
+  <div class="asb-shell">
+    <div class="asb-stage">
+      <div
+        class="asb-book"
+        data-asb-book
+        tabindex="0"
+        role="region"
+        aria-roledescription="carousel"
+        aria-label="ArtSpace artwork book. Use left and right arrow keys to turn pages."
+      >
+        <div class="asb-page asb-page--left asb-paper asb-paper--left" data-asb-page-left></div>
+        <div class="asb-page asb-page--right asb-paper asb-paper--right" data-asb-page-right></div>
+        <div class="asb-spine" aria-hidden="true"></div>
+        <div class="asb-flip-layer" data-asb-flip-layer aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="mt-7 flex flex-wrap items-center justify-between gap-4 sm:gap-6">
+      <button type="button" class="asb-nav" data-asb-prev aria-label="Previous page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+        <span class="hidden md:inline">Previous</span>
+      </button>
+
+      <div class="flex min-w-[160px] flex-1 flex-col items-center gap-2 sm:max-w-[320px]">
+        <span class="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted" data-asb-counter aria-live="polite">01 / 03</span>
+        <span class="asb-progress" aria-hidden="true"><span data-asb-progress></span></span>
+      </div>
+
+      <button type="button" class="asb-nav" data-asb-next aria-label="Next page">
+        <span class="hidden md:inline">Next</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+      </button>
+    </div>
+
+    <p class="mt-4 text-center text-[10px] uppercase tracking-[0.2em] text-muted/70">
+      Swipe on mobile · click a side to turn · ← → on keyboard
+    </p>
+
+    <noscript>
+      <p class="p-6 text-center text-sm text-muted">Enable JavaScript to turn the pages of the ArtSpace sketchbook.</p>
+    </noscript>
+  </div>
+
+  <div data-asb-data hidden><%- JSON.stringify(artworks).replace(/</g, '\\u003c') %></div>
+  <script src="/js/book-slider.js?v=<%= assetVersion %>" defer></script>
+</div>
