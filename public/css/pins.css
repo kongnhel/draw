@@ -699,6 +699,16 @@
   }
 }
 
+@media (max-width: 520px) {
+  .hs-pinned-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pinned-card:nth-child(2n) {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 380px) {
   .hs-pinned-grid {
     gap: 8px;

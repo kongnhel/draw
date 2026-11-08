@@ -99,6 +99,16 @@ html.intro-pending body {
   opacity: 0.08;
 }
 
+.intro-overlay::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--intro-vignette), transparent 9%, transparent 92%, var(--intro-vignette));
+  opacity: 0.32;
+}
+
 .intro-overlay::after {
   position: absolute;
   z-index: 1;
@@ -136,19 +146,20 @@ html.intro-pending body {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  cursor: pointer;
   backdrop-filter: blur(5px);
+}
+
+.intro-skip {
+  cursor: pointer;
   transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
-.intro-sound:hover,
 .intro-skip:hover {
   color: var(--intro-ink);
   border-color: var(--intro-ink);
   transform: translateY(-1px) rotate(-0.3deg);
 }
 
-.intro-sound:focus-visible,
 .intro-skip:focus-visible,
 .intro-enter:focus-visible,
 .intro-replay:focus-visible {
@@ -169,19 +180,35 @@ html.intro-pending body {
   stroke-width: 1.7;
 }
 
-.intro-sound[aria-pressed='true'] {
+.intro-sound {
   color: var(--intro-accent);
   border-color: var(--intro-accent);
   background: color-mix(in srgb, var(--intro-accent) 10%, var(--intro-paper-light));
 }
 
-.intro-sound[aria-pressed='false'] .intro-sound-waves,
-.intro-sound[aria-pressed='true'] .intro-sound-mute {
-  display: none;
+.intro-sound-waves {
+  opacity: 0.35;
+  transition: opacity 0.3s ease;
 }
 
-.intro-sound[aria-pressed='false'] .intro-sound-mute {
-  display: block;
+.intro-overlay.has-audio .intro-sound {
+  border-style: dashed;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--intro-accent) 12%, transparent);
+}
+
+.intro-overlay.has-audio .intro-sound-waves {
+  opacity: 1;
+  animation: intro-sound-wave 1.15s ease-in-out infinite;
+}
+
+@keyframes intro-sound-wave {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .intro-skip {
@@ -212,6 +239,74 @@ html.intro-pending body {
 
 .intro-drawing {
   filter: url(#intro-rough-filter);
+}
+
+.intro-frame path {
+  fill: none;
+  stroke: var(--intro-graphite);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+}
+
+.intro-overlay.is-drawing .intro-frame path {
+  opacity: 0.24;
+  animation: intro-frame-draw 3.4s cubic-bezier(0.4, 0, 0.2, 1) 0.15s forwards;
+}
+
+.intro-overlay.is-complete .intro-frame path {
+  opacity: 0.24;
+  stroke-dashoffset: 0;
+  animation: none;
+}
+
+@keyframes intro-frame-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.intro-doodles {
+  fill: none;
+  stroke: var(--intro-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  opacity: 0;
+}
+
+.intro-doodle {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.intro-overlay.is-complete .intro-doodles {
+  opacity: 0.78;
+}
+
+.intro-overlay.is-complete .intro-doodle {
+  animation: intro-doodle-draw 0.7s ease forwards;
+}
+
+.intro-overlay.is-complete .intro-doodle:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.intro-overlay.is-complete .intro-doodle:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.intro-overlay.is-complete .intro-doodle:nth-child(4) {
+  animation-delay: 0.44s;
+}
+
+@keyframes intro-doodle-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .intro-brand-mark {
@@ -420,6 +515,7 @@ html.intro-pending body {
   background: var(--intro-graphite);
   border-radius: 50%;
   opacity: 0;
+  box-shadow: 0 0 4px color-mix(in srgb, var(--intro-graphite) 35%, transparent);
   will-change: transform, opacity;
 }
 
@@ -610,5 +706,15 @@ html.intro-pending body {
   .intro-overlay.is-complete .intro-underline {
     opacity: 0.72;
     stroke-dashoffset: 0;
+  }
+
+  .intro-frame path,
+  .intro-doodle {
+    stroke-dashoffset: 0;
+  }
+
+  .intro-overlay.has-audio .intro-sound-waves {
+    opacity: 1;
+    animation: none !important;
   }
 }

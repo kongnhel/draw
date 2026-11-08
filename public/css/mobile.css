@@ -614,7 +614,7 @@
   }
 
   .hs-hero-art {
-    width: min(100%, 230px);
+    width: min(100%, 280px);
   }
 
   .art-book {
@@ -990,5 +990,135 @@
 
   .studio-performance-item strong {
     max-width: 96px;
+  }
+}
+
+@media (max-width: 760px) {
+  .hs-wall-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .hs-wall-grid .art-card,
+  .hs-wall-grid .art-card:nth-child(3n + 1),
+  .hs-wall-grid .art-card:nth-child(3n + 2),
+  .hs-wall-grid .art-card:nth-child(3n + 3) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    transform: none;
+  }
+
+  .hs-wall .art-card-media {
+    flex: 0 0 auto;
+  }
+
+  .hs-wall .art-card > .art-card-media img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+  }
+
+  .hs-wall .art-card-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: 8px 8px 9px;
+  }
+
+  .hs-wall .card-meta-row {
+    gap: 4px;
+    font-size: 0.52rem;
+    line-height: 1.2;
+  }
+
+  .hs-wall .card-meta-row .badge {
+    max-width: 100%;
+    padding: 2px 5px;
+    overflow: hidden;
+    font-size: 0.52rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hs-wall .card-meta-row .dot {
+    display: none;
+  }
+
+  .hs-wall .card-meta-row > span:last-child {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .hs-wall .art-card h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 5px 0 3px;
+    font-size: 0.92rem;
+    line-height: 1.18;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .hs-wall .art-card p {
+    display: none;
+  }
+
+  .hs-wall .artist-row {
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 4px;
+  }
+
+  .hs-wall .artist-mini {
+    min-width: 0;
+    gap: 4px;
+    font-size: 0.6rem;
+  }
+
+  .hs-wall .artist-mini img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .hs-wall .artist-mini span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hs-wall .metric-inline {
+    display: none;
+  }
+
+  .hs-wall .card-actions {
+    gap: 4px;
+    margin-top: 7px;
+  }
+
+  .hs-wall .card-actions form {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .hs-wall .card-actions .action-btn {
+    width: 100%;
+    min-height: 28px;
+    padding: 4px 5px;
+    font-size: 0.56rem;
+    white-space: nowrap;
+  }
+
+  .hs-wall .card-actions .pin-action svg {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+@media (max-width: 360px) {
+  .hs-wall-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 }

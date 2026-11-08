@@ -3,14 +3,13 @@
   <div class="intro-grain" aria-hidden="true"></div>
 
   <div class="intro-topbar">
-    <button type="button" class="intro-sound" data-intro-sound aria-pressed="false" aria-label="Enable intro sound">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
+    <span class="intro-sound" data-intro-sound-status aria-hidden="true">
+      <svg viewBox="0 0 24 24">
         <path d="M4 10v4h4l5 4V6l-5 4H4Z" />
         <path class="intro-sound-waves" d="M16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12" />
-        <path class="intro-sound-mute" d="m16.5 9.5 5 5m0-5-5 5" />
       </svg>
-      <span data-intro-sound-label>Sound off</span>
-    </button>
+      <span data-intro-sound-label>Tap for sound</span>
+    </span>
 
     <button type="button" class="intro-skip" data-intro-skip>
       <span>Skip intro</span>
@@ -31,6 +30,10 @@
         <path id="intro-pencil-path" d="M76 312 C 195 282, 300 334, 438 302 S 700 276, 906 312" fill="none" />
       </defs>
 
+      <g class="intro-frame" aria-hidden="true">
+        <path d="M22 20 Q 500 8 978 20 Q 992 260 980 500 Q 500 512 22 500 Q 8 260 22 20 Z" pathLength="1" />
+      </g>
+
       <g class="intro-drawing" mask="url(#intro-reveal-mask)" filter="url(#intro-rough-filter)">
         <g class="intro-brand-mark" transform="translate(68 102) scale(2.5)">
           <path d="m11 29 3-9L26 8l6 6-12 12-9 3Z" />
@@ -40,6 +43,13 @@
         </g>
         <text class="intro-word" x="520" y="332" text-anchor="middle">ArtSpace</text>
         <path class="intro-underline" d="M196 376 C 348 352, 510 388, 660 366 S 792 346, 894 364" pathLength="1" />
+      </g>
+
+      <g class="intro-doodles" aria-hidden="true">
+        <path class="intro-doodle" pathLength="1" d="M872 150c3.2 12.5 8.3 17.6 20.8 20.8-12.5 3.2-17.6 8.3-20.8 20.8-3.2-12.5-8.3-17.6-20.8-20.8 12.5-3.2 17.6-8.3 20.8-20.8Z" />
+        <path class="intro-doodle" pathLength="1" d="M142 206l12 12M154 206l-12 12" />
+        <path class="intro-doodle" pathLength="1" d="M806 424c22-18 40-10 42 6 2 14-16 22-30 12-12-9-2-26 16-24 16 2 24 14 20 28" />
+        <path class="intro-doodle" pathLength="1" d="M292 402h26M330 402h12M354 402h30" />
       </g>
 
       <g class="intro-pencil" data-intro-pencil aria-hidden="true">

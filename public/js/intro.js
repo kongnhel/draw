@@ -2,9 +2,9 @@
   'use strict';
 
   const READY_KEY = 'artspace-intro-seen-v1';
-  const SOUND_KEY = 'artspace-intro-sound';
-  const DURATION = 3600;
-  const ENTRY = 520;
+  const DURATION = 3800;
+  const ENTRY = 600;
+  const GESTURES = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
 
   const overlay = document.querySelector('[data-intro-overlay]');
   if (!overlay) return;
@@ -34,7 +34,6 @@
   const welcome = overlay.querySelector('[data-intro-welcome]');
   const progressFill = overlay.querySelector('[data-intro-progress]');
   const particles = overlay.querySelector('[data-intro-particles]');
-  const soundButton = overlay.querySelector('[data-intro-sound]');
   const soundLabel = overlay.querySelector('[data-intro-sound-label]');
   const skipButton = overlay.querySelector('[data-intro-skip]');
   const enterButton = overlay.querySelector('[data-intro-enter]');
@@ -55,13 +54,16 @@
   let leaveTimer = null;
   let lastParticleAt = 0;
   let previousFocus = null;
-  let soundEnabled = readSoundPref();
   let audioCtx = null;
   let noiseBuffer = null;
+  let roomSource = null;
+  let roomGain = null;
   let scratchSource = null;
   let scratchGain = null;
+  let scratchFilter = null;
   let scratchTimer = null;
   let audioCloseTimer = null;
+  let audioBound = false;
 
   const trackLength = track.getTotalLength();
   const startPoint = track.getPointAtLength(0);
@@ -83,29 +85,6 @@
     }
   }
 
-  function readSoundPref() {
-    try {
-      return window.localStorage.getItem(SOUND_KEY) === 'on';
-    } catch (error) {
-      return false;
-    }
-  }
-
-  function writeSoundPref() {
-    try {
-      window.localStorage.setItem(SOUND_KEY, soundEnabled ? 'on' : 'off');
-    } catch (error) {
-      /* private browsing */
-    }
-  }
-
-  function setSoundUI() {
-    if (!soundButton) return;
-    soundButton.setAttribute('aria-pressed', String(soundEnabled));
-    soundButton.setAttribute('aria-label', soundEnabled ? 'Disable intro sound' : 'Enable intro sound');
-    if (soundLabel) soundLabel.textContent = soundEnabled ? 'Sound on' : 'Sound off';
-  }
-
   function ensureAudio() {
     const Constructor = window.AudioContext || window.webkitAudioContext;
     if (!Constructor) return null;
@@ -122,7 +101,7 @@
 
   function getNoiseBuffer(ctx) {
     if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) return noiseBuffer;
-    const length = Math.floor(ctx.sampleRate * 1.2);
+    const length = Math.floor(ctx.sampleRate * 2);
     const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let index = 0; index < length; index += 1) {
@@ -132,8 +111,60 @@
     return buffer;
   }
 
+  function startRoomTone() {
+    if (!active || completed || leaving || reduceQuery.matches || roomSource) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    const source = ctx.createBufferSource();
+    source.buffer = getNoiseBuffer(ctx);
+    source.loop = true;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 460;
+    filter.Q.value = 0.3;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    gain.gain.setTargetAtTime(0.016, ctx.currentTime, 0.8);
+
+    roomSource = source;
+    roomGain = gain;
+  }
+
+  function stopRoomTone() {
+    if (roomGain && audioCtx) {
+      try {
+        roomGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        roomGain.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.22);
+      } catch (error) {
+        /* already disconnected */
+      }
+    }
+
+    if (roomSource) {
+      const source = roomSource;
+      roomSource = null;
+      window.setTimeout(() => {
+        try {
+          source.stop();
+        } catch (error) {
+          /* already stopped */
+        }
+      }, 480);
+    }
+
+    roomGain = null;
+  }
+
   function startScratch() {
-    if (!soundEnabled || !active || completed || reduceQuery.matches) return;
+    if (!active || completed || leaving || reduceQuery.matches) return;
     if (scratchSource) return;
 
     const ctx = ensureAudio();
@@ -145,13 +176,13 @@
 
     const highpass = ctx.createBiquadFilter();
     highpass.type = 'highpass';
-    highpass.frequency.value = 560;
+    highpass.frequency.value = 460;
     highpass.Q.value = 0.55;
 
     const bandpass = ctx.createBiquadFilter();
     bandpass.type = 'bandpass';
     bandpass.frequency.value = 1650;
-    bandpass.Q.value = 0.8;
+    bandpass.Q.value = 0.75;
 
     const gain = ctx.createGain();
     gain.gain.value = 0.0001;
@@ -164,12 +195,15 @@
 
     scratchSource = source;
     scratchGain = gain;
+    scratchFilter = bandpass;
 
     const modulate = () => {
-      if (!scratchGain || !audioCtx || audioCtx.state === 'closed') return;
-      const level = 0.018 + Math.random() * 0.032;
-      scratchGain.gain.setTargetAtTime(level, audioCtx.currentTime, 0.055);
-      scratchTimer = window.setTimeout(modulate, 70 + Math.random() * 90);
+      if (!scratchGain || !scratchFilter || !audioCtx || audioCtx.state === 'closed') return;
+      const now = audioCtx.currentTime;
+      const level = 0.05 + Math.random() * 0.05;
+      scratchGain.gain.setTargetAtTime(level, now, 0.06);
+      scratchFilter.frequency.setTargetAtTime(1200 + Math.random() * 1500, now, 0.08);
+      scratchTimer = window.setTimeout(modulate, 62 + Math.random() * 84);
     };
     modulate();
   }
@@ -200,23 +234,62 @@
     }
 
     scratchGain = null;
+    scratchFilter = null;
+  }
+
+  function playEntryTap() {
+    if (reduceQuery.matches) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    const oscillator = ctx.createOscillator();
+    const toneGain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(190, now);
+    oscillator.frequency.exponentialRampToValueAtTime(85, now + 0.13);
+    toneGain.gain.setValueAtTime(0.0001, now);
+    toneGain.gain.exponentialRampToValueAtTime(0.05, now + 0.015);
+    toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    oscillator.connect(toneGain);
+    toneGain.connect(ctx.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.2);
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 2600;
+    filter.Q.value = 0.9;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.028, now + 0.012);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.12);
   }
 
   function playFinishChime() {
-    if (!soundEnabled || reduceQuery.matches) return;
+    if (reduceQuery.matches) return;
     const ctx = ensureAudio();
     if (!ctx) return;
 
     const now = ctx.currentTime;
     const notes = [
-      { frequency: 523.25, start: 0, duration: 0.52, gain: 0.026, type: 'sine' },
-      { frequency: 659.25, start: 0.12, duration: 0.62, gain: 0.022, type: 'sine' }
+      { frequency: 523.25, start: 0, duration: 0.55, gain: 0.032 },
+      { frequency: 659.25, start: 0.13, duration: 0.66, gain: 0.028 },
+      { frequency: 783.99, start: 0.26, duration: 0.82, gain: 0.024 }
     ];
 
     notes.forEach((note) => {
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
-      oscillator.type = note.type;
+      oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(note.frequency, now + note.start);
       gain.gain.setValueAtTime(0.0001, now + note.start);
       gain.gain.exponentialRampToValueAtTime(note.gain, now + note.start + 0.03);
@@ -226,10 +299,28 @@
       oscillator.start(now + note.start);
       oscillator.stop(now + note.start + note.duration + 0.03);
     });
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = getNoiseBuffer(ctx);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1300, now);
+    filter.frequency.linearRampToValueAtTime(2600, now + 0.5);
+    filter.Q.value = 0.7;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.02, now + 0.08);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.65);
   }
 
   function closeAudioSoon(delay = 1100) {
     window.clearTimeout(audioCloseTimer);
+    stopRoomTone();
     const ctx = audioCtx;
     if (!ctx) return;
     audioCloseTimer = window.setTimeout(() => {
@@ -244,19 +335,56 @@
     }, delay);
   }
 
-  function toggleSound() {
-    soundEnabled = !soundEnabled;
-    writeSoundPref();
-    setSoundUI();
+  function activateAudio() {
+    if (!active || completed || leaving) return;
+    const ctx = ensureAudio();
+    if (!ctx || ctx.state !== 'running') return;
+    overlay.classList.add('has-audio');
+    if (soundLabel) soundLabel.textContent = 'Sound on';
+    playEntryTap();
+    startRoomTone();
+    startScratch();
+    unbindAudioUnlock();
+  }
 
-    if (!soundEnabled) {
-      stopScratch();
-      closeAudioSoon(260);
+  function unlockAudio() {
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === 'running') {
+      activateAudio();
       return;
     }
+    ctx.resume().then(() => {
+      if (ctx.state === 'running') activateAudio();
+    }).catch(() => {});
+  }
 
-    ensureAudio();
-    startScratch();
+  function tryAudioNow() {
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === 'running') {
+      activateAudio();
+      return;
+    }
+    ctx.resume().then(() => {
+      if (ctx.state === 'running') activateAudio();
+    }).catch(() => {});
+  }
+
+  function bindAudioUnlock() {
+    if (audioBound) return;
+    audioBound = true;
+    GESTURES.forEach((type) => {
+      window.addEventListener(type, unlockAudio, { capture: true, passive: true });
+    });
+  }
+
+  function unbindAudioUnlock() {
+    if (!audioBound) return;
+    audioBound = false;
+    GESTURES.forEach((type) => {
+      window.removeEventListener(type, unlockAudio, { capture: true });
+    });
   }
 
   function setBackgroundInert(value) {
@@ -273,7 +401,7 @@
     return Math.atan2(ahead.y - behind.y, ahead.x - behind.x) * (180 / Math.PI) - 45;
   }
 
-  function spawnParticle(x, y) {
+  function spawnParticle(x, y, strength = 1) {
     if (!particles || !svg || document.hidden) return;
     const point = svg.createSVGPoint();
     point.x = x;
@@ -286,19 +414,32 @@
     particle.className = 'intro-particle';
     particle.style.left = `${screen.x - bounds.left}px`;
     particle.style.top = `${screen.y - bounds.top}px`;
-    particle.style.opacity = '0.45';
+    particle.style.opacity = String(clamp(0.28 + Math.random() * 0.4, 0.2, 0.7) * strength);
+    const size = 1 + Math.random() * 1.9;
+    particle.style.width = `${size}px`;
+    particle.style.height = `${size}px`;
     particles.appendChild(particle);
 
-    const driftX = (Math.random() - 0.5) * 14;
-    const driftY = 8 + Math.random() * 18;
+    const driftX = (Math.random() - 0.5) * 18;
+    const driftY = 8 + Math.random() * 22;
     const animation = particle.animate(
       [
-        { opacity: 0.5, transform: 'translate(0, 0) scale(1)' },
-        { opacity: 0, transform: `translate(${driftX}px, ${driftY}px) scale(0.35)` }
+        { opacity: particle.style.opacity, transform: 'translate(0, 0) scale(1)' },
+        { opacity: 0, transform: `translate(${driftX}px, ${driftY}px) scale(0.3)` }
       ],
-      { duration: 520 + Math.random() * 420, easing: 'ease-out' }
+      { duration: 520 + Math.random() * 460, easing: 'ease-out' }
     );
     animation.onfinish = () => particle.remove();
+  }
+
+  function spawnEntryBurst() {
+    if (!particles || lowPerf) return;
+    const count = 10;
+    for (let index = 0; index < count; index += 1) {
+      const offsetX = startPoint.x + 40 + (Math.random() - 0.5) * 18;
+      const offsetY = startPoint.y + 120 + (Math.random() - 0.5) * 26;
+      spawnParticle(offsetX, offsetY, 0.7);
+    }
   }
 
   function clearParticles() {
@@ -335,10 +476,10 @@
     revealRect.setAttribute('width', String(846 * draw));
     progressFill.style.width = `${clamp((elapsed / DURATION) * 100, 0, 100)}%`;
 
-    if (!lowPerf && now - lastParticleAt > 38) {
+    if (!lowPerf && now - lastParticleAt > 32) {
       lastParticleAt = now;
       spawnParticle(point.x - 1, point.y + 3);
-      if (Math.random() > 0.64) spawnParticle(point.x + 4, point.y + 7);
+      if (Math.random() > 0.6) spawnParticle(point.x + 4, point.y + 7, 0.8);
     } else if (lowPerf && now - lastParticleAt > 140) {
       lastParticleAt = now;
       spawnParticle(point.x - 1, point.y + 3);
@@ -365,7 +506,7 @@
     welcome.removeAttribute('aria-hidden');
     stopScratch();
     playFinishChime();
-    closeAudioSoon(1300);
+    closeAudioSoon(1600);
     markSeen();
     autoTimer = window.setTimeout(() => finishIntro('auto'), 2400);
   }
@@ -378,7 +519,9 @@
     window.clearTimeout(leaveTimer);
     leaveTimer = null;
     stopScratch();
+    stopRoomTone();
     closeAudioSoon(300);
+    unbindAudioUnlock();
     clearParticles();
   }
 
@@ -391,9 +534,11 @@
     window.cancelAnimationFrame(rafId);
     rafId = 0;
     markSeen();
+    unbindAudioUnlock();
 
     if (reason === 'skip' || reason === 'escape') {
       stopScratch();
+      stopRoomTone();
       closeAudioSoon(260);
     }
 
@@ -403,7 +548,7 @@
 
     leaveTimer = window.setTimeout(() => {
       root.classList.remove('intro-pending');
-      overlay.classList.remove('is-leaving', 'is-complete');
+      overlay.classList.remove('is-leaving', 'is-complete', 'has-audio');
       overlay.setAttribute('aria-hidden', 'true');
       completed = false;
       leaving = false;
@@ -447,7 +592,8 @@
     previousFocus = document.activeElement;
     setBackgroundInert(true);
     overlay.setAttribute('aria-hidden', 'false');
-    overlay.classList.remove('is-complete', 'is-leaving', 'is-drawing');
+    overlay.classList.remove('is-complete', 'is-leaving', 'is-drawing', 'has-audio');
+    if (soundLabel) soundLabel.textContent = 'Tap for sound';
 
     if (isReplay) {
       root.classList.add('intro-pending');
@@ -467,16 +613,8 @@
     setPencilAt(startPoint.x + 46, startPoint.y + 132, pencilAngle(0));
     pencil.style.opacity = '0';
     overlay.classList.add('is-drawing');
-    setSoundUI();
-
-    if (isReplay && soundEnabled) startScratch();
-    else {
-      const unlock = () => {
-        if (active && soundEnabled) startScratch();
-      };
-      overlay.addEventListener('pointerdown', unlock, { once: true });
-      overlay.addEventListener('keydown', unlock, { once: true });
-    }
+    bindAudioUnlock();
+    tryAudioNow();
 
     skipButton?.focus({ preventScroll: true });
 
@@ -490,13 +628,12 @@
     if (!active) return;
     pencil.style.opacity = '1';
     startTime = performance.now();
+    spawnEntryBurst();
     rafId = window.requestAnimationFrame(tick);
   }
 
   function replayIntro() {
     if (active || leaving) return;
-    soundEnabled = readSoundPref();
-    setSoundUI();
     if (reduceQuery.matches) {
       active = true;
       completed = true;
@@ -509,7 +646,6 @@
     beginIntro(true);
   }
 
-  soundButton?.addEventListener('click', toggleSound);
   skipButton?.addEventListener('click', () => finishIntro('skip'));
   enterButton?.addEventListener('click', () => finishIntro('enter'));
   replayButton?.addEventListener('click', replayIntro);
@@ -543,8 +679,6 @@
       first.focus();
     }
   });
-
-  setSoundUI();
 
   const shouldShow = root.classList.contains('intro-pending') && !readSeen();
 

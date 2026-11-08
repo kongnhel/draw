@@ -16505,6 +16505,21 @@ body.home-body .home-main {
   transform: rotate(45deg);
 }
 
+.home-hero-feature.hs-feature {
+  width: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  justify-self: auto;
+}
+
+.home-hero-feature.hs-feature::after {
+  display: none;
+}
+
+.home-hero-feature.hs-feature img {
+  object-fit: contain;
+}
+
 .hs-feature-empty .hs-feature-mat {
   display: grid;
   place-items: center;
