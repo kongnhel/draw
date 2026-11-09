@@ -763,7 +763,204 @@
     "That image appears to be empty. Please choose another file.": "That image appears to be empty. Please choose another file.",
     "The artwork studio could not open on this device. Your original image will be used.": "The artwork studio could not open on this device. Your original image will be used.",
     "You have unsaved changes. Leave without saving?": "You have unsaved changes. Leave without saving?",
-    "Saved. Returning to artwork…": "Saved. Returning to artwork…"
+    "Saved. Returning to artwork…": "Saved. Returning to artwork…",
+    "Zoom out": "Zoom out",
+    "in focus": "in focus",
+    "Enter a keyword to discover artwork.": "Enter a keyword to discover artwork.",
+    "You have unsaved changes. Leave this page?": "You have unsaved changes. Leave this page?",
+    "Close search": "Close search",
+    "Mute sound": "Mute sound",
+    "Mute intro sound": "Mute intro sound",
+    "Enable visual effects": "Enable visual effects",
+    "Disable pencil sounds": "Disable pencil sounds",
+    "Enable pencil sound": "Enable pencil sound",
+    "Cover": "Cover",
+    "Unlike this artwork": "Unlike this artwork",
+    "Like this artwork": "Like this artwork",
+    "Remove from saved artwork": "Remove from saved artwork",
+    "Save this artwork": "Save this artwork",
+    "Remove from saved artworks": "Remove from saved artworks",
+    "Save artwork": "Save artwork",
+    "Untitled artwork": "Untitled artwork",
+    "Clipboard unavailable": "Clipboard unavailable",
+    "Could not load more artwork": "Could not load more artwork",
+    "We could not update that pin. Please try again.": "We could not update that pin. Please try again.",
+    "The connection was interrupted. Please try again.": "The connection was interrupted. Please try again.",
+    "The image studio is unavailable.": "The image studio is unavailable.",
+    "Turn the cover to explore the collection.": "Turn the cover to explore the collection.",
+    "Artwork collection": "Artwork collection",
+    "Could not parse server response": "Could not parse server response",
+    "Server response did not include the route shell": "Server response did not include the route shell",
+    "Inspect Details +": "Inspect Details +",
+    "Like request failed": "Like request failed",
+    "Bookmark request failed": "Bookmark request failed",
+    "Comment request failed": "Comment request failed",
+    "Comment not accepted": "Comment not accepted",
+    "Explore request failed": "Explore request failed",
+    "Related artworks": "Related artworks",
+    "You have reached the last page of the sketchbook.": "You have reached the last page of the sketchbook.",
+    "Reported from the artwork page.": "Reported from the artwork page.",
+    "You already have an open report for this artwork.": "You already have an open report for this artwork.",
+    "The portrait studio is unavailable.": "The portrait studio is unavailable.",
+    "That file type is not supported. Use JPG, PNG or WebP.": "That file type is not supported. Use JPG, PNG or WebP.",
+    "That image is larger than 3 MB. Try a smaller file.": "That image is larger than 3 MB. Try a smaller file.",
+    "This browser could not apply the edited image. Please try again.": "This browser could not apply the edited image. Please try again.",
+    "Please log in to pin artwork.": "Please log in to pin artwork.",
+    "You can only pin your own artwork.": "You can only pin your own artwork.",
+    "Only public, active artwork can be pinned.": "Only public, active artwork can be pinned.",
+    "You can only unpin your own artwork.": "You can only unpin your own artwork.",
+    "Something went wrong on our side. Please refresh the page or try again in a moment.": "Something went wrong on our side. Please refresh the page or try again in a moment.",
+    "ArtSpace | Bad request": "ArtSpace | Bad request",
+    "ArtSpace | Something went wrong": "ArtSpace | Something went wrong",
+    "ArtSpace | Search": "ArtSpace | Search",
+    "Only JPG, PNG, and WEBP images are allowed.": "Only JPG, PNG, and WEBP images are allowed.",
+    "Please upload no more than 6 artwork images at once.": "Please upload no more than 6 artwork images at once.",
+    "That file field is not recognized. Please choose your artwork image again.": "That file field is not recognized. Please choose your artwork image again.",
+    "That file does not look like a valid image. Please choose a JPG, PNG, or WEBP.": "That file does not look like a valid image. Please choose a JPG, PNG, or WEBP.",
+    "Image storage is not configured. Please contact support.": "Image storage is not configured. Please contact support.",
+    "ImageKit is not configured. Set the IMAGEKIT_* environment variables.": "ImageKit is not configured. Set the IMAGEKIT_* environment variables.",
+    "Artwork hidden from the public sketchbook. Its open reports were resolved.": "Artwork hidden from the public sketchbook. Its open reports were resolved.",
+    "Artwork restored to the public sketchbook.": "Artwork restored to the public sketchbook.",
+    "Artwork permanently deleted.": "Artwork permanently deleted.",
+    "Artist account suspended.": "Artist account suspended.",
+    "Artist account reactivated.": "Artist account reactivated.",
+    "Report resolved.": "Report resolved.",
+    "Report dismissed.": "Report dismissed.",
+    "That account is protected and cannot be changed here.": "That account is protected and cannot be changed here.",
+    "That record could not be found. It may already have been updated.": "That record could not be found. It may already have been updated.",
+    "Delete this artwork permanently? This cannot be undone.": "Delete this artwork permanently? This cannot be undone.",
+    "Reactivate this artist account?": "Reactivate this artist account?",
+    "ArtSpace artwork book. Use left and right arrow keys to turn pages.": "ArtSpace artwork book. Use left and right arrow keys to turn pages.",
+    "Enable JavaScript to turn the pages of the ArtSpace sketchbook.": "Enable JavaScript to turn the pages of the ArtSpace sketchbook.",
+    "Portrait studio": "Portrait studio",
+    "Cover studio": "Cover studio",
+    "Artwork studio": "Artwork studio",
+    "Edit your profile picture": "Edit your profile picture",
+    "Edit your cover image": "Edit your cover image",
+    "Edit your artwork": "Edit your artwork",
+    "Apply portrait": "Apply portrait",
+    "Apply cover": "Apply cover",
+    "Apply edits": "Apply edits",
+    "Applying…": "Applying…",
+    "Preview portrait": "Preview portrait",
+    "Preview cover": "Preview cover",
+    "Preview edited": "Preview edited",
+    "Preparing your canvas…": "Preparing your canvas…",
+    "Close editor": "Close editor",
+    "Transform tools": "Transform tools",
+    "Rotate": "Rotate",
+    "Rotate left 90 degrees": "Rotate left 90 degrees",
+    "Rotate left": "Rotate left",
+    "Rotate right 90 degrees": "Rotate right 90 degrees",
+    "Rotate right": "Rotate right",
+    "Flip": "Flip",
+    "Flip horizontally": "Flip horizontally",
+    "Flip vertically": "Flip vertically",
+    "Left": "Left",
+    "Right": "Right",
+    "Across": "Across",
+    "Down": "Down",
+    "Zoom": "Zoom",
+    "In": "In",
+    "Out": "Out",
+    "Fit": "Fit",
+    "Fill": "Fill",
+    "Fit the whole image in the view": "Fit the whole image in the view",
+    "Fit to view": "Fit to view",
+    "Fill the frame with the image": "Fill the frame with the image",
+    "Fill frame": "Fill frame",
+    "History": "History",
+    "Undo": "Undo",
+    "Undo (Ctrl+Z)": "Undo (Ctrl+Z)",
+    "Redo": "Redo",
+    "Redo (Ctrl+Shift+Z)": "Redo (Ctrl+Shift+Z)",
+    "Image": "Image",
+    "Compare": "Compare",
+    "Hold to see the original image": "Hold to see the original image",
+    "Hold to compare": "Hold to compare",
+    "Reset": "Reset",
+    "Reset all edits": "Reset all edits",
+    "Reset image": "Reset image",
+    "Image editing canvas": "Image editing canvas",
+    "Original": "Original",
+    "Drag to reposition · pull the corners to crop": "Drag to reposition · pull the corners to crop",
+    "Large drawings may take a moment.": "Large drawings may take a moment.",
+    "Image adjustments": "Image adjustments",
+    "View mode": "View mode",
+    "Center": "Center",
+    "Center H": "Center H",
+    "Center V": "Center V",
+    "Reset position": "Reset position",
+    "Crop shape": "Crop shape",
+    "Crop aspect ratio": "Crop aspect ratio",
+    "Free": "Free",
+    "Adjustments": "Adjustments",
+    "Brightness": "Brightness",
+    "Contrast": "Contrast",
+    "Saturation": "Saturation",
+    "Sharpness": "Sharpness",
+    "Circular preview": "Circular preview",
+    "Circular profile preview": "Circular profile preview",
+    "Your avatar is shown as a circle across ArtSpace.": "Your avatar is shown as a circle across ArtSpace.",
+    "Cover previews": "Cover previews",
+    "Desktop": "Desktop",
+    "Mobile": "Mobile",
+    "Desktop cover preview": "Desktop cover preview",
+    "Mobile cover preview": "Mobile cover preview",
+    "Output size": "Output size",
+    "Width": "Width",
+    "Height": "Height",
+    "Keep aspect ratio": "Keep aspect ratio",
+    "Original size is never enlarged.": "Original size is never enlarged.",
+    "Details": "Details",
+    "Output": "Output",
+    "File size": "File size",
+    "Calculated on preview": "Calculated on preview",
+    "Capped at 400 px for a lightweight avatar.": "Capped at 400 px for a lightweight avatar.",
+    "Capped at 1600 × 500 px for the cover slot.": "Capped at 1600 × 500 px for the cover slot.",
+    "Download edited image": "Download edited image",
+    "Your original file stays untouched until you apply.": "Your original file stays untouched until you apply.",
+    "Original vs edited": "Original vs edited",
+    "Toggle fullscreen preview": "Toggle fullscreen preview",
+    "Fullscreen": "Fullscreen",
+    "Close preview": "Close preview",
+    "Edited": "Edited",
+    "Back to editing": "Back to editing",
+    "Download": "Download",
+    "We could not edit that image.": "We could not edit that image.",
+    "Choose an image to edit.": "Choose an image to edit.",
+    "That file type is not supported. Use JPG, PNG, or WebP.": "That file type is not supported. Use JPG, PNG, or WebP.",
+    "That image appears to be empty. Choose another file.": "That image appears to be empty. Choose another file.",
+    "That image could not be read. It may be corrupted.": "That image could not be read. It may be corrupted.",
+    "The image tools could not load.": "The image tools could not load.",
+    "The image could not be prepared.": "The image could not be prepared.",
+    "Please try another image.": "Please try another image.",
+    "The editor is not ready yet.": "The editor is not ready yet.",
+    "We could not prepare that image. Try a smaller file.": "We could not prepare that image. Try a smaller file.",
+    "This browser cannot process images right now.": "This browser cannot process images right now.",
+    "We could not preview that image.": "We could not preview that image.",
+    "We could not prepare that download.": "We could not prepare that download.",
+    "We could not save those edits.": "We could not save those edits.",
+    "That image has no readable dimensions.": "That image has no readable dimensions.",
+    "never enlarged": "never enlarged",
+    "follow the pencil from page to page": "follow the pencil from page to page",
+    "Part of a growing community sharing original drawings, paintings, and visual stories.": "Part of a growing community sharing original drawings, paintings, and visual stories.",
+    "Connected artwork journey": "Connected artwork journey",
+    "Browse artwork by medium": "Browse artwork by medium",
+    "Sort artwork": "Sort artwork",
+    "Artwork presentation": "Artwork presentation",
+    "Artwork information": "Artwork information",
+    "Artwork actions": "Artwork actions",
+    "Artwork statistics": "Artwork statistics",
+    "Current artwork preview": "Current artwork preview",
+    "yourhandle": "yourhandle",
+    "Edit this artwork": "Edit this artwork",
+    "The image to crop": "The image to crop",
+    "The image to preview": "The image to preview",
+    "Original image": "Original image",
+    "Protected account": "Protected account",
+    "Studio statistics": "Studio statistics",
+    "Admin sections": "Admin sections"
   },
   "patterns": [
     {
@@ -905,6 +1102,130 @@
     {
       "en": "^([0-9]+) open reports? waiting for review\\.$",
       "km": "^([0-9]+) open reports? waiting for review\\.$"
+    },
+    {
+      "en": "^Artwork by (.+)$",
+      "km": "^Artwork by (.+)$"
+    },
+    {
+      "en": "^(.+) by (.+)$",
+      "km": "^(.+) by (.+)$"
+    },
+    {
+      "en": "^reported by (.+)$",
+      "km": "^reported by (.+)$"
+    },
+    {
+      "en": "^works? for “(.+)” in (.+)$",
+      "km": "^works? for “(.+)” in (.+)$"
+    },
+    {
+      "en": "^works? for “(.+)”$",
+      "km": "^works? for “(.+)”$"
+    },
+    {
+      "en": "^works? in the collection$",
+      "km": "^works? in the collection$"
+    },
+    {
+      "en": "^([0-9]+) works? in this collection$",
+      "km": "^([0-9]+) works? in this collection$"
+    },
+    {
+      "en": "^works? in (.+)$",
+      "km": "^works? in (.+)$"
+    },
+    {
+      "en": "^([0-9]+) still on the table$",
+      "km": "^([0-9]+) still on the table$"
+    },
+    {
+      "en": "^([0-9]+) new works?$",
+      "km": "^([0-9]+) new works?$"
+    },
+    {
+      "en": "^([0-9]+) inspirations? pinned$",
+      "km": "^([0-9]+) inspirations? pinned$"
+    },
+    {
+      "en": "^([0-9]+) pages? tucked away$",
+      "km": "^([0-9]+) pages? tucked away$"
+    },
+    {
+      "en": "^([0-9]+) views?$",
+      "km": "^([0-9]+) views?$"
+    },
+    {
+      "en": "^([0-9]+) hearts?$",
+      "km": "^([0-9]+) hearts?$"
+    },
+    {
+      "en": "^([0-9]+) open$",
+      "km": "^([0-9]+) open$"
+    },
+    {
+      "en": "^Artwork book, page ([0-9]+) of ([0-9]+)$",
+      "km": "^Artwork book, page ([0-9]+) of ([0-9]+)$"
+    },
+    {
+      "en": "^Max ([0-9]+) × ([0-9]+) px$",
+      "km": "^Max ([0-9]+) × ([0-9]+) px$"
+    },
+    {
+      "en": "^That image is larger than ([0-9]+) MB\\. Choose a smaller file\\.$",
+      "km": "^That image is larger than ([0-9]+) MB\\. Choose a smaller file\\.$"
+    },
+    {
+      "en": "^Current profile image for (.+)$",
+      "km": "^Current profile image for (.+)$"
+    },
+    {
+      "en": "^Open (.+)$",
+      "km": "^Open (.+)$"
+    },
+    {
+      "en": "^Edit (.+)$",
+      "km": "^Edit (.+)$"
+    },
+    {
+      "en": "^Delete (.+)$",
+      "km": "^Delete (.+)$"
+    },
+    {
+      "en": "^View (.+)$",
+      "km": "^View (.+)$"
+    },
+    {
+      "en": "^Pin up to ([0-9]+) of your own artworks to feature them on the homepage\\.$",
+      "km": "^Pin up to ([0-9]+) of your own artworks to feature them on the homepage\\.$"
+    },
+    {
+      "en": "^Pieces that caught (.+)'s eye, pinned here for another look\\.$",
+      "km": "^Pieces that caught (.+)'s eye, pinned here for another look\\.$"
+    },
+    {
+      "en": "^Original pages from (.+)'s ongoing sketchbook\\.$",
+      "km": "^Original pages from (.+)'s ongoing sketchbook\\.$"
+    },
+    {
+      "en": "^Cover artwork for (.+)$",
+      "km": "^Cover artwork for (.+)$"
+    },
+    {
+      "en": "^Like (.+)$",
+      "km": "^Like (.+)$"
+    },
+    {
+      "en": "^Unlike (.+)$",
+      "km": "^Unlike (.+)$"
+    },
+    {
+      "en": "^[“\"](.+)[”\"] will be removed from your collection\\. This cannot be undone\\.$",
+      "km": "^[“\"](.+)[”\"] will be removed from your collection\\. This cannot be undone\\.$"
+    },
+    {
+      "en": "^PAGE A-([0-9]+)$",
+      "km": "^PAGE A-([0-9]+)$"
     }
   ]
 }
