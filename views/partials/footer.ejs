@@ -133,6 +133,7 @@
             <ul>
               <li><a href="/">Home</a></li>
               <li><a href="/register">Join</a></li>
+              <li><a href="/privacy">Privacy &amp; ads</a></li>
               <li><a href="/forgot-password">Help</a></li>
             </ul>
           </div>
@@ -157,6 +158,7 @@
       </footer>
 
       <%- include('./mobile-bottom-nav') %>
+      <%- include('./consent-banner') %>
     </div>
 
     <script src="/js/app.js?v=<%= assetVersion %>" defer></script>
@@ -169,6 +171,7 @@
     <div data-i18n-km hidden><%- JSON.stringify(i18nClient).replace(/</g, '\\u003c') %></div>
     <% } %>
     <script src="/js/i18n.js?v=<%= assetVersion %>" defer></script>
+    <script src="/js/ads.js?v=<%= assetVersion %>" defer></script>
 
   </body>
 </html>

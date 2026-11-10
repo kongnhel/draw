@@ -121,6 +121,8 @@
     <%- include('../partials/explore-results') %>
   </section>
 
+  <%- include('../partials/ad-unit', { slot: adsenseSlots.explore, className: 'ad-unit--explore' }) %>
+
   <% if (artists.length) { %>
     <section class="studio-explore-artists" aria-labelledby="explore-artists-title">
       <div class="studio-explore-artists-heading">

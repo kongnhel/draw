@@ -122,6 +122,19 @@
       && Boolean(url.hash);
   };
 
+  const adsenseScriptLoaded = () => Boolean(document.querySelector('#artspace-adsense-script'));
+
+  const isAdEligiblePath = (url) => {
+    const path = url.pathname;
+    if (path === '/' || path === '/explore') return true;
+    if (/^\/art\/\d+\/?$/.test(path)) return true;
+    if (/^\/profile\/[^/]+\/?$/.test(path) && path !== '/profile/edit' && path !== '/profile/edit/') {
+      const tab = url.searchParams.get('tab');
+      return tab !== 'saved' && tab !== 'pinned';
+    }
+    return false;
+  };
+
   const loadScript = (src) => new Promise((resolve) => {
     const script = document.createElement('script');
     script.src = src;
@@ -173,6 +186,11 @@
 
     if (!isPopState && isSamePathWithHash(target)) {
       scrollToHash(target.hash, reducedMotion.matches ? 'auto' : 'smooth');
+      return;
+    }
+
+    if (adsenseScriptLoaded() && !isAdEligiblePath(target)) {
+      window.location.assign(target.href);
       return;
     }
 

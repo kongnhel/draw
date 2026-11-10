@@ -1,0 +1,23 @@
+<%
+  const adSlot = typeof slot !== 'undefined' ? String(slot || '') : '';
+  const adClient = typeof adsenseClient !== 'undefined' ? adsenseClient : '';
+  const adConsent = typeof adsConsent !== 'undefined' ? adsConsent : '';
+  const adAllowed = typeof adsAllowed !== 'undefined' && adsAllowed;
+  const adWrapClass = typeof className !== 'undefined' ? className : '';
+%>
+<% if (adAllowed && adConsent === 'granted' && adClient && adSlot) { %>
+  <section class="ad-unit <%= adWrapClass %>" aria-label="Advertisement" data-ad-unit>
+    <span class="ad-unit-label">Advertisement</span>
+    <div class="ad-unit-frame">
+      <ins
+        class="adsbygoogle"
+        style="display:block"
+        data-ad-client="<%= adClient %>"
+        data-ad-slot="<%= adSlot %>"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      ></ins>
+      <noscript><p class="ad-unit-noscript">Advertisement unavailable without JavaScript.</p></noscript>
+    </div>
+  </section>
+<% } %>

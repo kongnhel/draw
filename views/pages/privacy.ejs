@@ -1,0 +1,78 @@
+<%- include('../partials/header') %>
+
+<%
+  const consentLabel = adsConsent === 'granted'
+    ? 'Advertising cookies allowed'
+    : adsConsent === 'denied'
+      ? 'Advertising cookies declined'
+      : 'Advertising consent not set';
+  const consentClass = adsConsent === 'granted' ? 'is-granted' : adsConsent === 'denied' ? 'is-denied' : '';
+  const year = new Date().getFullYear();
+%>
+
+<div class="privacy-page">
+  <div class="page-header">
+    <div>
+      <span class="notifications-kicker">Plain-language notes</span>
+      <h1>Privacy and ads</h1>
+      <div class="page-subtitle">How ArtSpace handles cookies, advertising, and your choices.</div>
+    </div>
+  </div>
+
+  <section class="privacy-card" aria-labelledby="privacy-ads-title">
+    <h2 id="privacy-ads-title">Advertising</h2>
+    <p>
+      ArtSpace is free to browse. On public pages, we may show advertising through Google AdSense
+      (publisher <strong>ca-pub-9143750053355750</strong>) to help keep the gallery running.
+    </p>
+    <p>
+      Advertising is never shown on login, registration, dashboard, admin, upload, edit, notification,
+      saved, or other private pages. Artworks remain freely accessible without an account.
+    </p>
+    <p>
+      Google and its partners may use cookies or similar technologies for advertising purposes when you
+      allow advertising cookies. You can learn more in
+      <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's privacy policy</a>
+      and manage personalized advertising in
+      <a href="https://adssettings.google.com/" target="_blank" rel="noopener noreferrer">Google Ads Settings</a>.
+    </p>
+  </section>
+
+  <section class="privacy-card" aria-labelledby="privacy-cookies-title">
+    <h2 id="privacy-cookies-title">Cookies and consent</h2>
+    <p>
+      Essential cookies keep you signed in and remember your language and theme choices. Advertising
+      cookies are optional and are only requested after you allow them. If you continue without ads,
+      ArtSpace will not request an advertising unit from Google.
+    </p>
+    <p class="privacy-status <%= consentClass %>"><%= consentLabel %></p>
+    <div class="privacy-consent-actions">
+      <% if (adsConsent !== 'granted') { %>
+        <form method="POST" action="/ads-consent">
+          <button type="submit" name="choice" value="granted" class="consent-btn consent-btn--accept">Allow advertising cookies</button>
+        </form>
+      <% } %>
+      <% if (adsConsent !== 'denied') { %>
+        <form method="POST" action="/ads-consent">
+          <button type="submit" name="choice" value="denied" class="consent-btn consent-btn--quiet">Continue without ads</button>
+        </form>
+      <% } %>
+    </div>
+  </section>
+
+  <section class="privacy-card" aria-labelledby="privacy-data-title">
+    <h2 id="privacy-data-title">Your data</h2>
+    <p>
+      ArtSpace stores the account details you provide, your artworks, and the interactions you choose
+      to make, such as likes, saves, follows, and comments. Private artwork and private collections are
+      not included in public gallery or advertising pages.
+    </p>
+    <p>
+      You can request help with your account or saved data by contacting the ArtSpace team through the
+      account tools available after signing in.
+    </p>
+    <p class="privacy-last-updated">Last updated: <%= year %>. This page describes the current demo build and is not a substitute for legal advice.</p>
+  </section>
+</div>
+
+<%- include('../partials/footer') %>

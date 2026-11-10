@@ -1,0 +1,313 @@
+/* ==========================================================================
+   Advertising, consent, and privacy
+   ========================================================================== */
+
+.ad-unit {
+  width: min(1180px, calc(100% - 48px));
+  margin: clamp(30px, 4.4vw, 56px) auto;
+}
+
+.ad-unit--home {
+  width: min(1240px, calc(100% - 48px));
+}
+
+.ad-unit-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted, #8d806d);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ad-unit-frame {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px dashed var(--border, rgba(84, 69, 48, 0.2));
+  border-radius: 2px 6px 3px 5px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.ad-unit-frame .adsbygoogle {
+  width: 100%;
+}
+
+.ad-unit-noscript {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted, #8d806d);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.ad-unit.is-unfilled {
+  display: none;
+}
+
+/* Consent ----------------------------------------------------------------- */
+
+.consent-banner {
+  position: fixed;
+  right: auto;
+  bottom: 20px;
+  left: 50%;
+  z-index: 99;
+  display: grid;
+  width: min(660px, calc(100vw - 20px));
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(93, 73, 47, 0.28);
+  border-radius: 4px 9px 4px 8px;
+  color: #2b322c;
+  background-color: #f7f1e4;
+  background-image:
+    url("/images/paper-grain.svg"),
+    linear-gradient(180deg, #faf5e9, #f1e7d6);
+  background-repeat: repeat, no-repeat;
+  background-size: 180px 180px, auto;
+  box-shadow: 0 12px 32px rgba(18, 14, 10, 0.28);
+  transform: translateX(-50%);
+}
+
+.consent-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #a9824d;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.consent-copy p {
+  margin: 0 0 5px;
+  color: #4c564d;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.consent-copy a {
+  color: #8c513f;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.consent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.consent-btn {
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid rgba(64, 71, 61, 0.35);
+  border-radius: 2px 5px 3px 4px;
+  font-family: 'Kantumruy Pro', 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.consent-btn--quiet {
+  color: #4c564d;
+  background: transparent;
+}
+
+.consent-btn--quiet:hover {
+  border-color: #4c564d;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.consent-btn--accept {
+  color: #faf5e9;
+  border-color: #2b322c;
+  background: #2b322c;
+}
+
+.consent-btn--accept:hover {
+  background: #1f2821;
+  transform: translateY(-1px);
+}
+
+.consent-btn:focus-visible {
+  outline: 2px solid #a95b43;
+  outline-offset: 2px;
+}
+
+/* Privacy page ------------------------------------------------------------ */
+
+.privacy-page {
+  width: min(860px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: clamp(30px, 5vw, 58px) 0 clamp(50px, 8vw, 88px);
+}
+
+.privacy-page .page-header {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.privacy-page .page-header h1 {
+  margin-top: 8px;
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.03em;
+}
+
+.privacy-card {
+  margin-top: 22px;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid var(--border);
+  border-radius: 4px 10px 5px 8px;
+  background: var(--card);
+}
+
+.privacy-card h2 {
+  margin: 0 0 9px;
+  color: var(--text);
+  font-family: 'Caveat', 'Kantumruy Pro', cursive;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.privacy-card p,
+.privacy-card li {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+.privacy-card p {
+  margin: 0 0 12px;
+}
+
+.privacy-card ul {
+  margin: 0 0 15px;
+  padding-left: 20px;
+}
+
+.privacy-card a {
+  color: var(--secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.privacy-card + .privacy-card {
+  margin-top: 14px;
+}
+
+.privacy-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.privacy-status.is-granted {
+  color: #71866a;
+  border-color: rgba(113, 134, 106, 0.4);
+}
+
+.privacy-status.is-denied {
+  color: #a95b43;
+  border-color: rgba(169, 91, 67, 0.4);
+}
+
+.privacy-consent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 8px;
+}
+
+.privacy-consent-actions .consent-btn {
+  min-height: 44px;
+}
+
+.privacy-last-updated {
+  margin-top: 20px !important;
+  color: var(--muted);
+  font-size: 0.68rem !important;
+}
+
+@media (max-width: 1080px) {
+  .ad-unit,
+  .ad-unit--home {
+    width: calc(100% - 24px);
+  }
+
+  .consent-banner {
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 640px) {
+  .ad-unit {
+    margin: 26px auto;
+  }
+
+  .ad-unit-frame {
+    min-height: 250px;
+  }
+
+  .consent-banner {
+    gap: 9px;
+    padding: 13px 13px 12px;
+  }
+
+  .consent-copy p {
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .consent-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .consent-btn {
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: 0.64rem;
+  }
+
+  .privacy-page {
+    width: calc(100% - 24px);
+    padding-top: 22px;
+  }
+
+  .privacy-page .page-header h1 {
+    font-size: 2rem;
+  }
+
+  .privacy-card {
+    margin-top: 15px;
+    padding: 17px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .consent-btn {
+    transition: none !important;
+  }
+}
+
+body:has(.privacy-page) .consent-banner {
+  display: none;
+}

@@ -41,6 +41,19 @@ if (process.env.IMAGEKIT_PUBLIC_KEY && process.env.IMAGEKIT_PRIVATE_KEY && proce
 
 // Determine environment and set upload directories
 const IS_VERCEL = process.env.VERCEL === '1';
+const ADSENSE_CLIENT = 'ca-pub-9143750053355750';
+const ADSENSE_SCRIPT_URL = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+const ADS_CONSENT_COOKIE = 'artspace-ads-consent';
+const normalizeAdSlot = (value) => {
+  const slot = String(value || '').trim();
+  return /^\d{6,}$/.test(slot) ? slot : '';
+};
+const ADSENSE_SLOTS = Object.freeze({
+  home: normalizeAdSlot(process.env.ADSENSE_HOME_SLOT),
+  explore: normalizeAdSlot(process.env.ADSENSE_EXPLORE_SLOT),
+  artwork: normalizeAdSlot(process.env.ADSENSE_ARTWORK_SLOT),
+  profile: normalizeAdSlot(process.env.ADSENSE_PROFILE_SLOT)
+});
 const UPLOADS_DIR = IS_VERCEL ? '/tmp' : path.join(__dirname, 'uploads');
 const PROCESSED_DIR = IS_VERCEL ? '/tmp/processed' : path.join(UPLOADS_DIR, 'processed');
 const AVATARS_DIR = IS_VERCEL ? '/tmp/avatars' : path.join(UPLOADS_DIR, 'avatars');
@@ -458,6 +471,8 @@ const ASSET_VERSION = (() => {
     'public/css/home-notebook.css',
     'public/css/notifications.css',
     'public/css/mobile-bottom-nav.css',
+    'public/css/ads.css',
+    'public/js/ads.js',
     'public/js/book-slider.js',
     'public/js/i18n.js',
     'public/js/intro.js',
@@ -740,7 +755,8 @@ const CSS_BUNDLE_FILES = [
   'studio-compact.css',
   'home-notebook.css',
   'notifications.css',
-  'mobile-bottom-nav.css'
+  'mobile-bottom-nav.css',
+  'ads.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 
@@ -842,6 +858,12 @@ app.use(async (req, res, next) => {
   res.locals.assetVersion = ASSET_VERSION;
   res.locals.imageTools = imageTools;
   res.locals.imagekitOrigin = imagekitOrigin;
+  res.locals.adsenseClient = ADSENSE_CLIENT;
+  res.locals.adsenseScriptUrl = ADSENSE_SCRIPT_URL;
+  res.locals.adsenseSlots = ADSENSE_SLOTS;
+  res.locals.adsAllowed = false;
+  const consentValue = req.cookies ? req.cookies[ADS_CONSENT_COOKIE] : '';
+  res.locals.adsConsent = consentValue === 'granted' || consentValue === 'denied' ? consentValue : '';
 
   if (currentUser) {
     try {
@@ -1004,6 +1026,7 @@ app.get('/', async (req, res, next) => {
 
     const currentUser = (req.session && req.session.user) || null;
     const isAuthenticated = Boolean(currentUser);
+    res.locals.adsAllowed = true;
 
     res.render('pages/home', {
       pageTitle: 'ArtSpace | Discover original artwork',
@@ -1149,6 +1172,7 @@ app.get('/explore', async (req, res, next) => {
       nextPage: page + 1,
       remaining: Math.max(0, filteredTotal - (offset + loadedItems))
     };
+    res.locals.adsAllowed = true;
 
     res.render('pages/explore', {
       pageTitle: 'ArtSpace | Explore',
@@ -1684,6 +1708,7 @@ app.get('/profile/:username', async (req, res, next) => {
     const requestedTab = ['artworks', 'liked', 'saved', 'pinned'].includes(req.query.tab) ? req.query.tab : 'artworks';
     const activeTab = (requestedTab === 'saved' || requestedTab === 'pinned') && !isOwner ? 'artworks' : requestedTab;
     const pinnedIds = await getPinnedArtworkIds(viewerId);
+    res.locals.adsAllowed = activeTab === 'artworks' || activeTab === 'liked';
 
     res.render('pages/profile', {
       pageTitle: `ArtSpace | ${profileUser.username}'s Profile`,
@@ -1792,6 +1817,7 @@ app.get('/art/:id', async (req, res, next) => {
       getPinnedArtworkIds(viewerId),
       isFollowingUser(viewerId, artwork.user_id)
     ]);
+    res.locals.adsAllowed = true;
 
     res.render('pages/artwork', {
       pageTitle: `ArtSpace | ${artwork.title}`,
@@ -2422,6 +2448,37 @@ app.get('/search', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+app.post('/ads-consent', (req, res) => {
+  const choice = req.body && req.body.choice;
+  const fallback = '/';
+
+  if (choice === 'reset') {
+    res.clearCookie(ADS_CONSENT_COOKIE, { path: '/' });
+    res.redirect(getSafeActionRedirect(req, fallback));
+    return;
+  }
+
+  if (choice !== 'granted' && choice !== 'denied') {
+    res.redirect(getSafeActionRedirect(req, fallback));
+    return;
+  }
+
+  res.cookie(ADS_CONSENT_COOKIE, choice, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: IS_VERCEL,
+    path: '/',
+    maxAge: 180 * 24 * 60 * 60 * 1000
+  });
+  res.redirect(getSafeActionRedirect(req, fallback));
+});
+
+app.get('/privacy', (req, res) => {
+  res.render('pages/privacy', {
+    pageTitle: 'ArtSpace | Privacy and ads'
+  });
 });
 
 // 9. Notifications Page Route

@@ -1,0 +1,16 @@
+<% if (typeof adsConsent !== 'undefined' && !adsConsent && (!(typeof currentPath !== 'undefined') || String(currentPath).split('?')[0] !== '/privacy')) { %>
+  <aside class="consent-banner" data-consent-banner role="region" aria-label="Advertising consent">
+    <div class="consent-copy">
+      <span class="consent-kicker">Your paper, your choice</span>
+      <p>
+        ArtSpace uses essential cookies to run the studio. With your permission, Google AdSense may use
+        advertising cookies to keep the gallery free. You can change this anytime.
+      </p>
+      <a href="/privacy">Read the privacy and ads note</a>
+    </div>
+    <form class="consent-actions" method="POST" action="/ads-consent">
+      <button type="submit" name="choice" value="denied" class="consent-btn consent-btn--quiet">Continue without ads</button>
+      <button type="submit" name="choice" value="granted" class="consent-btn consent-btn--accept">Allow ads</button>
+    </form>
+  </aside>
+<% } %>
