@@ -15,8 +15,69 @@
   const searchToggle = topbar.querySelector('[data-search-toggle]');
   const searchClear = topbar.querySelector('[data-search-clear]');
   const navInk = topbar.querySelector('[data-nav-ink]');
+  const bottomNav = document.querySelector('[data-mobile-bottom-nav]');
+  const currentUsername = document.querySelector('meta[name="current-username"]')?.content || '';
 
   let lastFocused = null;
+  let keyboardBlurTimer = 0;
+
+  const updateBottomNavActive = () => {
+    if (!bottomNav) return;
+
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    const savedLink = bottomNav.querySelector('[data-mbn-key="saved"]');
+    const savedAvailable = Boolean(savedLink?.getAttribute('href')?.includes('tab=saved'));
+    const ownProfilePath = currentUsername ? `/profile/${encodeURIComponent(currentUsername)}` : '';
+    const savedActive = Boolean(
+      savedAvailable
+      && path.startsWith('/profile/')
+      && params.get('tab') === 'saved'
+      && ownProfilePath
+      && path === ownProfilePath
+    );
+    const active = {
+      home: path === '/',
+      explore: path.startsWith('/explore') || path.startsWith('/search'),
+      upload: path.startsWith('/upload'),
+      saved: savedActive,
+      profile: (path === '/profile/edit' || path.startsWith('/profile/')) && !savedActive
+    };
+
+    bottomNav.querySelectorAll('[data-mbn-key]').forEach((item) => {
+      const isActive = Boolean(active[item.dataset.mbnKey]);
+      item.classList.toggle('is-active', isActive);
+      if (isActive) item.setAttribute('aria-current', 'page');
+      else item.removeAttribute('aria-current');
+    });
+  };
+
+  const isFormField = (target) => {
+    const element = target instanceof Element ? target : null;
+    return Boolean(element?.closest('input, textarea, select, [contenteditable="true"]'));
+  };
+
+  const closeMobileKeyboardState = () => {
+    window.clearTimeout(keyboardBlurTimer);
+    keyboardBlurTimer = 0;
+    if (!isFormField(document.activeElement)) {
+      document.body.classList.remove('mobile-keyboard-open');
+    }
+  };
+
+  document.addEventListener('focusin', (event) => {
+    if (!mobileQuery.matches || !isFormField(event.target)) return;
+    window.clearTimeout(keyboardBlurTimer);
+    document.body.classList.add('mobile-keyboard-open');
+  });
+
+  document.addEventListener('focusout', (event) => {
+    if (!isFormField(event.target)) return;
+    window.clearTimeout(keyboardBlurTimer);
+    keyboardBlurTimer = window.setTimeout(closeMobileKeyboardState, 160);
+  });
+
+  updateBottomNavActive();
 
   const updateNavIndicator = () => {
     if (!navInk) return;
@@ -233,7 +294,7 @@
   const handleViewportChange = () => {
     if (!mobileQuery.matches) {
       if (nav?.classList.contains('is-open')) setDrawerState(false, false);
-      document.body.classList.remove('nav-open');
+      document.body.classList.remove('nav-open', 'mobile-keyboard-open');
       topbar.classList.remove('is-search-open');
       searchToggle?.setAttribute('aria-expanded', 'false');
       searchToggle?.setAttribute('aria-label', 'Open search');
@@ -254,6 +315,12 @@
   handleScroll();
   window.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('resize', updateNavIndicator, { passive: true });
-  window.addEventListener('artspace:navigation', () => window.requestAnimationFrame(updateNavIndicator));
+  window.addEventListener('artspace:navigation', () => {
+    document.body.classList.remove('mobile-keyboard-open');
+    window.requestAnimationFrame(() => {
+      updateNavIndicator();
+      updateBottomNavActive();
+    });
+  });
   updateNavIndicator();
 })();

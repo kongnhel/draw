@@ -1,25 +1,76 @@
 <%- include('../partials/header') %>
 
-<div class="page-header">
-  <div>
-    <h1>Notifications</h1>
-    <div class="page-subtitle">Recent activity from the community.</div>
-  </div>
-</div>
+<%
+  const typeLabels = { like: 'Like', comment: 'Comment', follow: 'Follow' };
+  const typeActions = {
+    like: 'liked your artwork',
+    comment: 'commented on your artwork',
+    follow: 'started following you'
+  };
+%>
 
-<div class="dashboard-card">
-  <% if (notifications.length) { %>
-    <div style="display: grid; gap: 12px;">
-      <% notifications.forEach((item) => { %>
-        <a href="<%= item.link || '/' %>" class="user-card" style="display: block;">
-          <strong><%= item.type %></strong>
-          <p style="margin: 8px 0 0; color: var(--muted);"><%= item.message %></p>
-        </a>
-      <% }) %>
+<div class="notifications-page">
+  <div class="page-header">
+    <div>
+      <span class="notifications-kicker">The studio inbox</span>
+      <h1>Notifications</h1>
+      <div class="page-subtitle">Likes, notes, and new connections from the ArtSpace community.</div>
     </div>
-  <% } else { %>
-    <div class="empty-state">You are all caught up. No new notifications.</div>
-  <% } %>
+    <% if (unreadCount > 0) { %>
+      <span class="notifications-new"><%= unreadCount %> new</span>
+    <% } %>
+  </div>
+
+  <div class="dashboard-card notifications-card">
+    <% if (notifications.length) { %>
+      <div class="notification-list">
+        <% notifications.forEach((item) => { %>
+          <% const type = typeLabels[item.type] ? item.type : 'update'; %>
+          <a
+            href="<%= item.link || '/explore' %>"
+            class="notification-item<%= item.is_unread ? ' is-unread' : '' %>"
+            data-type="<%= type %>"
+          >
+            <span class="notification-avatar">
+              <img
+                src="<%= item.actor_avatar || '/images/default-avatar.svg' %>"
+                data-fallback-src="/images/default-avatar.svg"
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            </span>
+
+            <span class="notification-copy">
+              <span class="notification-line">
+                <strong data-i18n-skip><%= item.actor_name || 'Someone' %></strong>
+                <span class="notification-action"><%= typeActions[item.type] || 'sent you an update' %></span>
+              </span>
+
+              <% if (item.artwork_title) { %>
+                <span class="notification-artwork" data-i18n-skip>“<%= item.artwork_title %>”</span>
+              <% } %>
+
+              <% if (item.type === 'comment' && item.message) { %>
+                <span class="notification-comment" data-i18n-skip>“<%= item.message %>”</span>
+              <% } %>
+
+              <time class="notification-time" datetime="<%= item.created_at %>"><%= item.created_at_label || 'Just now' %></time>
+            </span>
+
+            <span class="notification-type"><%= typeLabels[item.type] || 'Update' %></span>
+          </a>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="notifications-empty">
+        <span class="notifications-empty-mark" aria-hidden="true">A/S</span>
+        <h2>You are all caught up.</h2>
+        <p>New likes, comments, and follows will appear here.</p>
+        <a href="/explore" class="btn btn-secondary">Explore artwork</a>
+      </div>
+    <% } %>
+  </div>
 </div>
 
 <%- include('../partials/footer') %>

@@ -456,6 +456,8 @@ const ASSET_VERSION = (() => {
     'public/css/language.css',
     'public/css/studio-compact.css',
     'public/css/home-notebook.css',
+    'public/css/notifications.css',
+    'public/css/mobile-bottom-nav.css',
     'public/js/book-slider.js',
     'public/js/i18n.js',
     'public/js/intro.js',
@@ -511,6 +513,53 @@ async function isFollowingUser(followerId, followingId) {
     [follower, following]
   );
   return Boolean(rows && rows.length);
+}
+
+async function createNotification({ userId, actorId, type, artworkId = null, message = null }) {
+  const recipientId = Number(userId);
+  const actor = Number(actorId);
+  if (!recipientId || !actor || recipientId === actor) return;
+
+  try {
+    await db.execute(
+      'INSERT INTO notifications (user_id, actor_id, type, artwork_id, message) VALUES (?, ?, ?, ?, ?)',
+      [recipientId, actor, String(type), artworkId || null, message || null]
+    );
+  } catch (error) {
+    console.error('Could not create notification:', error);
+  }
+}
+
+async function removeNotification({ userId, actorId, type, artworkId = null }) {
+  const recipientId = Number(userId);
+  const actor = Number(actorId);
+  if (!recipientId || !actor) return;
+
+  const params = [recipientId, actor, String(type)];
+  let sql = 'DELETE FROM notifications WHERE user_id = ? AND actor_id = ? AND type = ?';
+
+  if (artworkId) {
+    sql += ' AND artwork_id = ?';
+    params.push(Number(artworkId));
+  } else {
+    sql += ' AND artwork_id IS NULL';
+  }
+
+  try {
+    await db.execute(sql, params);
+  } catch (error) {
+    console.error('Could not remove notification:', error);
+  }
+}
+
+async function countUnreadNotifications(userId) {
+  if (!userId) return 0;
+
+  const rows = await db.execute(
+    'SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND is_read = 0',
+    [userId]
+  );
+  return Number((rows && rows[0] && rows[0].count) || 0);
 }
 
 async function getPinnedHomepageArtworks(viewerId) {
@@ -689,7 +738,9 @@ const CSS_BUNDLE_FILES = [
   'book-slider.css',
   'language.css',
   'studio-compact.css',
-  'home-notebook.css'
+  'home-notebook.css',
+  'notifications.css',
+  'mobile-bottom-nav.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 
@@ -780,7 +831,7 @@ app.use(session({
 }));
 
 // Add IS_VERCEL and auth state to res.locals for template rendering
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   const currentUser = (req.session && req.session.user) || null;
   res.locals.isVercel = IS_VERCEL;
   res.locals.appName = 'ArtSpace';
@@ -791,6 +842,15 @@ app.use((req, res, next) => {
   res.locals.assetVersion = ASSET_VERSION;
   res.locals.imageTools = imageTools;
   res.locals.imagekitOrigin = imagekitOrigin;
+
+  if (currentUser) {
+    try {
+      res.locals.unreadNotifications = await countUnreadNotifications(currentUser.id);
+    } catch (error) {
+      console.error('Could not load notification count:', error);
+    }
+  }
+
   next();
 });
 
@@ -949,7 +1009,6 @@ app.get('/', async (req, res, next) => {
       pageTitle: 'ArtSpace | Discover original artwork',
       isAuthenticated,
       currentUser,
-      unreadNotifications: 0,
       totalArtworks,
       heroArtwork,
       heroArtworkImageUrl: heroArtwork ? (heroArtwork.image_url || heroArtwork.thumbnail_url) : null,
@@ -1814,7 +1873,7 @@ app.post('/art/:id/like', requireAuth, async (req, res, next) => {
     }
 
     const artworks = await db.execute(
-      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      "SELECT id, user_id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
       [artworkId]
     );
 
@@ -1823,7 +1882,8 @@ app.post('/art/:id/like', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const userId = req.session.user.id;
+    const userId = Number(req.session.user.id);
+    const artworkOwnerId = Number(artworks[0].user_id);
     const removed = await db.execute(
       'DELETE FROM likes WHERE user_id = ? AND artwork_id = ?',
       [userId, artworkId]
@@ -1837,6 +1897,22 @@ app.post('/art/:id/like', requireAuth, async (req, res, next) => {
         [userId, artworkId]
       );
       liked = true;
+    }
+
+    await removeNotification({
+      userId: artworkOwnerId,
+      actorId: userId,
+      type: 'like',
+      artworkId
+    });
+
+    if (liked) {
+      await createNotification({
+        userId: artworkOwnerId,
+        actorId: userId,
+        type: 'like',
+        artworkId
+      });
     }
 
     const countRows = await db.execute(
@@ -1935,7 +2011,7 @@ app.post('/art/:id/comment', requireAuth, async (req, res, next) => {
     }
 
     const artworks = await db.execute(
-      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      "SELECT id, user_id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
       [artworkId]
     );
 
@@ -1949,6 +2025,14 @@ app.post('/art/:id/comment', requireAuth, async (req, res, next) => {
       'INSERT INTO comments (user_id, artwork_id, body) VALUES (?, ?, ?)',
       [userId, artworkId, body]
     );
+
+    await createNotification({
+      userId: Number(artworks[0].user_id),
+      actorId: userId,
+      type: 'comment',
+      artworkId,
+      message: body.slice(0, 240)
+    });
 
     const [commentRows, countRows] = await Promise.all([
       db.execute(
@@ -2023,6 +2107,20 @@ app.post('/follow/:id', requireAuth, async (req, res, next) => {
         [userId, targetUserId]
       );
       following = true;
+    }
+
+    await removeNotification({
+      userId: targetUserId,
+      actorId: userId,
+      type: 'follow'
+    });
+
+    if (following) {
+      await createNotification({
+        userId: targetUserId,
+        actorId: userId,
+        type: 'follow'
+      });
     }
 
     if (requestWantsJson(req)) {
@@ -2327,11 +2425,49 @@ app.get('/search', async (req, res, next) => {
 });
 
 // 9. Notifications Page Route
-app.get('/notifications', requireAuth, (req, res) => {
-  res.render('pages/notifications', {
-    pageTitle: 'ArtSpace | Notifications',
-    notifications: []
-  });
+app.get('/notifications', requireAuth, async (req, res, next) => {
+  try {
+    const userId = Number(req.session.user.id);
+    const rows = await db.execute(
+      `SELECT n.id, n.type, n.message, n.is_read, n.created_at, n.artwork_id,
+              DATE_FORMAT(n.created_at, '%b %d, %Y') AS created_at_label,
+              u.username AS actor_username,
+              COALESCE(NULLIF(u.name, ''), u.username) AS actor_name,
+              u.avatar AS actor_avatar,
+              a.title AS artwork_title
+         FROM notifications n
+         LEFT JOIN users u ON u.id = n.actor_id
+         LEFT JOIN artworks a ON a.id = n.artwork_id
+        WHERE n.user_id = ?
+        ORDER BY n.created_at DESC, n.id DESC
+        LIMIT 100`,
+      [userId]
+    );
+
+    const notifications = (rows || []).map((row) => ({
+      ...row,
+      is_unread: !Number(row.is_read),
+      actor_name: row.actor_name || 'Someone',
+      link: row.artwork_id
+        ? `/art/${row.artwork_id}`
+        : (row.actor_username ? `/profile/${encodeURIComponent(row.actor_username)}` : '/explore')
+    }));
+    const unreadCount = notifications.filter((item) => item.is_unread).length;
+
+    await db.execute(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+      [userId]
+    );
+    res.locals.unreadNotifications = 0;
+
+    res.render('pages/notifications', {
+      pageTitle: 'ArtSpace | Notifications',
+      notifications,
+      unreadCount
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // 10. Forgot Password Page Route
