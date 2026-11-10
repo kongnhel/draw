@@ -79,7 +79,7 @@
     </section>
 
 <%
-  const sliderArtworks = (bookArtworks || []).slice(0, 6).map((artwork) => ({
+  const sliderArtworks = (bookArtworks || []).map((artwork) => ({
     src: imageTools.transformUrl(artwork.image_url || artwork.thumbnail_url, 1200),
     title: artwork.title,
     artist: artwork.display_name || artwork.username,

@@ -1144,3 +1144,335 @@
     gap: 14px;
   }
 }
+
+@media (max-width: 980px) {
+  .art-viewer[open] .art-viewer-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "toolbar"
+      "stage"
+      "caption";
+    gap: 14px;
+    padding: 18px 20px 20px;
+  }
+
+  .art-viewer-toolbar {
+    min-height: 44px;
+    padding-bottom: 10px;
+  }
+
+  .art-viewer-brand {
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+  }
+
+  .art-viewer-brand span {
+    font-size: 0.55rem;
+  }
+
+  .art-viewer-tools {
+    gap: 2px;
+  }
+
+  .art-viewer-tool {
+    width: 40px;
+    height: 40px;
+  }
+
+  .art-viewer-tool svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .art-viewer-stage {
+    width: 100%;
+    height: 100%;
+    min-height: 220px;
+    border-radius: 4px 10px 5px 8px;
+  }
+
+  .art-viewer-image {
+    padding: clamp(14px, 2vh, 20px) clamp(46px, 7vw, 64px);
+  }
+
+  .art-viewer-step {
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 42px;
+    height: 42px;
+    margin-inline: 10px;
+    transform: none;
+  }
+
+  .art-viewer-previous {
+    justify-self: start;
+    margin-right: 0;
+  }
+
+  .art-viewer-next {
+    justify-self: end;
+    margin-left: 0;
+  }
+
+  .art-viewer-caption {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: min(42dvh, 360px);
+    gap: 12px;
+    padding: 14px 0 0;
+    overflow-y: auto;
+    border-top: 1px dashed var(--viewer-line-strong);
+    border-left: 0;
+  }
+
+  .art-viewer-count {
+    gap: 10px;
+    font-size: 0.62rem;
+  }
+
+  .art-viewer-description h2 {
+    max-width: 100%;
+    font-size: clamp(1.6rem, 3.4vw, 2.1rem);
+  }
+
+  .art-viewer-description .art-viewer-description-text {
+    font-size: 0.82rem;
+    line-height: 1.55;
+    -webkit-line-clamp: 3;
+  }
+
+  .art-viewer-caption-actions {
+    gap: 9px;
+    margin-top: 0;
+    padding-top: 12px;
+  }
+
+  .art-viewer-social-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    justify-content: stretch;
+  }
+
+  .art-viewer-action {
+    min-height: 40px;
+    font-size: 0.7rem;
+  }
+
+  .art-viewer-details {
+    min-height: 42px;
+    font-size: 0.7rem;
+  }
+
+  .art-viewer-related-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .art-viewer[open] .art-viewer-shell {
+    gap: 10px;
+    padding: 12px 12px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .art-viewer-toolbar {
+    min-height: 44px;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  .art-viewer-brand {
+    gap: 4px 8px;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+  }
+
+  .art-viewer-brand::before {
+    width: 16px;
+  }
+
+  .art-viewer-brand span {
+    display: none;
+  }
+
+  .art-viewer-tools {
+    gap: 1px;
+    padding: 3px;
+  }
+
+  .art-viewer-tool {
+    width: 38px;
+    height: 38px;
+  }
+
+  .art-viewer-tool svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .art-viewer-close {
+    margin-left: 2px;
+  }
+
+  .art-viewer-stage {
+    min-height: 210px;
+  }
+
+  .art-viewer-image {
+    padding: 12px 44px;
+  }
+
+  .art-viewer-stage::after {
+    inset: 8px;
+  }
+
+  .art-viewer-step {
+    width: 38px;
+    height: 38px;
+    margin-inline: 8px;
+  }
+
+  .art-viewer-step svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .art-viewer-caption {
+    max-height: min(44dvh, 340px);
+    gap: 10px;
+    padding-top: 12px;
+  }
+
+  .art-viewer-count {
+    gap: 8px;
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+  }
+
+  .art-viewer-artist {
+    font-size: 1.25rem;
+  }
+
+  .art-viewer-description h2 {
+    margin: 8px 0 6px;
+    font-size: clamp(1.4rem, 6vw, 1.8rem);
+  }
+
+  .art-viewer-description p {
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+  }
+
+  .art-viewer-description .art-viewer-description-text {
+    margin-top: 8px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    -webkit-line-clamp: 2;
+  }
+
+  .art-viewer-caption-actions {
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .art-viewer-social-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .art-viewer-action {
+    min-height: 38px;
+    padding: 7px 8px;
+    gap: 5px;
+    font-size: 0.66rem;
+  }
+
+  .art-viewer-action-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .art-viewer-details {
+    min-height: 40px;
+    padding: 9px 11px;
+    font-size: 0.66rem;
+  }
+
+  .art-viewer-related {
+    padding: 10px;
+  }
+
+  .art-viewer-related-list {
+    display: flex;
+    gap: 8px;
+    padding: 2px 2px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .art-viewer-related-item {
+    flex: 0 0 clamp(124px, 40vw, 148px);
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 360px) {
+  .art-viewer-brand::before {
+    display: none;
+  }
+
+  .art-viewer-brand {
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+  }
+
+  .art-viewer-tools {
+    gap: 0;
+  }
+
+  .art-viewer-tool {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 980px) and (max-height: 620px) and (orientation: landscape),
+  (max-width: 980px) and (max-height: 560px) {
+  .art-viewer[open] .art-viewer-shell {
+    grid-template-rows: max-content auto max-content;
+    grid-template-areas:
+      "toolbar"
+      "stage"
+      "caption";
+    align-content: start;
+    gap: 10px;
+    padding-top: 0;
+    overflow-y: auto;
+  }
+
+  .art-viewer-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding-top: clamp(12px, 2.2vw, 18px);
+    background: var(--viewer-paper);
+  }
+
+  .art-viewer-stage {
+    height: clamp(220px, 58vh, 380px);
+    min-height: 0;
+  }
+
+  .art-viewer-caption {
+    height: auto;
+    min-height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}

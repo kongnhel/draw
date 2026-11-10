@@ -1,3 +1,10 @@
+<%
+  const bookIndexPageSize = 6;
+  const bookIndexPages = Math.max(1, Math.ceil(artworks.length / bookIndexPageSize));
+  const bookFrontMatterPages = 1 + bookIndexPages + ((1 + bookIndexPages) % 2);
+  const bookPageCount = bookFrontMatterPages + artworks.length;
+  const bookSpreadCount = Math.max(1, Math.ceil(bookPageCount / 2));
+%>
 <div
   id="artspace-book-slider"
   class="asb-root"
@@ -18,14 +25,14 @@
       </div>
     </div>
 
-    <div class="mt-7 flex flex-wrap items-center justify-between gap-4 sm:gap-6">
+    <div class="asb-controls mt-7 flex flex-wrap items-center justify-between gap-4 sm:gap-6">
       <button type="button" class="asb-nav" data-asb-prev aria-label="Previous page">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
         <span class="hidden md:inline">Previous</span>
       </button>
 
       <div class="flex min-w-[160px] flex-1 flex-col items-center gap-2 sm:max-w-[320px]">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted" data-asb-counter aria-live="polite">01 / 03</span>
+        <span class="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted" data-asb-counter aria-live="polite">01 / <%= String(bookSpreadCount).padStart(2, '0') %></span>
         <span class="asb-progress" aria-hidden="true"><span data-asb-progress></span></span>
       </div>
 

@@ -634,6 +634,14 @@
     "SOUND ON": "សំឡេងបើក",
     "Swipe on mobile · click a side to turn · ← → on keyboard": "អូសលើទូរស័ព្ទ · ចុចចំហៀងដើម្បីបើក · ← → លើក្តារចុច",
     "ArtSpace / Plate": "ArtSpace / ចាន",
+    "ArtSpace / The community book": "ArtSpace / សៀវភៅសហគមន៍",
+    "ArtSpace / Contents": "ArtSpace / មាតិកា",
+    "All drawings by": "គំនូរទាំងអស់ដោយ",
+    "A community collection": "កម្រងស្នាដៃសហគមន៍",
+    "The complete index is inside": "បញ្ជីពេញលេញនៅខាងក្នុង",
+    "The index": "មាតិកា",
+    "All the drawings.": "គំនូរទាំងអស់។",
+    "Index": "មាតិកា",
     "The last page": "ទំព័រចុងក្រោយ",
     "Wander back through the book, or start a new page of your own.": "ត្រឡប់កាត់សៀវភៅ ឬចាប់ផ្តើមទំព័រថ្មីរបស់អ្នក។",
     "A living sketchbook. Original work, kept with care.": "សៀវភៅគំនូររស់រវើក។ ស្នាដៃដើម រក្សាទុកដោយយកចិត្តទុកដាក់។",
@@ -966,6 +974,14 @@
     {
       "en": "^([0-9]+) works?$",
       "km": "$1 ស្នាដៃ"
+    },
+    {
+      "en": "^([0-9]+) drawings?$",
+      "km": "គំនូរ $1"
+    },
+    {
+      "en": "^([0-9]+) drawings? · (.+)$",
+      "km": "គំនូរ $1 · $2"
     },
     {
       "en": "^([0-9]+) artists?$",

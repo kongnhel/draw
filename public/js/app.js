@@ -1228,6 +1228,8 @@ const bindArtViewer = () => {
   const relatedPanel = viewer.querySelector('[data-viewer-related]');
   const relatedList = viewer.querySelector('[data-viewer-related-list]');
   const relatedClose = viewer.querySelector('[data-viewer-related-close]');
+  const viewerCaption = viewer.querySelector('.art-viewer-caption');
+  let relatedScrollTop = 0;
   const ownerActions = viewer.querySelector('[data-viewer-owner-actions]');
   const editLink = viewer.querySelector('[data-viewer-edit]');
   const deleteForm = viewer.querySelector('[data-viewer-delete-form]');
@@ -1650,6 +1652,8 @@ const bindArtViewer = () => {
     panStart = null;
     relatedPanel.hidden = true;
     relatedToggle?.setAttribute('aria-expanded', 'false');
+    relatedScrollTop = 0;
+    if (viewerCaption) viewerCaption.scrollTop = 0;
     document.body.classList.remove('art-viewer-open');
     setSoundButtonState();
     setEffectsButtonState();
@@ -1811,11 +1815,18 @@ const bindArtViewer = () => {
     const expanded = relatedToggle.getAttribute('aria-expanded') === 'true';
     relatedToggle.setAttribute('aria-expanded', String(!expanded));
     relatedPanel.hidden = expanded;
-    if (!expanded) relatedList.querySelector('button')?.focus({ preventScroll: true });
+    if (!expanded) {
+      relatedScrollTop = viewerCaption?.scrollTop || 0;
+      relatedPanel.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+      relatedList.querySelector('button')?.focus({ preventScroll: true });
+    } else if (viewerCaption) {
+      viewerCaption.scrollTop = relatedScrollTop;
+    }
   });
   relatedClose?.addEventListener('click', () => {
     relatedPanel.hidden = true;
     relatedToggle?.setAttribute('aria-expanded', 'false');
+    if (viewerCaption) viewerCaption.scrollTop = relatedScrollTop;
     relatedToggle?.focus({ preventScroll: true });
   });
   relatedList?.addEventListener('click', (event) => {

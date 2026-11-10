@@ -168,6 +168,91 @@
     }
   };
 
+  const uniqueArtists = Array.from(new Set(
+    artworks.map((artwork) => String(artwork.artist || '').trim()).filter(Boolean)
+  ));
+  const years = Array.from(new Set(
+    artworks.map((artwork) => String(artwork.year || '').trim()).filter(Boolean)
+  )).sort();
+  const drawingCount = `${artworks.length} ${artworks.length === 1 ? 'drawing' : 'drawings'}`;
+  const yearsLabel = years.length === 1
+    ? years[0]
+    : years.length > 1
+      ? `${years[0]}\u2013${years[years.length - 1]}`
+      : '';
+  const coverTitle = uniqueArtists.length === 1 ? uniqueArtists[0] : 'The community book';
+  const coverByline = uniqueArtists.length === 1 ? 'All drawings by' : 'A community collection';
+  const showArtistInIndex = uniqueArtists.length !== 1;
+  const INDEX_PAGE_SIZE = 6;
+
+  function coverTemplate() {
+    return `
+      <div class="asb-content asb-content--cover">
+        <div class="asb-cover-head">
+          <span>ArtSpace / The community book</span>
+          <span class="font-khmer asb-head-khmer" aria-hidden="true">សិល្បៈ</span>
+        </div>
+        <div class="asb-cover-identity">
+          <span class="asb-cover-eyebrow">${coverByline}</span>
+          <h2 data-i18n-skip>${escapeHTML(coverTitle)}</h2>
+          <span class="asb-cover-rule" aria-hidden="true"></span>
+          <p>${drawingCount}${yearsLabel ? ` · ${escapeHTML(yearsLabel)}` : ''}</p>
+        </div>
+        <div class="asb-cover-foot">
+          <span class="asb-cover-mark" aria-hidden="true">A/S</span>
+          <span>The complete index is inside</span>
+        </div>
+        <span class="asb-cover-khmer" aria-hidden="true">សិល្បៈ</span>
+      </div>
+    `;
+  }
+
+  function contentsTemplate(pageArtworks, pageIndex, pageCount, offset) {
+    const items = pageArtworks.map((artwork, index) => {
+      const medium = escapeHTML(artwork.medium || 'Original artwork');
+      const artist = escapeHTML(artwork.artist || '');
+      const meta = showArtistInIndex && artist ? `${medium} · ${artist}` : medium;
+
+      return `
+        <li class="asb-contents-item">
+          <span class="asb-contents-index">${pad(offset + index + 1)}</span>
+          <span class="asb-contents-copy">
+            <span class="asb-contents-title" data-i18n-skip>${escapeHTML(artwork.title)}</span>
+            <span class="asb-contents-meta">${meta}</span>
+          </span>
+        </li>
+      `;
+    }).join('');
+    const pageLabel = pageCount > 1
+      ? `<span class="asb-index-counter"> · ${pad(pageIndex + 1)} / ${pad(pageCount)}</span>`
+      : '';
+
+    return `
+      <div class="asb-content asb-content--contents">
+        <div class="asb-head">
+          <span>ArtSpace / Contents</span>
+          <span class="font-khmer asb-head-khmer" aria-hidden="true">សិល្បៈ</span>
+        </div>
+        <div class="asb-contents-intro">
+          <span class="asb-meta">The index${pageLabel}</span>
+          <h2>All the drawings.</h2>
+        </div>
+        <ol class="asb-contents-list">${items}</ol>
+        <span class="asb-folio">Index</span>
+      </div>
+    `;
+  }
+
+  function dividerTemplate() {
+    return `
+      <div class="asb-content asb-content--divider" aria-hidden="true">
+        <span class="asb-divider-rule"></span>
+        <span class="asb-divider-mark">A/S</span>
+        <span class="asb-divider-rule"></span>
+      </div>
+    `;
+  }
+
   function pageTemplate(artwork, folio) {
     if (!artwork) {
       return `
@@ -221,7 +306,34 @@
     return sheet;
   };
 
-  const sheets = artworks.map((artwork, index) => makeSheet(artwork, index + 1));
+  const makeFrontMatterSheet = (html, variant) => {
+    const sheet = document.createElement('div');
+    sheet.className = `asb-sheet asb-paper asb-sheet--${variant}`;
+    sheet.dataset.density = 'soft';
+    sheet.innerHTML = html;
+    return sheet;
+  };
+
+  const indexPages = [];
+  for (let start = 0; start < artworks.length; start += INDEX_PAGE_SIZE) {
+    indexPages.push(artworks.slice(start, start + INDEX_PAGE_SIZE));
+  }
+
+  const frontMatter = [
+    makeFrontMatterSheet(coverTemplate(), 'cover'),
+    ...indexPages.map((pageArtworks, pageIndex) => makeFrontMatterSheet(
+      contentsTemplate(pageArtworks, pageIndex, indexPages.length, pageIndex * INDEX_PAGE_SIZE),
+      'contents'
+    ))
+  ];
+  if (frontMatter.length % 2 === 1) {
+    frontMatter.push(makeFrontMatterSheet(dividerTemplate(), 'divider'));
+  }
+
+  const sheets = [
+    ...frontMatter,
+    ...artworks.map((artwork, index) => makeSheet(artwork, index + 1))
+  ];
   if (sheets.length % 2 === 1) sheets.push(makeSheet(null, sheets.length + 1));
 
   const preview = document.createElement('div');
@@ -268,7 +380,7 @@
   }
 
   function showStaticFallback() {
-    if (counter) counter.textContent = `01 / ${pad(Math.ceil(artworks.length / 2))}`;
+    if (counter) counter.textContent = `01 / ${pad(Math.ceil(sheets.length / 2))}`;
     if (prevButton) prevButton.disabled = true;
     if (nextButton) nextButton.disabled = true;
     if (progressBar) progressBar.style.width = '0%';
@@ -308,9 +420,9 @@
       width: 600,
       height: 800,
       size: 'stretch',
-      minWidth: 300,
+      minWidth: 240,
       maxWidth: 560,
-      minHeight: 380,
+      minHeight: 300,
       maxHeight: 900,
       drawShadow: true,
       flippingTime: reduceMotion.matches ? 1 : 920,
