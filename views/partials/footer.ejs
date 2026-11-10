@@ -1,7 +1,7 @@
       </main>
       </div>
 
-      <dialog class="art-viewer" data-art-viewer aria-labelledby="art-viewer-title">
+      <dialog class="art-viewer" data-art-viewer aria-labelledby="art-viewer-title" tabindex="-1">
         <div class="art-viewer-shell">
           <div class="art-viewer-particles" data-viewer-particles aria-hidden="true"></div>
           <div class="art-viewer-toolbar">
@@ -37,6 +37,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
           </button>
           <div class="art-viewer-caption">
+            <span class="art-viewer-count" data-viewer-count aria-live="polite"></span>
             <div class="art-viewer-description">
               <a class="art-viewer-artist" data-viewer-artist href="#" data-i18n-skip></a>
               <h2 id="art-viewer-title" data-viewer-title data-i18n-skip>Artwork</h2>
@@ -44,31 +45,56 @@
               <p class="art-viewer-description-text" data-viewer-description data-i18n-skip></p>
             </div>
             <div class="art-viewer-caption-actions">
-              <span class="art-viewer-count" data-viewer-count aria-live="polite"></span>
               <div class="art-viewer-social-actions">
                 <form method="POST" action="/art/1/like" data-viewer-like-form>
-                  <button class="art-viewer-action" type="submit" data-viewer-like aria-pressed="false">Like</button>
-                  <span data-viewer-like-count aria-live="polite"></span>
+                  <button class="art-viewer-action" type="submit" data-viewer-like aria-pressed="false">
+                    <svg class="art-viewer-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" /></svg>
+                    <span class="art-viewer-action-label" data-viewer-like-label>Like</span>
+                    <span class="art-viewer-like-count" data-viewer-like-count aria-live="polite"></span>
+                  </button>
                 </form>
                 <form method="POST" action="/art/1/bookmark" data-viewer-bookmark-form>
-                  <button class="art-viewer-action" type="submit" data-viewer-bookmark aria-pressed="false">Save</button>
+                  <button class="art-viewer-action" type="submit" data-viewer-bookmark aria-pressed="false">
+                    <svg class="art-viewer-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z" /></svg>
+                    <span class="art-viewer-action-label" data-viewer-bookmark-label>Save</span>
+                  </button>
                 </form>
-                <button class="art-viewer-action" type="button" data-viewer-share>Share</button>
-                <button class="art-viewer-action" type="button" data-viewer-related-toggle aria-expanded="false">Related</button>
+                <button class="art-viewer-action" type="button" data-viewer-share>
+                  <svg class="art-viewer-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" /></svg>
+                  <span class="art-viewer-action-label" data-viewer-share-label>Share</span>
+                </button>
+                <button class="art-viewer-action" type="button" data-viewer-related-toggle aria-expanded="false">
+                  <svg class="art-viewer-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" /></svg>
+                  <span class="art-viewer-action-label">Related</span>
+                </button>
               </div>
               <div class="art-viewer-owner-actions" data-viewer-owner-actions hidden>
-                <a class="art-viewer-action art-viewer-action--owner" data-viewer-edit href="#" data-no-viewer>Edit</a>
+                <a class="art-viewer-action art-viewer-action--owner" data-viewer-edit href="#" data-no-viewer>
+                  <svg class="art-viewer-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.5 7.5 3 3" /></svg>
+                  <span class="art-viewer-action-label">Edit</span>
+                </a>
                 <form method="POST" action="/art/1/delete" data-viewer-delete-form onsubmit="return confirm('Delete this artwork? This cannot be undone.');">
-                  <button class="art-viewer-action art-viewer-action--danger" type="submit" data-viewer-delete>Delete</button>
+                  <button class="art-viewer-action art-viewer-action--danger" type="submit" data-viewer-delete>
+                    <svg class="art-viewer-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13" /></svg>
+                    <span class="art-viewer-action-label">Delete</span>
+                  </button>
                 </form>
               </div>
-              <a class="art-viewer-details" data-viewer-detail href="#">Open artwork details <span aria-hidden="true">↗</span></a>
+              <a class="art-viewer-details" data-viewer-detail href="#">
+                <span>Open artwork details</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+              </a>
             </div>
+            <section class="art-viewer-related" data-viewer-related hidden aria-label="Related artworks">
+              <div class="art-viewer-related-heading">
+                <span>Related works</span>
+                <button class="art-viewer-related-close" type="button" data-viewer-related-close aria-label="Close related artworks">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                </button>
+              </div>
+              <div class="art-viewer-related-list" data-viewer-related-list></div>
+            </section>
           </div>
-          <section class="art-viewer-related" data-viewer-related hidden aria-label="Related artworks">
-            <div class="art-viewer-related-heading"><span>Related works</span><button type="button" data-viewer-related-close aria-label="Close related artworks">×</button></div>
-            <div class="art-viewer-related-list" data-viewer-related-list></div>
-          </section>
         </div>
       </dialog>
 

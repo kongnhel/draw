@@ -114,7 +114,7 @@
      ========================================================================== */
 
   /* Viewer controls carry their own sound cues in app.js — never double-play. */
-  const VIEWER_OWNED_SELECTOR = '[data-viewer-like], [data-viewer-bookmark], [data-viewer-close], [data-viewer-sound], [data-viewer-zoom], [data-viewer-fullscreen], [data-viewer-effects], [data-viewer-share], [data-artwork-open], .art-viewer a[href^="/art/"], [data-book-close], [data-book-prev], [data-book-next], .book-controls';
+  const VIEWER_OWNED_SELECTOR = '[data-viewer-like], [data-viewer-bookmark], [data-viewer-close], [data-viewer-sound], [data-viewer-zoom], [data-viewer-fullscreen], [data-viewer-effects], [data-viewer-share], [data-artwork-open], .art-viewer a[href^="/art/"], [data-book-close], [data-book-prev], [data-book-next], .book-controls, #artspace-book-slider';
 
   const EDITABLE_SELECTOR = 'input, textarea, select, option, [contenteditable="true"], [contenteditable=""]';
   const BUTTON_SELECTOR = 'button, [role="button"], input[type="submit"], input[type="button"], .btn, .action-btn, .category-pill, .sound-toggle';

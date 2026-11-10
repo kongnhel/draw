@@ -1221,6 +1221,9 @@ const bindArtViewer = () => {
   const bookmarkForm = viewer.querySelector('[data-viewer-bookmark-form]');
   const bookmarkButton = viewer.querySelector('[data-viewer-bookmark]');
   const shareButton = viewer.querySelector('[data-viewer-share]');
+  const likeLabel = viewer.querySelector('[data-viewer-like-label]');
+  const bookmarkLabel = viewer.querySelector('[data-viewer-bookmark-label]');
+  const shareLabel = viewer.querySelector('[data-viewer-share-label]');
   const relatedToggle = viewer.querySelector('[data-viewer-related-toggle]');
   const relatedPanel = viewer.querySelector('[data-viewer-related]');
   const relatedList = viewer.querySelector('[data-viewer-related-list]');
@@ -1271,6 +1274,11 @@ const bindArtViewer = () => {
     effectsButton?.setAttribute('aria-label', visualEffectsEnabled ? 'Disable visual effects' : 'Enable visual effects');
     if (effectsButton) effectsButton.title = visualEffectsEnabled ? 'Disable visual effects' : 'Enable visual effects';
     viewer.classList.toggle('effects-off', !visualEffectsEnabled);
+  };
+
+  const setViewerActionLabel = (button, label, text) => {
+    if (label) label.textContent = text;
+    else if (button) button.textContent = text;
   };
 
   const resolveEffectPreset = (artwork) => {
@@ -1554,17 +1562,17 @@ const bindArtViewer = () => {
     if (ownerActions) ownerActions.hidden = !isOwner;
     if (editLink) editLink.href = `${artwork.href}/edit`;
     if (deleteForm) deleteForm.action = `${artwork.href}/delete`;
-    if (shareButton) shareButton.textContent = 'Share';
+    setViewerActionLabel(shareButton, shareLabel, 'Share');
     if (likeForm) likeForm.action = `${artwork.href}/like`;
     if (likeButton) {
-      likeButton.textContent = artwork.liked ? 'Unlike' : 'Like';
+      setViewerActionLabel(likeButton, likeLabel, artwork.liked ? 'Unlike' : 'Like');
       likeButton.classList.toggle('active', artwork.liked);
       likeButton.setAttribute('aria-pressed', String(artwork.liked));
     }
     if (likeCountLabel) likeCountLabel.textContent = String(artwork.likes || 0);
     if (bookmarkForm) bookmarkForm.action = `${artwork.href}/bookmark`;
     if (bookmarkButton) {
-      bookmarkButton.textContent = artwork.saved ? 'Saved' : 'Save';
+      setViewerActionLabel(bookmarkButton, bookmarkLabel, artwork.saved ? 'Saved' : 'Save');
       bookmarkButton.classList.toggle('active', artwork.saved);
       bookmarkButton.setAttribute('aria-pressed', String(artwork.saved));
     }
@@ -1709,7 +1717,7 @@ const bindArtViewer = () => {
     soundTimer = window.setTimeout(() => {
       if (viewer.open) playSound('reveal');
     }, reducedMotion ? 0 : 520);
-    closeButton?.focus({ preventScroll: true });
+    viewer.focus({ preventScroll: true });
 
     requestAnimationFrame(() => {
       viewer.classList.add('is-open');
@@ -1743,7 +1751,10 @@ const bindArtViewer = () => {
     artwork.likes = event.detail.likes;
     if (activeIndex === artworkRecords.indexOf(artwork)) {
       if (likeCountLabel) likeCountLabel.textContent = String(artwork.likes);
-      if (likeButton) likeButton.setAttribute('aria-pressed', String(artwork.liked));
+      if (likeButton) {
+        likeButton.setAttribute('aria-pressed', String(artwork.liked));
+        setViewerActionLabel(likeButton, likeLabel, artwork.liked ? 'Unlike' : 'Like');
+      }
     }
   });
 
@@ -1755,7 +1766,7 @@ const bindArtViewer = () => {
     if (!artwork) return;
     artwork.saved = event.detail.saved;
     if (activeIndex === artworkRecords.indexOf(artwork) && bookmarkButton) {
-      bookmarkButton.textContent = artwork.saved ? 'Saved' : 'Save';
+      setViewerActionLabel(bookmarkButton, bookmarkLabel, artwork.saved ? 'Saved' : 'Save');
       bookmarkButton.classList.toggle('active', artwork.saved);
       bookmarkButton.setAttribute('aria-pressed', String(artwork.saved));
     }
@@ -1836,12 +1847,14 @@ const bindArtViewer = () => {
           field.remove();
           if (!copied) throw new Error('Clipboard unavailable');
         }
-        shareButton.textContent = 'Copied';
+        setViewerActionLabel(shareButton, shareLabel, 'Copied');
         window.clearTimeout(shareTimer);
-        shareTimer = window.setTimeout(() => { if (shareButton.isConnected) shareButton.textContent = 'Share'; }, 1400);
+        shareTimer = window.setTimeout(() => {
+          if (shareButton.isConnected) setViewerActionLabel(shareButton, shareLabel, 'Share');
+        }, 1400);
       }
     } catch (error) {
-      if (error.name !== 'AbortError') shareButton.textContent = 'Share unavailable';
+      if (error.name !== 'AbortError') setViewerActionLabel(shareButton, shareLabel, 'Share unavailable');
     }
   });
 

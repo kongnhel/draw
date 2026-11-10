@@ -18,26 +18,25 @@
   if (!Array.isArray(artworks) || !artworks.length) return;
 
   const book = root.querySelector('[data-asb-book]');
-  const leftPage = root.querySelector('[data-asb-page-left]');
-  const rightPage = root.querySelector('[data-asb-page-right]');
-  const flipLayer = root.querySelector('[data-asb-flip-layer]');
   const prevButton = root.querySelector('[data-asb-prev]');
   const nextButton = root.querySelector('[data-asb-next]');
   const counter = root.querySelector('[data-asb-counter]');
   const progressBar = root.querySelector('[data-asb-progress]');
+  if (!book) return;
 
-  if (!book || !leftPage || !rightPage || !flipLayer) return;
-
-  const mobileQuery = window.matchMedia('(max-width: 768px)');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const vendorSrc = root.dataset.asbVendor || '/vendor/page-flip.browser.js';
+  const SOUND_PREF_KEY = 'artspace-art-sound';
 
-  let isMobile = mobileQuery.matches;
-  let index = 0;
-  let animating = false;
-  let flipTimer = 0;
-  let suppressClickUntil = 0;
-  let touchStart = null;
-  let touchAxis = null;
+  let pageFlip = null;
+  let destroyed = false;
+  let chromeFrame = 0;
+  let libraryPromise = null;
+  let audioContext = null;
+  let noiseBuffer = null;
+  let lastTurnSoundAt = 0;
+
+  const pad = (value) => String(value).padStart(2, '0');
 
   const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
@@ -47,13 +46,132 @@
     "'": '&#39;'
   }[character]));
 
-  const totalSpreads = () => Math.ceil(artworks.length / 2);
-  const maxIndex = () => (isMobile ? artworks.length - 1 : totalSpreads() - 1);
+  const isSoundOn = () => {
+    try {
+      return localStorage.getItem(SOUND_PREF_KEY) === 'on';
+    } catch (error) {
+      return false;
+    }
+  };
 
-  function pageTemplate(artwork, { side = 'right', folio = 1, eager = false } = {}) {
+  const getAudioContext = () => {
+    const Constructor = window.AudioContext || window.webkitAudioContext;
+    if (!Constructor) return null;
+    if (!audioContext || audioContext.state === 'closed') audioContext = new Constructor();
+    if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+    return audioContext;
+  };
+
+  const getNoiseBuffer = (ctx) => {
+    if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) return noiseBuffer;
+    const length = Math.floor(ctx.sampleRate * 0.9);
+    noiseBuffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let index = 0; index < length; index += 1) data[index] = Math.random() * 2 - 1;
+    return noiseBuffer;
+  };
+
+  const playPaperTurn = (forward) => {
+    if (!isSoundOn()) return;
+
+    const now = performance.now();
+    if (now - lastTurnSoundAt < 140) return;
+    lastTurnSoundAt = now;
+
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      const start = ctx.currentTime + 0.006;
+      const duration = 0.5 + Math.random() * 0.1;
+      const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      let output = ctx.destination;
+
+      if (panner) {
+        panner.pan.setValueAtTime(forward ? 0.34 : -0.34, start);
+        panner.pan.linearRampToValueAtTime(forward ? -0.22 : 0.22, start + duration);
+        panner.connect(ctx.destination);
+        output = panner;
+      }
+
+      const swish = ctx.createBufferSource();
+      swish.buffer = getNoiseBuffer(ctx);
+      const swishFilter = ctx.createBiquadFilter();
+      swishFilter.type = 'bandpass';
+      swishFilter.Q.setValueAtTime(0.72, start);
+      swishFilter.frequency.setValueAtTime((forward ? 1500 : 1750) * (0.9 + Math.random() * 0.2), start);
+      swishFilter.frequency.exponentialRampToValueAtTime(560 * (0.88 + Math.random() * 0.24), start + duration);
+      const swishGain = ctx.createGain();
+      swishGain.gain.setValueAtTime(0.0001, start);
+      swishGain.gain.exponentialRampToValueAtTime(0.06, start + 0.055);
+      swishGain.gain.exponentialRampToValueAtTime(0.034, start + 0.2);
+      swishGain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      swish.connect(swishFilter).connect(swishGain).connect(output);
+      swish.start(start, Math.random() * 0.22, duration + 0.05);
+
+      const edge = ctx.createBufferSource();
+      edge.buffer = getNoiseBuffer(ctx);
+      const edgeFilter = ctx.createBiquadFilter();
+      edgeFilter.type = 'highpass';
+      edgeFilter.frequency.setValueAtTime(3100, start);
+      edgeFilter.Q.setValueAtTime(0.55, start);
+      const edgeGain = ctx.createGain();
+      edgeGain.gain.setValueAtTime(0.0001, start);
+      edgeGain.gain.exponentialRampToValueAtTime(0.018, start + 0.018);
+      edgeGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
+      edge.connect(edgeFilter).connect(edgeGain).connect(output);
+      edge.start(start, Math.random() * 0.22, 0.13);
+
+      const settleStart = start + duration * 0.66;
+      const settle = ctx.createBufferSource();
+      settle.buffer = getNoiseBuffer(ctx);
+      const settleFilter = ctx.createBiquadFilter();
+      settleFilter.type = 'lowpass';
+      settleFilter.frequency.setValueAtTime(420, settleStart);
+      settleFilter.Q.setValueAtTime(0.5, settleStart);
+      const settleGain = ctx.createGain();
+      settleGain.gain.setValueAtTime(0.0001, settleStart);
+      settleGain.gain.exponentialRampToValueAtTime(0.014, settleStart + 0.02);
+      settleGain.gain.exponentialRampToValueAtTime(0.0001, settleStart + 0.18);
+      settle.connect(settleFilter).connect(settleGain).connect(output);
+      settle.start(settleStart, Math.random() * 0.2, 0.2);
+
+      const body = ctx.createOscillator();
+      body.type = 'sine';
+      body.frequency.setValueAtTime(150, settleStart);
+      body.frequency.exponentialRampToValueAtTime(92, settleStart + 0.16);
+      const bodyGain = ctx.createGain();
+      bodyGain.gain.setValueAtTime(0.0001, settleStart);
+      bodyGain.gain.exponentialRampToValueAtTime(0.011, settleStart + 0.03);
+      bodyGain.gain.exponentialRampToValueAtTime(0.0001, settleStart + 0.18);
+      body.connect(bodyGain).connect(output);
+      body.start(settleStart);
+      body.stop(settleStart + 0.2);
+
+      const crackleCount = 2 + Math.floor(Math.random() * 2);
+      for (let index = 0; index < crackleCount; index += 1) {
+        const at = start + 0.05 + Math.random() * (duration * 0.65);
+        const crackle = ctx.createBufferSource();
+        crackle.buffer = getNoiseBuffer(ctx);
+        const crackleFilter = ctx.createBiquadFilter();
+        crackleFilter.type = 'bandpass';
+        crackleFilter.frequency.setValueAtTime(2200 + Math.random() * 2200, at);
+        crackleFilter.Q.setValueAtTime(4 + Math.random() * 3, at);
+        const crackleGain = ctx.createGain();
+        crackleGain.gain.setValueAtTime(0.0001, at);
+        crackleGain.gain.exponentialRampToValueAtTime(0.005 + Math.random() * 0.005, at + 0.008);
+        crackleGain.gain.exponentialRampToValueAtTime(0.0001, at + 0.04);
+        crackle.connect(crackleFilter).connect(crackleGain).connect(output);
+        crackle.start(at, Math.random() * 0.4, 0.05);
+      }
+    } catch (error) {
+    }
+  };
+
+  function pageTemplate(artwork, folio) {
     if (!artwork) {
       return `
-        <div class="asb-content asb-content--closing asb-content--${side}">
+        <div class="asb-content asb-content--closing">
           <span class="asb-khmer" aria-hidden="true">សិល្បៈ</span>
           <span class="asb-meta">The last page</span>
           <h2>Every sketch tells a story.</h2>
@@ -68,10 +186,9 @@
     const medium = escapeHTML(artwork.medium);
     const year = escapeHTML(artwork.year);
     const src = escapeHTML(artwork.src);
-    const loading = eager ? 'eager' : 'lazy';
 
     return `
-      <div class="asb-content asb-content--${side}">
+      <div class="asb-content">
         <div class="asb-head">
           <span>ArtSpace / Plate ${String(folio).padStart(2, '0')}</span>
           <span class="font-khmer asb-head-khmer" aria-hidden="true">សិល្បៈ</span>
@@ -82,7 +199,7 @@
             alt="${title} by ${artist}"
             width="900"
             height="1200"
-            loading="${loading}"
+            loading="eager"
             decoding="async"
           />
         </div>
@@ -96,296 +213,210 @@
     `;
   }
 
-  function blankBackTemplate() {
-    return `
-      <div class="asb-content asb-content--blank asb-content--single">
-        <span class="asb-khmer" aria-hidden="true">សិល្បៈ</span>
-        <h2>ArtSpace</h2>
-        <p>A living sketchbook.<br />Original work, kept with care.</p>
-      </div>
-    `;
-  }
+  const makeSheet = (artwork, folio) => {
+    const sheet = document.createElement('div');
+    sheet.className = 'asb-sheet asb-paper';
+    sheet.dataset.density = 'soft';
+    sheet.innerHTML = pageTemplate(artwork, folio);
+    return sheet;
+  };
 
-  function renderStatic() {
-    if (isMobile) {
-      leftPage.innerHTML = '';
-      leftPage.setAttribute('aria-hidden', 'true');
-      rightPage.removeAttribute('aria-hidden');
-      rightPage.innerHTML = pageTemplate(artworks[index], {
-        side: 'single',
-        folio: index + 1,
-        eager: true
-      });
-    } else {
-      leftPage.removeAttribute('aria-hidden');
-      rightPage.removeAttribute('aria-hidden');
+  const sheets = artworks.map((artwork, index) => makeSheet(artwork, index + 1));
+  if (sheets.length % 2 === 1) sheets.push(makeSheet(null, sheets.length + 1));
 
-      leftPage.innerHTML = pageTemplate(artworks[index * 2], {
-        side: 'left',
-        folio: index * 2 + 1,
-        eager: true
-      });
-      rightPage.innerHTML = pageTemplate(artworks[index * 2 + 1], {
-        side: 'right',
-        folio: index * 2 + 2,
-        eager: true
-      });
-    }
-
-    updateChrome();
-  }
+  const preview = document.createElement('div');
+  preview.className = 'asb-preview';
+  preview.setAttribute('aria-hidden', 'true');
+  sheets.slice(0, 2).forEach((sheet) => preview.append(sheet));
+  book.append(preview);
 
   function updateChrome() {
-    const total = isMobile ? artworks.length : totalSpreads();
-    const current = index + 1;
-    const max = maxIndex();
+    if (!pageFlip) return;
+    const collection = pageFlip.getPageCollection();
+    if (!collection) return;
 
-    counter.textContent = `${String(current).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
-    prevButton.disabled = animating || index <= 0;
-    nextButton.disabled = animating || index >= max;
-    progressBar.style.width = `${max === 0 ? 100 : (index / max) * 100}%`;
+    const orientation = pageFlip.getOrientation() === 'portrait' ? 'portrait' : 'landscape';
+    book.dataset.asbOrientation = orientation;
+
+    const portrait = orientation === 'portrait';
+    const spreads = collection.getSpread() || [];
+    const total = portrait ? collection.getPageCount() : spreads.length;
+    const position = portrait ? pageFlip.getCurrentPageIndex() : collection.getCurrentSpreadIndex();
+    const current = Math.min(total, Math.max(1, Number(position) + 1));
+
+    if (counter) counter.textContent = `${pad(current)} / ${pad(total)}`;
+
+    const busy = pageFlip.getState() !== 'read';
+    if (prevButton) prevButton.disabled = busy || position <= 0;
+    if (nextButton) nextButton.disabled = busy || position >= total - 1;
+    if (progressBar) progressBar.style.width = `${total <= 1 ? 100 : (position / (total - 1)) * 100}%`;
 
     book.setAttribute(
       'aria-label',
-      isMobile
+      portrait
         ? `Artwork book, page ${current} of ${total}`
         : `Artwork book, spread ${current} of ${total}`
     );
   }
 
-  function turn(direction) {
-    if (animating) return;
+  function scheduleChrome() {
+    if (chromeFrame) return;
+    chromeFrame = window.requestAnimationFrame(() => {
+      chromeFrame = 0;
+      updateChrome();
+    });
+  }
 
-    const target = index + direction;
-    if (target < 0 || target > maxIndex()) return;
+  function showStaticFallback() {
+    if (counter) counter.textContent = `01 / ${pad(Math.ceil(artworks.length / 2))}`;
+    if (prevButton) prevButton.disabled = true;
+    if (nextButton) nextButton.disabled = true;
+    if (progressBar) progressBar.style.width = '0%';
+    book.setAttribute('aria-label', 'Artwork book preview');
+  }
 
-    if (reduceMotion.matches) {
-      index = target;
-      renderStatic();
+  const loadPageFlip = () => {
+    if (window.St?.PageFlip) return Promise.resolve(window.St.PageFlip);
+    if (libraryPromise) return libraryPromise;
+
+    libraryPromise = new Promise((resolve) => {
+      const resolveLibrary = () => resolve(window.St?.PageFlip || null);
+      const existing = document.querySelector('script[data-asb-pageflip-loader]');
+
+      if (existing) {
+        existing.addEventListener('load', resolveLibrary, { once: true });
+        existing.addEventListener('error', () => resolve(null), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = vendorSrc;
+      script.async = true;
+      script.dataset.asbPageflipLoader = 'true';
+      script.addEventListener('load', resolveLibrary, { once: true });
+      script.addEventListener('error', () => resolve(null), { once: true });
+      document.head.appendChild(script);
+    });
+
+    return libraryPromise;
+  };
+
+  const bindPageFlip = (PageFlip) => {
+    if (destroyed || !book.isConnected) return;
+
+    pageFlip = new PageFlip(book, {
+      width: 600,
+      height: 800,
+      size: 'stretch',
+      minWidth: 300,
+      maxWidth: 560,
+      minHeight: 380,
+      maxHeight: 900,
+      drawShadow: true,
+      flippingTime: reduceMotion.matches ? 1 : 920,
+      usePortrait: true,
+      autoSize: true,
+      maxShadowOpacity: 0.34,
+      showCover: false,
+      mobileScrollSupport: true,
+      swipeDistance: 26,
+      clickEventForward: true,
+      useMouseEvents: true,
+      showPageCorners: true,
+      disableFlipByClick: false
+    });
+
+    pageFlip.on('flip', scheduleChrome);
+    pageFlip.on('init', scheduleChrome);
+    pageFlip.on('changeOrientation', scheduleChrome);
+    pageFlip.on('changeState', (event) => {
+      if (event?.data === 'flipping') {
+        let direction = null;
+        try {
+          direction = pageFlip.getFlipController().getCalculation()?.getDirection();
+        } catch (error) {
+        }
+        playPaperTurn(direction !== 1);
+      }
+      scheduleChrome();
+    });
+
+    try {
+      pageFlip.loadFromHTML(sheets);
+    } catch (error) {
+      pageFlip = null;
+      showStaticFallback();
       return;
     }
 
-    animating = true;
+    preview.remove();
+    scheduleChrome();
+    window.setTimeout(() => {
+      if (!destroyed) scheduleChrome();
+    }, 80);
+  };
 
-    const single = isMobile;
-    const frontPage = single || direction > 0 ? rightPage : leftPage;
-    const frontHTML = frontPage.innerHTML;
+  const unlockAudio = () => {
+    if (!isSoundOn()) return;
+    getAudioContext();
+  };
 
-    let backHTML;
-    if (single) {
-      backHTML = blankBackTemplate();
-    } else if (direction > 0) {
-      backHTML = pageTemplate(artworks[target * 2], {
-        side: 'left',
-        folio: target * 2 + 1,
-        eager: true
-      });
-    } else {
-      backHTML = pageTemplate(artworks[target * 2 + 1], {
-        side: 'right',
-        folio: target * 2 + 2,
-        eager: true
-      });
-    }
-
-    /*
-     * The destination is placed underneath immediately.
-     * The flipping sheet covers it until it has rotated far enough.
-     */
-    if (single) {
-      rightPage.innerHTML = pageTemplate(artworks[target], {
-        side: 'single',
-        folio: target + 1,
-        eager: true
-      });
-    } else if (direction > 0) {
-      rightPage.innerHTML = pageTemplate(artworks[target * 2 + 1], {
-        side: 'right',
-        folio: target * 2 + 2,
-        eager: true
-      });
-    } else {
-      leftPage.innerHTML = pageTemplate(artworks[target * 2], {
-        side: 'left',
-        folio: target * 2 + 1,
-        eager: true
-      });
-    }
-
-    index = target;
-    updateChrome();
-    createFlip({ direction, frontHTML, backHTML, single });
-  }
-
-  function createFlip({ direction, frontHTML, backHTML, single }) {
-    const flip = document.createElement('div');
-    flip.className = `asb-flip ${direction > 0 ? 'asb-flip--next' : 'asb-flip--prev'}`;
-    flip.setAttribute('aria-hidden', 'true');
-
-    const frontSide = direction > 0 ? 'right' : 'left';
-    const backSide = direction > 0 ? 'left' : 'right';
-
-    const front = document.createElement('div');
-    front.className = `asb-face asb-face--front asb-paper${single ? '' : ` asb-paper--${frontSide}`}`;
-    front.innerHTML = frontHTML;
-
-    const back = document.createElement('div');
-    back.className = `asb-face asb-face--back asb-paper${single ? '' : ` asb-paper--${backSide}`}`;
-    back.innerHTML = backHTML;
-
-    flip.append(front, back);
-    flipLayer.append(flip);
-
-    // Paint the sheet at 0deg before applying the rotated state.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => flip.classList.add('is-flipping'));
-    });
-
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      window.clearTimeout(flipTimer);
-      flip.removeEventListener('transitionend', onTransitionEnd);
-      flip.remove();
-      renderStatic();
-      animating = false;
-      updateChrome();
-    };
-
-    const onTransitionEnd = (event) => {
-      if (event.propertyName === 'transform') finish();
-    };
-
-    flip.addEventListener('transitionend', onTransitionEnd);
-    flipTimer = window.setTimeout(finish, 1200);
-  }
-
-  function cancelFlip() {
-    window.clearTimeout(flipTimer);
-    flipLayer.replaceChildren();
-    animating = false;
-    resetDrag();
-  }
-
-  function resetDrag() {
-    book.classList.remove('is-dragging', 'is-dragging-next', 'is-dragging-prev');
-    book.style.removeProperty('--asb-drag-x');
-  }
-
-  book.addEventListener('touchstart', (event) => {
-    if (animating || event.touches.length !== 1) return;
-    const touch = event.touches[0];
-    touchStart = { x: touch.clientX, y: touch.clientY, time: performance.now() };
-    touchAxis = null;
-    resetDrag();
-  }, { passive: true });
-
-  book.addEventListener('touchmove', (event) => {
-    if (!touchStart || animating || event.touches.length !== 1) return;
-
-    const touch = event.touches[0];
-    const dx = touch.clientX - touchStart.x;
-    const dy = touch.clientY - touchStart.y;
-
-    if (!touchAxis && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
-      touchAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-    }
-
-    if (touchAxis !== 'x') return;
-
-    // Horizontal swipe belongs to the book; vertical scrolling stays native.
-    event.preventDefault();
-
-    const clamped = Math.max(-70, Math.min(70, dx));
-    book.style.setProperty('--asb-drag-x', `${clamped}px`);
-    book.classList.add('is-dragging');
-    book.classList.toggle('is-dragging-next', dx < 0);
-    book.classList.toggle('is-dragging-prev', dx > 0);
-  }, { passive: false });
-
-  book.addEventListener('touchend', (event) => {
-    if (!touchStart) return;
-
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - touchStart.x;
-    const dy = touch.clientY - touchStart.y;
-    const elapsed = performance.now() - touchStart.time;
-    const wasHorizontal = touchAxis === 'x';
-
-    resetDrag();
-    touchStart = null;
-    touchAxis = null;
-
-    if (!wasHorizontal) return;
-
-    suppressClickUntil = performance.now() + 450;
-
-    const threshold = 42;
-    if (Math.abs(dx) < threshold || Math.abs(dy) > 70 || elapsed > 800) return;
-    turn(dx < 0 ? 1 : -1);
-  }, { passive: true });
-
-  book.addEventListener('touchcancel', () => {
-    touchStart = null;
-    touchAxis = null;
-    resetDrag();
-  }, { passive: true });
-
-  book.addEventListener('click', (event) => {
-    if (animating || performance.now() < suppressClickUntil) return;
-
-    const rect = book.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    turn(x < rect.width / 2 ? -1 : 1);
-  });
+  root.addEventListener('pointerenter', unlockAudio, { once: true, passive: true });
+  root.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
+  root.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+  root.addEventListener('keydown', unlockAudio, { once: true });
 
   book.addEventListener('keydown', (event) => {
+    if (!pageFlip || pageFlip.getState() !== 'read') return;
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      turn(-1);
+      pageFlip.flipPrev();
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      turn(1);
+      pageFlip.flipNext();
     }
   });
 
-  prevButton?.addEventListener('click', () => turn(-1));
-  nextButton?.addEventListener('click', () => turn(1));
+  prevButton?.addEventListener('click', (event) => {
+    event.preventDefault();
+    pageFlip?.flipPrev();
+  });
 
-  function handleModeChange(event) {
-    const currentArtwork = isMobile ? index : index * 2;
-    isMobile = event.matches;
-
-    cancelFlip();
-
-    index = isMobile
-      ? Math.min(currentArtwork, Math.max(0, artworks.length - 1))
-      : Math.min(Math.floor(currentArtwork / 2), Math.max(0, totalSpreads() - 1));
-
-    index = Math.max(0, index);
-    renderStatic();
-  }
-
-  if (typeof mobileQuery.addEventListener === 'function') {
-    mobileQuery.addEventListener('change', handleModeChange);
-  } else if (typeof mobileQuery.addListener === 'function') {
-    mobileQuery.addListener(handleModeChange);
-  }
+  nextButton?.addEventListener('click', (event) => {
+    event.preventDefault();
+    pageFlip?.flipNext();
+  });
 
   function destroy() {
-    window.clearTimeout(flipTimer);
-    if (typeof mobileQuery.removeEventListener === 'function') {
-      mobileQuery.removeEventListener('change', handleModeChange);
-    } else if (typeof mobileQuery.removeListener === 'function') {
-      mobileQuery.removeListener(handleModeChange);
+    destroyed = true;
+    if (chromeFrame) window.cancelAnimationFrame(chromeFrame);
+    chromeFrame = 0;
+
+    if (pageFlip) {
+      try {
+        pageFlip.destroy();
+      } catch (error) {
+      }
+      pageFlip = null;
     }
+
+    if (audioContext && audioContext.state !== 'closed') audioContext.close().catch(() => {});
+    audioContext = null;
+    noiseBuffer = null;
+
     if (window.__artspaceBookSlider === instance) window.__artspaceBookSlider = null;
   }
 
   const instance = { destroy };
   window.__artspaceBookSlider = instance;
 
-  renderStatic();
-  updateChrome();
+  loadPageFlip()
+    .then((PageFlip) => {
+      if (!PageFlip) {
+        showStaticFallback();
+        return;
+      }
+      bindPageFlip(PageFlip);
+    })
+    .catch(() => showStaticFallback());
 })();

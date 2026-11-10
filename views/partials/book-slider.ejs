@@ -1,4 +1,9 @@
-<div id="artspace-book-slider" class="asb-root" data-asb-root>
+<div
+  id="artspace-book-slider"
+  class="asb-root"
+  data-asb-root
+  data-asb-vendor="/vendor/page-flip.browser.js?v=<%= assetVersion %>"
+>
   <div class="asb-shell">
     <div class="asb-stage">
       <div
@@ -9,10 +14,7 @@
         aria-roledescription="carousel"
         aria-label="ArtSpace artwork book. Use left and right arrow keys to turn pages."
       >
-        <div class="asb-page asb-page--left asb-paper asb-paper--left" data-asb-page-left></div>
-        <div class="asb-page asb-page--right asb-paper asb-paper--right" data-asb-page-right></div>
         <div class="asb-spine" aria-hidden="true"></div>
-        <div class="asb-flip-layer" data-asb-flip-layer aria-hidden="true"></div>
       </div>
     </div>
 
@@ -34,7 +36,7 @@
     </div>
 
     <p class="mt-4 text-center text-[10px] uppercase tracking-[0.2em] text-muted/70">
-      Swipe on mobile · click a side to turn · ← → on keyboard
+      Swipe · drag a page corner · click a page edge · ← → on keyboard
     </p>
 
     <noscript>
