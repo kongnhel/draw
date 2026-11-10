@@ -25,7 +25,7 @@
     </div>
     <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
     <a class="pinned-card-artist" href="/profile/<%= artwork.username %>">
-      <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" decoding="async" />
+      <img src="<%= artwork.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" decoding="async" />
       <span>by <%= artwork.display_name || artwork.username %></span>
     </a>
   </div>

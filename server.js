@@ -455,6 +455,7 @@ const ASSET_VERSION = (() => {
     'public/css/book-slider-tailwind.css',
     'public/css/language.css',
     'public/css/studio-compact.css',
+    'public/css/home-notebook.css',
     'public/js/book-slider.js',
     'public/js/i18n.js',
     'public/js/intro.js',
@@ -498,6 +499,18 @@ async function countUserPins(userId) {
   if (!userId) return 0;
   const rows = await db.execute('SELECT COUNT(*) AS count FROM artwork_pins WHERE user_id = ?', [userId]);
   return Number((rows && rows[0] && rows[0].count) || 0);
+}
+
+async function isFollowingUser(followerId, followingId) {
+  const follower = Number(followerId);
+  const following = Number(followingId);
+  if (!follower || !following || follower === following) return false;
+
+  const rows = await db.execute(
+    'SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ? LIMIT 1',
+    [follower, following]
+  );
+  return Boolean(rows && rows.length);
 }
 
 async function getPinnedHomepageArtworks(viewerId) {
@@ -675,7 +688,8 @@ const CSS_BUNDLE_FILES = [
   'book-slider-tailwind.css',
   'book-slider.css',
   'language.css',
-  'studio-compact.css'
+  'studio-compact.css',
+  'home-notebook.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 
@@ -1602,6 +1616,12 @@ app.get('/profile/:username', async (req, res, next) => {
     );
     const totalPins = Number((pinCountRows && pinCountRows[0] && pinCountRows[0].count) || 0);
 
+    const [followerCountRows, following] = await Promise.all([
+      db.execute('SELECT COUNT(*) AS count FROM follows WHERE following_id = ?', [profileUser.id]),
+      isFollowingUser(viewerId, profileUser.id)
+    ]);
+    const followersCount = Number((followerCountRows && followerCountRows[0] && followerCountRows[0].count) || 0);
+
     const requestedTab = ['artworks', 'liked', 'saved', 'pinned'].includes(req.query.tab) ? req.query.tab : 'artworks';
     const activeTab = (requestedTab === 'saved' || requestedTab === 'pinned') && !isOwner ? 'artworks' : requestedTab;
     const pinnedIds = await getPinnedArtworkIds(viewerId);
@@ -1618,10 +1638,10 @@ app.get('/profile/:username', async (req, res, next) => {
         totalArtworks,
         totalLikes,
         totalPins,
-        followers: 0,
+        followers: followersCount,
         totalViews: 0
       },
-      isFollowing: false,
+      isFollowing: following,
       activeTab,
       memberSinceLabel: '',
       deletedNotice: req.query.deleted === '1'
@@ -1646,7 +1666,7 @@ app.get('/art/:id', async (req, res, next) => {
       });
     }
 
-    const [rows, relatedRows] = await Promise.all([
+    const [rows, relatedRows, commentRows] = await Promise.all([
       db.execute(
         `SELECT a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
                 a.created_at, a.visibility,
@@ -1685,6 +1705,16 @@ app.get('/art/:id', async (req, res, next) => {
           ORDER BY a.created_at DESC
           LIMIT 4`,
         [viewerId, viewerId, artworkId]
+      ),
+      db.execute(
+        `SELECT cm.id, cm.body, cm.created_at, u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar
+           FROM comments cm
+           INNER JOIN users u ON u.id = cm.user_id
+          WHERE cm.artwork_id = ?
+          ORDER BY cm.created_at DESC, cm.id DESC`,
+        [artworkId]
       )
     ]);
     const artwork = (rows && rows[0]) || null;
@@ -1699,14 +1729,17 @@ app.get('/art/:id', async (req, res, next) => {
       });
     }
 
-    const pinnedIds = await getPinnedArtworkIds(viewerId);
+    const [pinnedIds, following] = await Promise.all([
+      getPinnedArtworkIds(viewerId),
+      isFollowingUser(viewerId, artwork.user_id)
+    ]);
 
     res.render('pages/artwork', {
       pageTitle: `ArtSpace | ${artwork.title}`,
       artwork,
-      comments: [],
+      comments: commentRows || [],
       related: relatedRows || [],
-      artistStats: { isFollowing: false },
+      artistStats: { isFollowing: following },
       pinnedIds,
       reportStatus: typeof req.query.report === 'string' ? req.query.report : null
     });
@@ -1872,6 +1905,136 @@ app.post('/art/:id/bookmark', requireAuth, async (req, res, next) => {
     console.error('Artwork bookmark toggle failed:', err);
     if (requestWantsJson(req)) {
       res.status(500).json({ ok: false, error: 'We could not update that save. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
+app.post('/art/:id/comment', requireAuth, async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const body = String(req.body.body || '').trim();
+    if (!body || body.length > 2000) {
+      const message = !body
+        ? 'Please write a comment before posting.'
+        : 'Comments must be 2,000 characters or fewer.';
+
+      if (requestWantsJson(req)) {
+        res.status(400).json({ ok: false, error: message });
+        return;
+      }
+
+      respondArtworkActionError(req, res, 400, message);
+      return;
+    }
+
+    const artworks = await db.execute(
+      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      [artworkId]
+    );
+
+    if (!artworks || artworks.length === 0) {
+      respondArtworkActionError(req, res, 404, 'The artwork you requested could not be found.');
+      return;
+    }
+
+    const userId = Number(req.session.user.id);
+    const result = await db.execute(
+      'INSERT INTO comments (user_id, artwork_id, body) VALUES (?, ?, ?)',
+      [userId, artworkId, body]
+    );
+
+    const [commentRows, countRows] = await Promise.all([
+      db.execute(
+        `SELECT cm.id, cm.body, cm.created_at, u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar
+           FROM comments cm
+           INNER JOIN users u ON u.id = cm.user_id
+          WHERE cm.id = ?
+          LIMIT 1`,
+        [result.insertId]
+      ),
+      db.execute('SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ?', [artworkId])
+    ]);
+
+    const commentsCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
+
+    if (requestWantsJson(req)) {
+      res.status(201).json({
+        ok: true,
+        comment: (commentRows && commentRows[0]) || null,
+        comments_count: commentsCount
+      });
+      return;
+    }
+
+    res.redirect(`/art/${artworkId}#ad-comments`);
+  } catch (err) {
+    console.error('Artwork comment failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not post that comment. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
+app.post('/follow/:id', requireAuth, async (req, res, next) => {
+  try {
+    const targetUserId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(targetUserId)) {
+      respondArtworkActionError(req, res, 404, 'The artist you requested could not be found.');
+      return;
+    }
+
+    const userId = Number(req.session.user.id);
+    if (targetUserId === userId) {
+      res.redirect(getSafeActionRedirect(req, `/profile/${encodeURIComponent(req.session.user.username)}`));
+      return;
+    }
+
+    const users = await db.execute(
+      "SELECT username FROM users WHERE id = ? AND status = 'active' LIMIT 1",
+      [targetUserId]
+    );
+
+    if (!users || users.length === 0) {
+      respondArtworkActionError(req, res, 404, 'The artist you requested could not be found.');
+      return;
+    }
+
+    const removed = await db.execute(
+      'DELETE FROM follows WHERE follower_id = ? AND following_id = ?',
+      [userId, targetUserId]
+    );
+
+    let following = false;
+
+    if (!removed || removed.affectedRows === 0) {
+      await db.execute(
+        'INSERT INTO follows (follower_id, following_id) VALUES (?, ?)',
+        [userId, targetUserId]
+      );
+      following = true;
+    }
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, following });
+      return;
+    }
+
+    res.redirect(getSafeActionRedirect(req, `/profile/${encodeURIComponent(users[0].username)}`));
+  } catch (err) {
+    console.error('Artist follow toggle failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not update that follow. Please try again.' });
       return;
     }
     next(err);

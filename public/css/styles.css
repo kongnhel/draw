@@ -12282,6 +12282,29 @@ body.explore-body .explore-main {
   }
 }
 
+@media (max-width: 640px) {
+  .studio-explore-card .studio-explore-save {
+    top: 11px;
+    right: 11px;
+  }
+
+  .studio-explore-card .studio-explore-save button {
+    justify-content: center;
+    gap: 0;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+  }
+
+  .studio-explore-card .studio-explore-save button::before {
+    font-size: 15px;
+  }
+}
+
 @media (max-width: 390px) {
   .studio-explore-page {
     width: calc(100% - 24px);

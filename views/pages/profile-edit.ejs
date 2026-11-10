@@ -1,7 +1,7 @@
 <%- include('../partials/header') %>
 
 <%
-  const avatarSrc = user.avatar || '/uploads/avatars/default-avatar.svg';
+  const avatarSrc = user.avatar || '/images/default-avatar.svg';
   const coverSrc = user.cover_image || '/uploads/covers/default-cover.svg';
   const displayName = user.display_name || user.username;
   const previewBio = user.bio && user.bio.trim() ? user.bio : 'Your bio will appear here.';
@@ -48,7 +48,7 @@
             <div class="pe-avatar-field">
               <span class="pe-label" id="pe-avatar-label">Profile image</span>
               <label class="pe-avatar-drop" data-pe-drop aria-labelledby="pe-avatar-label">
-                <img data-pe-avatar-preview src="<%= avatarSrc %>" alt="Current profile image for <%= displayName %>" />
+                <img data-pe-avatar-preview src="<%= avatarSrc %>" data-fallback-src="/images/default-avatar.svg" alt="Current profile image for <%= displayName %>" />
                 <span class="pe-drop-action">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.6-2.2h6.8L17 8.5h3V19H4Z" /><circle cx="12" cy="13.4" r="3.2" /></svg>
                   Change
@@ -141,7 +141,7 @@
               <span class="pe-preview-sticker">Field notes</span>
             </div>
             <div class="pe-preview-id">
-              <img class="pe-preview-avatar" data-pe-avatar-preview src="<%= avatarSrc %>" alt="" />
+              <img class="pe-preview-avatar" data-pe-avatar-preview src="<%= avatarSrc %>" data-fallback-src="/images/default-avatar.svg" alt="" />
               <div>
                 <strong><%= displayName %></strong>
                 <span>@<%= user.username %></span>

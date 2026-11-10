@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="avatar-paper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7f1e5" />
+      <stop offset="100%" stop-color="#e9dfcc" />
+    </linearGradient>
+    <pattern id="avatar-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#b9ad93" stroke-width="0.65" opacity="0.38" />
+    </pattern>
+    <clipPath id="avatar-circle">
+      <circle cx="100" cy="100" r="88" />
+    </clipPath>
+  </defs>
+
+  <rect width="200" height="200" fill="#ded2bd" />
+  <circle cx="100" cy="100" r="88" fill="url(#avatar-paper)" />
+  <g clip-path="url(#avatar-circle)">
+    <rect width="200" height="200" fill="url(#avatar-hatch)" opacity="0.5" />
+
+    <g fill="none" stroke="#39463f" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M38 198c6-33 27-55 62-55s56 22 62 55" fill="#f2e7d4" stroke-width="4.5" />
+      <path d="M91 127v18c0 7 18 7 18 0v-18" fill="#eadfc9" stroke-width="3.5" />
+      <path d="M76 93c0-25 10-41 24-41s24 16 24 41-10 41-24 41-24-16-24-41Z" fill="#f2e7d4" stroke-width="4.5" />
+      <path d="M75 94c-4-25 6-45 25-45 16 0 27 12 29 31-7-3-12-8-16-16-7 11-18 19-32 22-1 4-3 7-6 8Z" fill="#39463f" stroke="none" />
+      <path d="M86 93c2-1.5 5-1.5 7 0M107 93c2-1.5 5-1.5 7 0" stroke-width="3.5" />
+      <path d="M100 98v9c0 2 2 3 4 2" stroke-width="3" />
+      <path d="M92 116c5 4 11 4 16 0" stroke-width="3.5" />
+      <path d="M72 101c-5 0-7 4-7 8s3 7 7 7M128 101c5 0 7 4 7 8s-3 7-7 7" stroke-width="3" />
+      <path d="M79 157l21 17 21-17" stroke="#b45f45" stroke-width="5" />
+    </g>
+
+    <path d="M35 51c8-6 15-9 23-11M143 42c8 4 14 9 19 15" fill="none" stroke="#b45f45" stroke-width="2.5" stroke-linecap="round" opacity="0.6" />
+  </g>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="#c4b69c" stroke-width="2" stroke-dasharray="4 7" />
+</svg>

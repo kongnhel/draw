@@ -187,7 +187,7 @@
 
         <div class="ad-artist-main">
           <a class="ad-artist-avatar" href="/profile/<%= artwork.username %>" aria-label="View <%= artistName %>'s profile" data-i18n-skip>
-            <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= artistName %>" loading="lazy" />
+            <img src="<%= artwork.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= artistName %>" loading="lazy" />
           </a>
           <div class="ad-artist-meta">
             <h2 class="ad-artist-name" data-i18n-skip><a href="/profile/<%= artwork.username %>"><%= artistName %></a></h2>
@@ -226,7 +226,7 @@
         <% comments.forEach((comment) => { %>
           <% const commentDate = new Date(comment.created_at); const commentDateLabel = Number.isNaN(commentDate.getTime()) ? '' : commentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); %>
           <article class="comment-item ad-comment">
-            <img class="ad-comment-avatar" src="<%= comment.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= comment.display_name || comment.username %>" loading="lazy" data-i18n-skip />
+            <img class="ad-comment-avatar" src="<%= comment.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= comment.display_name || comment.username %>" loading="lazy" data-i18n-skip />
             <div class="comment-body">
               <div class="ad-comment-head">
                 <strong data-i18n-skip><%= comment.display_name || comment.username %></strong>
@@ -248,7 +248,7 @@
     <% if (isAuthenticated) { %>
       <form class="comment-form ad-comment-form" method="POST" action="/art/<%= artwork.id %>/comment">
         <label class="ad-comment-label" for="ad-comment-body">Leave a thoughtful note</label>
-        <textarea id="ad-comment-body" name="body" placeholder="What does this piece make you feel?" required></textarea>
+        <textarea id="ad-comment-body" name="body" placeholder="What does this piece make you feel?" maxlength="2000" required></textarea>
         <div class="submit-row ad-comment-submit">
           <button type="submit" class="ad-post-btn">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 3l-4.5 18-3.6-7.9L3 11.5Z" /><path d="M12.9 13.1 21 3" /></svg>

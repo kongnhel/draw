@@ -53,7 +53,7 @@
       <p class="wall-card-description" data-i18n-skip><%= wallDescription.slice(0, 150) %><% if (wallDescription.length > 150) { %>&hellip;<% } %></p>
     <% } %>
     <a class="wall-card-artist" href="/profile/<%= artwork.username %>">
-      <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" decoding="async" />
+      <img src="<%= artwork.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" decoding="async" />
       <span>by <%= artwork.display_name || artwork.username %></span>
     </a>
   </div>

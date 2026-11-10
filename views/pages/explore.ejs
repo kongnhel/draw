@@ -136,7 +136,7 @@
           <a class="studio-explore-artist-card" href="/profile/<%= artist.username %>">
             <span class="studio-explore-artist-number"><%= String(index + 1).padStart(2, '0') %></span>
             <span class="studio-explore-artist-portrait">
-              <img src="<%= artist.avatar || '/uploads/avatars/default-avatar.svg' %>" data-explore-avatar="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" />
+              <img src="<%= artist.avatar || '/images/default-avatar.svg' %>" data-explore-avatar="/images/default-avatar.svg" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" />
               <i aria-hidden="true"></i>
             </span>
             <span class="studio-explore-artist-copy">

@@ -114,11 +114,12 @@ const updateSavedButton = (button, saved) => {
 };
 
 const updateLikeCounter = (card, likesCount) => {
-  const likeCounter = card?.querySelector('[data-portfolio-likes]') || card?.querySelector('.metric-inline span') || document.querySelector('[data-detail-likes-count]') || document.querySelector('[data-viewer-like-count]');
+  const likeCounter = card?.querySelector('[data-portfolio-likes]') || card?.querySelector('[data-nb-like-count]') || card?.querySelector('.metric-inline span') || document.querySelector('[data-detail-likes-count]') || document.querySelector('[data-viewer-like-count]');
   if (!likeCounter) return;
   const value = Number.parseInt(likeCounter.textContent.replace(/[^\d]/g, ''), 10) || 0;
   const nextCount = Math.max(0, likesCount ?? value);
   const isPlainCounter = likeCounter.hasAttribute('data-portfolio-likes')
+    || likeCounter.hasAttribute('data-nb-like-count')
     || likeCounter.hasAttribute('data-viewer-like-count')
     || likeCounter.hasAttribute('data-detail-likes-count');
   likeCounter.textContent = isPlainCounter ? String(nextCount) : `❤ ${nextCount}`;
@@ -132,7 +133,7 @@ const bindQuickActions = () => {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const button = form.querySelector('button');
-      const card = form.closest('.art-card, [data-portfolio-card]');
+      const card = form.closest('.art-card, [data-portfolio-card], [data-nb-artwork]');
 
       try {
         const response = await fetch(form.action, {
@@ -662,11 +663,17 @@ const bindCommentForms = () => {
           if (emptyState) emptyState.remove();
 
           const item = document.createElement('div');
-          item.className = 'comment-item';
+          item.className = 'comment-item ad-comment';
 
           const avatar = document.createElement('img');
-          avatar.src = data.comment.avatar || '/uploads/avatars/default-avatar.png';
+          avatar.className = 'ad-comment-avatar';
+          avatar.src = data.comment.avatar || '/images/default-avatar.svg';
           avatar.alt = data.comment.display_name || data.comment.username;
+          avatar.addEventListener('error', () => {
+            if (!avatar.src.endsWith('/images/default-avatar.svg')) {
+              avatar.src = '/images/default-avatar.svg';
+            }
+          }, { once: true });
 
           const body = document.createElement('div');
           body.className = 'comment-body';
@@ -3803,7 +3810,7 @@ const syncPinButtons = (artworkId, pinned) => {
         ? 'Pinned'
         : (button.hasAttribute('data-pin-label-long') ? 'Pin to homepage' : 'Pin');
     }
-    if (button.classList.contains('ad-tool-pin') || button.classList.contains('ad-showcase-pin') || button.classList.contains('hs-hero-pin') || button.classList.contains('wall-action-pin')) {
+    if (button.classList.contains('ad-tool-pin') || button.classList.contains('ad-showcase-pin') || button.classList.contains('hs-hero-pin') || button.classList.contains('wall-action-pin') || button.classList.contains('nb-action-pin')) {
       button.title = pinned ? 'Unpin from homepage' : 'Pin to homepage';
       button.setAttribute('aria-label', pinned ? 'Unpin from the homepage' : 'Pin to the homepage');
     }
@@ -3968,7 +3975,7 @@ const initPage = () => {
   const heroArtwork = document.querySelector('[data-home-feature-image]');
   bindArtworkImageFallback(heroArtwork, heroArtwork?.closest('.home-hero-feature'));
   document.querySelectorAll('img[data-fallback-src]').forEach((image) => {
-    bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature, .pf-art-image'));
+    bindArtworkImageFallback(image, image.closest('.art-card-media, .studio-explore-card, .studio-explore-spotlight, .book-artwork-link, .home-hero-feature, .pf-art-image, .nb-art-mount'));
   });
 
   markCurrentNavigation();

@@ -39,7 +39,7 @@ async function ensureSeeded() {
     await db.execute(insertUser, [
       'admin', 'admin@artspace.local', adminPassword,
       'ArtSpace Admin', 'Curating a space for artwork, creativity, and discovery.',
-      '/uploads/avatars/default-avatar.png', 'admin', 'active'
+      '/images/default-avatar.svg', 'admin', 'active'
     ]);
 
     await db.execute(insertUser, [

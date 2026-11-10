@@ -31,6 +31,7 @@
   let pageFlip = null;
   let destroyed = false;
   let chromeFrame = 0;
+  let startObserver = null;
   let libraryPromise = null;
   let audioContext = null;
   let noiseBuffer = null;
@@ -182,8 +183,6 @@
       : '';
   const coverTitle = uniqueArtists.length === 1 ? uniqueArtists[0] : 'The community book';
   const coverByline = uniqueArtists.length === 1 ? 'All drawings by' : 'A community collection';
-  const showArtistInIndex = uniqueArtists.length !== 1;
-  const INDEX_PAGE_SIZE = 6;
 
   function coverTemplate() {
     return `
@@ -200,72 +199,14 @@
         </div>
         <div class="asb-cover-foot">
           <span class="asb-cover-mark" aria-hidden="true">A/S</span>
-          <span>The complete index is inside</span>
+          <span>The drawings are inside</span>
         </div>
         <span class="asb-cover-khmer" aria-hidden="true">សិល្បៈ</span>
       </div>
     `;
   }
 
-  function contentsTemplate(pageArtworks, pageIndex, pageCount, offset) {
-    const items = pageArtworks.map((artwork, index) => {
-      const medium = escapeHTML(artwork.medium || 'Original artwork');
-      const artist = escapeHTML(artwork.artist || '');
-      const meta = showArtistInIndex && artist ? `${medium} · ${artist}` : medium;
-
-      return `
-        <li class="asb-contents-item">
-          <span class="asb-contents-index">${pad(offset + index + 1)}</span>
-          <span class="asb-contents-copy">
-            <span class="asb-contents-title" data-i18n-skip>${escapeHTML(artwork.title)}</span>
-            <span class="asb-contents-meta">${meta}</span>
-          </span>
-        </li>
-      `;
-    }).join('');
-    const pageLabel = pageCount > 1
-      ? `<span class="asb-index-counter"> · ${pad(pageIndex + 1)} / ${pad(pageCount)}</span>`
-      : '';
-
-    return `
-      <div class="asb-content asb-content--contents">
-        <div class="asb-head">
-          <span>ArtSpace / Contents</span>
-          <span class="font-khmer asb-head-khmer" aria-hidden="true">សិល្បៈ</span>
-        </div>
-        <div class="asb-contents-intro">
-          <span class="asb-meta">The index${pageLabel}</span>
-          <h2>All the drawings.</h2>
-        </div>
-        <ol class="asb-contents-list">${items}</ol>
-        <span class="asb-folio">Index</span>
-      </div>
-    `;
-  }
-
-  function dividerTemplate() {
-    return `
-      <div class="asb-content asb-content--divider" aria-hidden="true">
-        <span class="asb-divider-rule"></span>
-        <span class="asb-divider-mark">A/S</span>
-        <span class="asb-divider-rule"></span>
-      </div>
-    `;
-  }
-
   function pageTemplate(artwork, folio) {
-    if (!artwork) {
-      return `
-        <div class="asb-content asb-content--closing">
-          <span class="asb-khmer" aria-hidden="true">សិល្បៈ</span>
-          <span class="asb-meta">The last page</span>
-          <h2>Every sketch tells a story.</h2>
-          <p>Wander back through the book, or start a new page of your own.</p>
-          <span class="asb-folio">End</span>
-        </div>
-      `;
-    }
-
     const title = escapeHTML(artwork.title);
     const artist = escapeHTML(artwork.artist);
     const medium = escapeHTML(artwork.medium);
@@ -314,27 +255,17 @@
     return sheet;
   };
 
-  const indexPages = [];
-  for (let start = 0; start < artworks.length; start += INDEX_PAGE_SIZE) {
-    indexPages.push(artworks.slice(start, start + INDEX_PAGE_SIZE));
-  }
-
-  const frontMatter = [
-    makeFrontMatterSheet(coverTemplate(), 'cover'),
-    ...indexPages.map((pageArtworks, pageIndex) => makeFrontMatterSheet(
-      contentsTemplate(pageArtworks, pageIndex, indexPages.length, pageIndex * INDEX_PAGE_SIZE),
-      'contents'
-    ))
-  ];
-  if (frontMatter.length % 2 === 1) {
-    frontMatter.push(makeFrontMatterSheet(dividerTemplate(), 'divider'));
-  }
-
   const sheets = [
-    ...frontMatter,
+    makeFrontMatterSheet(coverTemplate(), 'cover'),
     ...artworks.map((artwork, index) => makeSheet(artwork, index + 1))
   ];
-  if (sheets.length % 2 === 1) sheets.push(makeSheet(null, sheets.length + 1));
+  if (sheets.length % 2 === 1) {
+    const blankSheet = document.createElement('div');
+    blankSheet.className = 'asb-sheet asb-paper';
+    blankSheet.dataset.density = 'soft';
+    blankSheet.setAttribute('aria-hidden', 'true');
+    sheets.push(blankSheet);
+  }
 
   const preview = document.createElement('div');
   preview.className = 'asb-preview';
@@ -503,6 +434,10 @@
     destroyed = true;
     if (chromeFrame) window.cancelAnimationFrame(chromeFrame);
     chromeFrame = 0;
+    if (startObserver) {
+      startObserver.disconnect();
+      startObserver = null;
+    }
 
     if (pageFlip) {
       try {
@@ -522,13 +457,29 @@
   const instance = { destroy };
   window.__artspaceBookSlider = instance;
 
-  loadPageFlip()
-    .then((PageFlip) => {
-      if (!PageFlip) {
-        showStaticFallback();
-        return;
-      }
-      bindPageFlip(PageFlip);
-    })
-    .catch(() => showStaticFallback());
+  const startBook = () => {
+    if (destroyed) return;
+    loadPageFlip()
+      .then((PageFlip) => {
+        if (destroyed) return;
+        if (!PageFlip) {
+          showStaticFallback();
+          return;
+        }
+        bindPageFlip(PageFlip);
+      })
+      .catch(() => showStaticFallback());
+  };
+
+  if ('IntersectionObserver' in window && !reduceMotion.matches) {
+    startObserver = new IntersectionObserver((entries, observer) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      startObserver = null;
+      startBook();
+    }, { rootMargin: '320px 0px' });
+    startObserver.observe(root);
+  } else {
+    startBook();
+  }
 })();

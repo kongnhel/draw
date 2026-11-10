@@ -185,7 +185,7 @@
               <tr data-admin-row data-admin-group="users" data-search="<%= [user.name, user.username, user.email, user.role, user.status].filter(Boolean).join(' ') %>">
                 <td>
                   <div class="admin-user-cell">
-                    <img src="<%= user.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" />
+                    <img src="<%= user.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" />
                     <span>
                       <strong data-i18n-skip><%= user.name || user.username %></strong>
                       <small data-i18n-skip>@<%= user.username %></small>

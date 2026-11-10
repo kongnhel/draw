@@ -139,7 +139,7 @@
             <div class="nav-drawer-block nav-drawer-account">
               <% if (isAuthenticated) { %>
                 <a class="nav-drawer-profile" href="/profile/<%= currentUser.username %>">
-                  <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" data-fallback-src="/uploads/avatars/default-avatar.svg" />
+                  <img src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" alt="" data-fallback-src="/images/default-avatar.svg" />
                   <span>
                     <strong data-i18n-skip><%= currentUser.display_name %></strong>
                     <small data-i18n-skip>@<%= currentUser.username %></small>
@@ -196,14 +196,14 @@
 
               <div class="nav-profile" data-profile-menu-wrap>
                 <button type="button" id="profile-menu-button" class="profile-chip" data-profile-menu-button aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" aria-label="Open account menu">
-                <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" data-fallback-src="/uploads/avatars/default-avatar.svg" />
+                <img src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" alt="" data-fallback-src="/images/default-avatar.svg" />
                 <span class="profile-chip-name" data-i18n-skip><%= currentUser.display_name %></span>
                 <svg class="profile-chip-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
               </button>
 
               <div class="profile-menu" id="profile-menu" role="menu" aria-labelledby="profile-menu-button" aria-hidden="true" data-profile-menu>
                 <div class="profile-menu-head">
-                  <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="" data-fallback-src="/uploads/avatars/default-avatar.svg" />
+                  <img src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" alt="" data-fallback-src="/images/default-avatar.svg" />
                   <span>
                     <strong data-i18n-skip><%= currentUser.display_name %></strong>
                     <small data-i18n-skip>@<%= currentUser.username %></small>

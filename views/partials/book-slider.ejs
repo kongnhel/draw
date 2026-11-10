@@ -1,8 +1,5 @@
 <%
-  const bookIndexPageSize = 6;
-  const bookIndexPages = Math.max(1, Math.ceil(artworks.length / bookIndexPageSize));
-  const bookFrontMatterPages = 1 + bookIndexPages + ((1 + bookIndexPages) % 2);
-  const bookPageCount = bookFrontMatterPages + artworks.length;
+  const bookPageCount = 1 + artworks.length + ((1 + artworks.length) % 2);
   const bookSpreadCount = Math.max(1, Math.ceil(bookPageCount / 2));
 %>
 <div

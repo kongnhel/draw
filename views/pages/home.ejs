@@ -1,86 +1,11 @@
 <%- include('../partials/header') %>
 
 <%
-  const heroArtistName = heroArtwork ? (heroArtwork.display_name || heroArtwork.username) : '';
-  const heroOwned = Boolean(heroArtwork && isAuthenticated && currentUser && Number(currentUser.id) === Number(heroArtwork.user_id));
-  const heroPinned = Boolean(heroArtwork && typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(heroArtwork.id)));
-  const homeArtistCount = new Set(bookArtworks.map((item) => item.username)).size;
-  const liveCategoryCount = visibleCategories.filter((category) => Number(category.count) > 0).length;
-%>
-
-<div class="hs-page" data-sketch-home>
-  <main class="hs-main">
-
-    <section class="hs-hero" data-motion aria-labelledby="hero-title">
-      <div class="hs-hero-copy">
-        <span class="hs-eyebrow">Cambodian creative community</span>
-        <h1 id="hero-title">A living <span>sketchbook.</span></h1>
-        <p class="hs-hero-sub">The community sketchbook.</p>
-        <p class="hs-lede">Original drawings, paintings, and visual stories — made by artists, kept by the community. Every line begins with a story, and every page is still being written.</p>
-        <div class="hs-hero-actions">
-          <a href="/explore?sort=latest" class="hs-btn hs-btn-dark">Explore Artwork <span aria-hidden="true">↗</span></a>
-          <a href="/upload" class="hs-btn hs-btn-outline">Share Your Drawing <span aria-hidden="true">+</span></a>
-        </div>
-        <dl class="hs-stats">
-          <div>
-            <dt>Artworks</dt>
-            <dd><%= totalArtworks %></dd>
-          </div>
-          <div>
-            <dt>Artists</dt>
-            <dd><%= homeArtistCount %></dd>
-          </div>
-          <div>
-            <dt>Mediums</dt>
-            <dd><%= liveCategoryCount %></dd>
-          </div>
-        </dl>
-      </div>
-
-      <div class="hs-hero-art">
-        <span class="hs-hero-tape" aria-hidden="true"></span>
-        <% if (heroArtwork && heroArtworkImageUrl) { %>
-          <%
-            const heroSrc = imageTools.transformUrl(heroArtwork.image_url || heroArtworkImageUrl, 720);
-            const heroSrcset = imageTools.srcset(heroArtwork.image_url || heroArtworkImageUrl, [320, 480, 720, 960, 1200]);
-          %>
-          <a href="/art/<%= heroArtwork.id %>" class="hs-feature home-hero-feature" aria-label="View <%= heroArtwork.title %> by <%= heroArtistName %>">
-            <span class="hs-feature-mat">
-              <img src="<%= heroSrc %>"<% if (heroSrcset) { %> srcset="<%= heroSrcset %>" sizes="(max-width: 480px) 40vw, (max-width: 1080px) 46vw, 480px"<% } %> width="480" height="600" data-home-feature-image data-fallback-src="/images/default-artwork.svg" alt="<%= heroArtwork.title %> by <%= heroArtistName %>" loading="eager" fetchpriority="high" decoding="async" data-i18n-skip>
-            </span>
-            <span class="hs-feature-meta">
-              <span class="hs-feature-kicker">Plate <%= String(heroArtworkIndex).padStart(2, '0') %> · <%= heroArtwork.category_name || 'Original artwork' %></span>
-              <strong data-i18n-skip><%= heroArtwork.title %></strong>
-              <span class="hs-feature-artist">by <%= heroArtistName %></span>
-            </span>
-            <span class="hs-feature-arrow" aria-hidden="true">↗</span>
-          </a>
-        <% } else { %>
-          <a href="/upload" class="hs-feature hs-feature-empty home-hero-feature">
-            <span class="hs-feature-mat">
-              <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M15 64 26 26l28-10 9 29-23 23-25-2Z" /><path d="m26 26 28 17M36 65l-10-40" /></svg>
-            </span>
-            <span class="hs-feature-meta">
-              <span class="hs-feature-kicker">The first page</span>
-              <strong>Waiting for your line.</strong>
-              <span class="hs-feature-artist">Upload an artwork to begin</span>
-            </span>
-            <span class="hs-feature-arrow" aria-hidden="true">↗</span>
-          </a>
-        <% } %>
-        <% if (heroOwned) { %>
-          <button type="button" class="hs-hero-pin<%= heroPinned ? ' is-pinned' : '' %>" data-pin-toggle data-pin-label-long data-artwork-id="<%= heroArtwork.id %>" data-pinned="<%= heroPinned ? 'true' : 'false' %>" aria-pressed="<%= heroPinned ? 'true' : 'false' %>" aria-label="<%= heroPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>" title="<%= heroPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
-            <span data-pin-label><%= heroPinned ? 'Pinned' : 'Pin to homepage' %></span>
-          </button>
-        <% } %>
-        <p class="hs-hero-note"><span aria-hidden="true">✦</span> Every line begins<br>with a story.</p>
-      </div>
-    </section>
-
-<%
+  const notebookArtworks = bookArtworks || [];
+  const currentYear = new Date().getFullYear();
+  const homeTotalWorks = Number(totalArtworks) || notebookArtworks.length;
   const sliderArtworks = (bookArtworks || []).map((artwork) => ({
-    src: imageTools.transformUrl(artwork.image_url || artwork.thumbnail_url, 1200),
+    src: imageTools.transformUrl(artwork.image_url || artwork.thumbnail_url, 900),
     title: artwork.title,
     artist: artwork.display_name || artwork.username,
     medium: artwork.category_name || 'Original artwork',
@@ -88,195 +13,159 @@
   }));
 %>
 
-    <section class="asb-section" id="art-book" data-motion aria-labelledby="book-title">
-      <div class="hs-section-head">
-        <div class="hs-section-title">
-          <span class="hs-eyebrow">The community book</span>
-          <h2 id="book-title">Turn the <em>page.</em></h2>
-        </div>
-        <div class="hs-section-aside">
-          <p>Original work, kept like a book. Click a page edge, use the arrows, or swipe through the collection.</p>
-          <a href="/explore?sort=latest" class="hs-link">View all artwork <span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
+<div class="nb-home" data-sketch-home>
+  <main class="nb-main">
 
-      <% if (sliderArtworks.length) { %>
-        <%- include('../partials/book-slider', { artworks: sliderArtworks }) %>
-      <% } else { %>
-        <div class="asb-empty">
-          <span class="hs-eyebrow">A new collection begins</span>
-          <h3>The first page is still waiting.</h3>
-          <p>Be the first to add an artwork to the community book.</p>
-          <a href="/upload" class="hs-btn hs-btn-dark">Share Your Drawing <span aria-hidden="true">&nearr;</span></a>
-        </div>
-      <% } %>
-    </section>
+    <section class="nb-notebook" data-motion aria-labelledby="nb-title">
+      <span class="nb-spine" aria-hidden="true"></span>
+      <span class="nb-page-stack nb-page-stack--one" aria-hidden="true"></span>
+      <span class="nb-page-stack nb-page-stack--two" aria-hidden="true"></span>
 
-    <% if (typeof journeyArtworks !== 'undefined' && journeyArtworks.length > 1) { %>
-    <section class="hs-journey" id="sketch-journey" data-motion aria-labelledby="journey-title">
-      <div class="hs-section-head">
-        <div class="hs-section-title">
-          <span class="hs-eyebrow">The connected sketchbook</span>
-          <h2 id="journey-title">Follow the <em>line.</em></h2>
-        </div>
-        <div class="hs-section-aside">
-          <p>One drawing leads to another. Trace the pencil through the works the community loves most.</p>
-          <a href="/explore?sort=popular" class="hs-link">Explore the collection <span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
-      <div class="hs-journey-track" data-home-journey aria-label="Connected artwork journey">
-        <svg class="sketch-journey-lines" aria-hidden="true" focusable="false"></svg>
-        <% journeyArtworks.forEach((artwork, index) => { %>
-          <%- include('../partials/journey-card', { artwork, index }) %>
-        <% }) %>
-      </div>
-      <p class="hs-journey-tip" aria-hidden="true"><span>↳</span> follow the pencil from page to page</p>
-    </section>
-    <% } %>
-
-    <section class="hs-wall" data-motion aria-labelledby="wall-title">
-      <div class="hs-section-head">
-        <div class="hs-section-title">
-          <span class="hs-eyebrow">Fresh from the studio</span>
-          <h2 id="wall-title">Recently <em>added.</em></h2>
-        </div>
-        <div class="hs-section-aside">
-          <p>New lines, new ideas, and new pages from the community.</p>
-          <% if (latest.length) { %>
-            <span class="hs-book-count"><%= Math.min(latest.length, 6) %> new <%= Math.min(latest.length, 6) === 1 ? 'work' : 'works' %></span>
-          <% } %>
-          <a href="/explore?sort=latest" class="hs-link">View all artwork <span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
-      <% if (latest.length) { %>
-        <%
-          const wallArtworks = latest.slice(0, 6);
-          const wallEditorial = wallArtworks.length >= 5;
-          const wallWide = wallArtworks.length === 6;
-        %>
-        <div class="hs-wall-grid<%= wallEditorial ? ' is-editorial' : '' %>">
-          <% wallArtworks.forEach((artwork, index) => { %>
-            <%- include('../partials/wall-card', { artwork, index, feature: wallEditorial && index === 0, wide: wallWide && index === wallArtworks.length - 1 }) %>
-          <% }) %>
-        </div>
-      <% } else { %>
-        <p class="hs-empty">New work will appear here as soon as it is shared.</p>
-      <% } %>
-    </section>
-
-    <section class="hs-artist" id="artist-spotlight" data-motion aria-labelledby="artist-title">
-      <div class="hs-section-head">
-        <div class="hs-section-title">
-          <span class="hs-eyebrow"><%= artistSpotlight ? 'Artist in focus' : 'Made for artists' %></span>
-          <h2 id="artist-title">A real workspace<br>for <em>real work.</em></h2>
-        </div>
-      </div>
-      <% if (artistSpotlight) { %>
-        <div class="hs-artist-card">
-          <span class="hs-artist-quote" aria-hidden="true">“</span>
-          <div class="hs-artist-portrait">
-            <img src="<%= artistSpotlight.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= artistSpotlight.display_name || artistSpotlight.username %>" loading="lazy" data-i18n-skip>
-            <span class="hs-artist-sticker">Artist<br>in focus</span>
-          </div>
-          <div class="hs-artist-copy">
-            <h3 data-i18n-skip><%= artistSpotlight.display_name || artistSpotlight.username %></h3>
-            <blockquote<%- artistSpotlight.bio && artistSpotlight.bio.trim() ? ' data-i18n-skip' : '' %>><%= artistSpotlight.bio || 'Part of a growing community sharing original drawings, paintings, and visual stories.' %></blockquote>
-            <div class="hs-artist-meta">
-              <span class="hs-artist-count"><strong><%= artistSpotlight.art_count || 0 %></strong> <%= Number(artistSpotlight.art_count) === 1 ? 'work' : 'works' %> in the collection</span>
-              <a href="/profile/<%= artistSpotlight.username %>" class="hs-link">Visit artist profile <span aria-hidden="true">↗</span></a>
-            </div>
-            <% if (typeof artistSpotlightArtworks !== 'undefined' && artistSpotlightArtworks.length) { %>
-              <div class="hs-artist-previews" aria-label="Artwork by <%= artistSpotlight.display_name || artistSpotlight.username %>">
-                <% artistSpotlightArtworks.forEach((artwork) => { %>
-                  <%
-                    const previewSrc = imageTools.cardSrc(artwork, 320);
-                    const previewSrcset = imageTools.cardSrcset(artwork, [160, 240, 320, 480]);
-                  %>
-                  <a class="hs-artist-preview" href="/art/<%= artwork.id %>" data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artwork.display_name || artwork.username %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artwork.created_at_label || 'Original artwork' %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="View <%= artwork.title %>">
-                    <img src="<%= previewSrc %>"<% if (previewSrcset) { %> srcset="<%= previewSrcset %>" sizes="(max-width: 640px) 28vw, 140px"<% } %> width="320" height="400" data-fallback-src="/images/default-artwork.svg" alt="<%= artwork.title %>" loading="lazy" decoding="async" data-i18n-skip />
-                  </a>
-                <% }) %>
-                <a class="hs-artist-previews-more" href="/profile/<%= artistSpotlight.username %>">See the full collection <span aria-hidden="true">↗</span></a>
-              </div>
-            <% } %>
-          </div>
-        </div>
-      <% } else { %>
-        <div class="hs-artist-card hs-artist-card-empty">
-          <div class="hs-artist-copy">
-            <h3>Every artist has a first page.</h3>
-            <p>ArtSpace is a home for original work and the people who make it.</p>
-            <a href="/register" class="hs-btn hs-btn-dark">Join the community <span aria-hidden="true">↗</span></a>
-          </div>
-        </div>
-      <% } %>
-    </section>
-
-    <section class="hs-categories" data-motion aria-labelledby="cats-title">
-      <div class="hs-section-head">
-        <div class="hs-section-title">
-          <span class="hs-eyebrow">Creative categories</span>
-          <h2 id="cats-title">Where ideas <em>live.</em></h2>
-        </div>
-        <div class="hs-section-aside">
-          <p>Browse the collection by medium, mood, and way of making.</p>
-          <a href="/explore" class="hs-link">See all artwork <span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
-      <div class="hs-category-index">
-        <% visibleCategories.forEach((category, index) => { %>
-          <a class="hs-category-row <%= Number(category.count) > 0 ? 'is-live' : 'is-empty' %>" href="/explore?category=<%= category.slug %>">
-            <span class="hs-cat-num"><%= String(index + 1).padStart(2, '0') %></span>
-            <span class="hs-cat-icon" aria-hidden="true">
-              <% if (category.slug === 'pencil-drawing') { %>
-                <svg viewBox="0 0 24 24"><path d="M5 19l2.2 3.6L11 20l7-12-4-3-8 12zM15 5l2 2" /></svg>
-              <% } else if (category.slug === 'portrait-drawing') { %>
-                <svg viewBox="0 0 24 24"><path d="M12 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm6 14c-2-3-7-3-9 0" /></svg>
-              <% } else if (category.slug === 'digital-art') { %>
-                <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z" /><path d="M10 10h4v4h-4z" /></svg>
-              <% } else if (category.slug === 'character-design') { %>
-                <svg viewBox="0 0 24 24"><path d="M6 18c1-4 3-7 6-7s5 3 6 7" /><path d="M12 6a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" /></svg>
-              <% } else if (category.slug === 'anime-manga') { %>
-                <svg viewBox="0 0 24 24"><path d="M4 17c2-6 4-10 8-11 4-1 6 4 8 8" /><path d="M6 12h12" /></svg>
-              <% } else if (category.slug === 'sketching') { %>
-                <svg viewBox="0 0 24 24"><path d="M6 17c1-4 3-8 6-11 3 3 5 7 6 11" /></svg>
-              <% } else if (category.slug === 'watercolor' || category.slug === 'oil-painting') { %>
-                <svg viewBox="0 0 24 24"><path d="M4 10h16v8H4z" /><path d="M6 14h4m4 0h4" /></svg>
-              <% } else if (category.slug === 'landscape-drawing') { %>
-                <svg viewBox="0 0 24 24"><path d="M4 18h16l-5-7-4 5-2-3z" /></svg>
-              <% } else if (category.slug === 'abstract-art') { %>
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" /><path d="M9 9h6v6H9z" /></svg>
-              <% } else if (category.slug === '3d-art') { %>
-                <svg viewBox="0 0 24 24"><path d="M6 18h12l-3-9H9z" /></svg>
-              <% } else { %>
-                <svg viewBox="0 0 24 24"><path d="M5 18h14l-3-8h-8z" /></svg>
-              <% } %>
-            </span>
-            <span class="hs-cat-name"><%= category.name %></span>
-            <span class="hs-cat-count"><%= category.count %> <%= category.count === 1 ? 'work' : 'works' %></span>
-            <span class="hs-cat-arrow" aria-hidden="true">↗</span>
-          </a>
-        <% }) %>
-      </div>
-    </section>
-
-    <section class="hs-final" data-motion>
-      <div class="hs-final-poster">
-        <span class="hs-eyebrow">The sketchbook never closes</span>
-        <h2>Every sketch<br>tells a <em>story.</em></h2>
-        <p>Share your creativity, discover new perspectives, and become part of our growing art community.</p>
-        <div class="hs-final-actions">
-          <a href="<%= isAuthenticated ? '/upload' : '/register' %>" class="hs-btn hs-btn-light">Start Your Sketchbook <span aria-hidden="true">↗</span></a>
-          <a href="/explore" class="hs-link hs-link-light">Explore the gallery <span aria-hidden="true">↗</span></a>
-        </div>
-        <svg class="hs-final-doodle" viewBox="0 0 240 200" fill="none" aria-hidden="true">
-          <path d="M40 150c40-16 74-48 96-92l18 10c-20 46-54 80-98 96l-16-14Z" />
-          <path d="m136 58 18 10M52 142l18 10M134 146c30-6 58-2 84 12" />
-          <circle cx="182" cy="46" r="26" />
-          <path d="M170 32c8 2 14 8 16 16" />
+      <div class="nb-sheet">
+        <svg class="nb-doodle nb-doodle--pencil" viewBox="0 0 120 120" aria-hidden="true">
+          <path d="m20 92 8-30 51-51c4-4 9-4 13 0l9 9c4 4 4 9 0 13L50 84l-30 8Z" />
+          <path d="m28 62 18 18M79 24l18 18M20 92l-3 11 11-3M92 39l-7 8M36 74l18 18" />
         </svg>
+        <svg class="nb-doodle nb-doodle--star" viewBox="0 0 70 70" aria-hidden="true">
+          <path d="M35 6c0 16-13 29-29 29 16 0 29 13 29 29 0-16 13-29 29-29-16 0-29-13-29-29Z" />
+        </svg>
+        <svg class="nb-doodle nb-doodle--loop" viewBox="0 0 190 90" aria-hidden="true">
+          <path d="M8 71c33 4 64 2 94-8 26-9 48-22 68-39M142 19c9-4 18-4 27 0" />
+        </svg>
+
+        <header class="nb-masthead">
+          <div class="nb-masthead-line">
+            <span class="nb-brand">ArtSpace <span>/</span> The community sketchbook</span>
+            <span class="nb-volume">Vol. 01 <span>·</span> <%= currentYear %></span>
+          </div>
+
+          <div class="nb-intro">
+            <div class="nb-intro-copy">
+              <span class="nb-kicker">Made by hand <span>·</span> kept by the community</span>
+              <h1 id="nb-title">A living <em>sketchbook.</em></h1>
+              <p class="nb-lede">Original drawings, paintings, and visual stories, placed page by page by the people who make them. Every line begins with a story, and every page is still being written.</p>
+              <div class="nb-actions">
+                <a href="/explore?sort=latest" class="nb-btn nb-btn--ink">Explore the pages <span aria-hidden="true">↗</span></a>
+                <a href="<%= isAuthenticated ? '/upload' : '/register' %>" class="nb-btn nb-btn--paper">Add your drawing <span aria-hidden="true">+</span></a>
+              </div>
+              <p class="nb-hand-note"><span aria-hidden="true">✦</span> Turn the page gently. Someone left a little of themselves here.</p>
+            </div>
+
+            <dl class="nb-ledger" aria-label="Sketchbook statistics">
+              <div>
+                <dt>Pages</dt>
+                <dd><%= homeTotalWorks %></dd>
+              </div>
+              <div>
+                <dt>Artists</dt>
+                <dd><%= homeArtistCount %></dd>
+              </div>
+              <div>
+                <dt>Mediums</dt>
+                <dd><%= liveCategoryCount %></dd>
+              </div>
+              <span class="nb-ledger-stamp" aria-hidden="true">open<br>book</span>
+            </dl>
+          </div>
+
+          <nav class="nb-tabs" aria-label="Browse artwork by medium">
+            <span class="nb-tabs-label">Browse the pages</span>
+            <div class="nb-tabs-track">
+              <a href="/explore?sort=latest" class="is-active" aria-current="page">All work <sup><%= homeTotalWorks %></sup></a>
+              <% visibleCategories.filter((category) => Number(category.count) > 0).forEach((category) => { %>
+                <a href="/explore?category=<%= encodeURIComponent(category.slug) %>">
+                  <%= category.name %> <sup><%= category.count %></sup>
+                </a>
+              <% }) %>
+            </div>
+          </nav>
+        </header>
+
+        <section class="nb-gallery" aria-labelledby="nb-gallery-title">
+          <div class="nb-gallery-head">
+            <div>
+              <span class="nb-kicker">01 <span>/</span> The community wall</span>
+              <h2 id="nb-gallery-title">Drawn by <em>hand.</em></h2>
+            </div>
+            <p>
+              A growing collection of originals, sketches, and studies.
+              <% if (notebookArtworks.length) { %>
+                <strong><%= notebookArtworks.length %></strong> pages pinned to this book.
+              <% } %>
+            </p>
+          </div>
+
+          <% if (notebookArtworks.length) { %>
+            <div class="nb-art-grid">
+              <% notebookArtworks.forEach((artwork, index) => { %>
+                <%- include('../partials/notebook-art', { artwork, index }) %>
+              <% }) %>
+            </div>
+            <div class="nb-gallery-foot">
+              <span class="nb-hand-note"><span aria-hidden="true">↳</span> each page is an original, kept exactly as it was made</span>
+              <a href="/explore?sort=latest" class="nb-link">See the full collection <span aria-hidden="true">↗</span></a>
+            </div>
+          <% } else { %>
+            <div class="nb-empty">
+              <span class="nb-kicker">A new sketchbook</span>
+              <h3>The first page is still waiting.</h3>
+              <p>Be the first to leave a drawing in the community book.</p>
+              <a href="/upload" class="nb-btn nb-btn--ink">Share your drawing <span aria-hidden="true">↗</span></a>
+            </div>
+          <% } %>
+        </section>
+
+        <% if (artistSpotlight) { %>
+          <aside class="nb-artist-note" aria-labelledby="nb-artist-title">
+            <span class="nb-artist-tape" aria-hidden="true"></span>
+            <a class="nb-artist-avatar" href="/profile/<%= artistSpotlight.username %>" aria-label="Visit <%= artistSpotlight.display_name || artistSpotlight.username %>'s profile">
+              <img src="<%= artistSpotlight.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= artistSpotlight.display_name || artistSpotlight.username %>" loading="lazy" data-i18n-skip>
+            </a>
+            <div class="nb-artist-copy">
+              <span class="nb-kicker">02 <span>/</span> The hand behind the pages</span>
+              <h2 id="nb-artist-title" data-i18n-skip><%= artistSpotlight.display_name || artistSpotlight.username %></h2>
+              <p<%- artistSpotlight.bio && artistSpotlight.bio.trim() ? ' data-i18n-skip' : '' %>><%= artistSpotlight.bio || 'Part of a growing community sharing original drawings, paintings, and visual stories.' %></p>
+              <a href="/profile/<%= artistSpotlight.username %>" class="nb-link">Visit the artist's studio <span aria-hidden="true">↗</span></a>
+            </div>
+            <div class="nb-artist-stat" aria-label="<%= artistSpotlight.art_count || 0 %> works in the collection">
+              <strong><%= artistSpotlight.art_count || 0 %></strong>
+              <span><%= Number(artistSpotlight.art_count) === 1 ? 'page' : 'pages' %> in this book</span>
+            </div>
+          </aside>
+        <% } %>
+
+        <section class="nb-cta" aria-labelledby="nb-cta-title">
+          <span class="nb-kicker">03 <span>/</span> Keep the pencil moving</span>
+          <h2 id="nb-cta-title">Your next page<br>is <em>waiting.</em></h2>
+          <p>Share a sketch, a study, or the line you cannot stop thinking about. Someone out there is looking for exactly what you make.</p>
+          <div class="nb-actions">
+            <a href="<%= isAuthenticated ? '/upload' : '/register' %>" class="nb-btn nb-btn--ink"><%= isAuthenticated ? 'Start a new page' : 'Join the sketchbook' %> <span aria-hidden="true">↗</span></a>
+            <a href="/explore" class="nb-link">Explore the gallery <span aria-hidden="true">→</span></a>
+          </div>
+          <svg class="nb-cta-doodle" viewBox="0 0 200 150" aria-hidden="true">
+            <path d="M22 115c29-13 53-37 69-70l14 8c-15 35-40 61-73 73l-10-11Z" />
+            <path d="m93 49 14 8M36 105l14 8M88 115c25-4 47 0 68 12" />
+            <circle cx="153" cy="31" r="19" />
+            <path d="M143 19c6 2 10 6 12 12" />
+          </svg>
+        </section>
+
+        <span class="nb-page-number" aria-hidden="true">01</span>
       </div>
     </section>
+
+    <% if (sliderArtworks.length) { %>
+      <section class="nb-turn" id="art-book" data-motion aria-labelledby="nb-turn-title">
+        <div class="nb-turn-copy">
+          <div class="nb-turn-title">
+            <span class="nb-kicker">The page-by-page edition</span>
+            <h2 id="nb-turn-title">Turn the <em>pages.</em></h2>
+          </div>
+          <p>Prefer a slower read? Open the same collection as a page-turn sketchbook.</p>
+        </div>
+        <%- include('../partials/book-slider', { artworks: sliderArtworks }) %>
+      </section>
+    <% } %>
 
   </main>
 </div>

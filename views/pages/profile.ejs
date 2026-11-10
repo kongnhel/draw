@@ -109,7 +109,7 @@
 
     <div class="pf-identity">
       <div class="pf-avatar-wrap">
-        <img class="pf-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" data-i18n-skip />
+        <img class="pf-avatar" src="<%= profileUser.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= profileUser.display_name %>" data-i18n-skip />
         <span class="pf-tape" aria-hidden="true"></span>
       </div>
 
@@ -356,7 +356,7 @@
       <section class="pf-card pf-specimen" aria-label="Artist card">
         <span class="pf-specimen-label" aria-hidden="true">The Artist's Table</span>
         <div class="pf-specimen-top">
-          <img class="pf-specimen-avatar" src="<%= profileUser.avatar || '/uploads/avatars/default-avatar.svg' %>" data-fallback-src="/uploads/avatars/default-avatar.svg" alt="<%= profileUser.display_name %>" loading="lazy" data-i18n-skip />
+          <img class="pf-specimen-avatar" src="<%= profileUser.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= profileUser.display_name %>" loading="lazy" data-i18n-skip />
           <div class="pf-specimen-copy">
             <h3 data-i18n-skip><%= profileUser.display_name %></h3>
             <p data-i18n-skip>@<%= profileUser.username %></p>

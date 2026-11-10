@@ -42,7 +42,7 @@
     </div>
     <h3><a href="/art/<%= artwork.id %>"><%= artwork.title %></a></h3>
     <a class="studio-explore-card-artist" href="/profile/<%= artwork.username %>">
-      <img src="<%= artwork.avatar || '/uploads/avatars/default-avatar.svg' %>" data-explore-avatar="/uploads/avatars/default-avatar.svg" alt="" loading="lazy" />
+      <img src="<%= artwork.avatar || '/images/default-avatar.svg' %>" data-explore-avatar="/images/default-avatar.svg" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" />
       <span>by <%= artwork.display_name || artwork.username %></span>
     </a>
     <div class="studio-explore-card-metrics">

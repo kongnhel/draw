@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="76" height="96" viewBox="0 0 76 96" fill="none">
+  <defs>
+    <linearGradient id="wire" x1="12" y1="18" x2="68" y2="78" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4d463d" />
+      <stop offset="0.28" stop-color="#a79d8d" />
+      <stop offset="0.5" stop-color="#e8e1d4" />
+      <stop offset="0.72" stop-color="#8e8475" />
+      <stop offset="1" stop-color="#4a433a" />
+    </linearGradient>
+    <filter id="wire-shadow" x="-12" y="-10" width="100" height="116" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="2" dy="3" stdDeviation="2.2" flood-color="#2b241c" flood-opacity="0.34" />
+    </filter>
+  </defs>
+  <ellipse cx="65" cy="48" rx="7.5" ry="12" fill="#2a251f" opacity="0.56" />
+  <ellipse cx="65" cy="48" rx="4.2" ry="8.5" fill="#171410" opacity="0.6" />
+  <path
+    d="M15 15c20-7 43-1 49 18 7 22-13 42-33 46-8 2-15 0-20-3"
+    stroke="url(#wire)"
+    stroke-width="7"
+    stroke-linecap="round"
+    filter="url(#wire-shadow)"
+  />
+  <path d="M18 18c17-5 35 0 42 14" stroke="#fff" stroke-opacity="0.34" stroke-width="1.5" stroke-linecap="round" />
+</svg>

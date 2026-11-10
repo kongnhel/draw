@@ -5,7 +5,7 @@
     <div class="studio-sidebar-clip" aria-hidden="true"></div>
     <div class="studio-sidebar-profile">
       <span class="studio-mini-avatar">
-        <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= currentUser.display_name %>" />
+          <img src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= currentUser.display_name %>" />
       </span>
       <div>
         <strong><%= currentUser.display_name %></strong>
@@ -94,7 +94,7 @@
 
       <div class="studio-welcome-profile">
         <span class="studio-avatar-frame">
-          <img src="<%= currentUser.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= currentUser.display_name %>" />
+        <img src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= currentUser.display_name %>" />
           <svg viewBox="0 0 170 170" aria-hidden="true"><path d="M85 8c26-2 51 7 66 27 14 19 17 46 8 69-9 24-32 43-59 47-27 4-57-6-73-28C11 101 8 71 20 49 32 27 56 17 85 8Z" /></svg>
         </span>
         <span class="studio-profile-caption"><%= currentUser.display_name %> <span aria-hidden="true">✎</span></span>
@@ -344,7 +344,7 @@
                     <time><%= activity.time_label %></time>
                   </span>
                   <% if (activity.actor_avatar) { %>
-                    <img src="<%= activity.actor_avatar %>" alt="" loading="lazy" />
+                    <img src="<%= activity.actor_avatar %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" />
                   <% } %>
                 </a>
               <% }) %>
@@ -361,7 +361,7 @@
             <div class="studio-circle-faces">
               <% followers.slice(0, 5).forEach((person) => { %>
                 <a href="/profile/<%= person.username %>" title="<%= person.display_name %>">
-                  <img src="<%= person.avatar || '/uploads/avatars/default-avatar.svg' %>" alt="<%= person.display_name %>" loading="lazy" />
+                  <img src="<%= person.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= person.display_name %>" loading="lazy" />
                 </a>
               <% }) %>
               <% if (!followers.length) { %><span class="studio-circle-empty">No names on this page yet.</span><% } %>

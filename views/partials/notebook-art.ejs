@@ -1,0 +1,98 @@
+<%
+  const nbIndex = typeof index !== 'undefined' ? index : 0;
+  const nbOwned = typeof currentUser !== 'undefined' && currentUser && artwork.username === currentUser.username;
+  const nbPinned = typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(artwork.id));
+  const nbSrc = imageTools.cardSrc(artwork, 720);
+  const nbSrcset = imageTools.cardSrcset(artwork, [320, 480, 640, 800, 1000]);
+  const nbArtist = artwork.display_name || artwork.username;
+  const nbDate = artwork.created_at_label || 'Original artwork';
+  const nbLikes = Number(artwork.likes_count) || 0;
+%>
+<article
+  class="nb-art<%= nbPinned ? ' is-pinned' : '' %><%= nbOwned ? ' is-owned' : '' %>"
+  data-nb-artwork
+  data-artwork-view
+  data-artwork-id="<%= artwork.id %>"
+  data-artwork-full="<%= artwork.image_url || artwork.thumbnail_url %>"
+  data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>"
+  data-artwork-title="<%= artwork.title %>"
+  data-artwork-description="<%= artwork.description || '' %>"
+  data-artwork-category="<%= artwork.category_name || '' %>"
+  data-artwork-tags="<%= artwork.tags || '' %>"
+  data-artwork-effect="<%= artwork.visual_effect || 'auto' %>"
+  data-artwork-artist="<%= nbArtist %>"
+  data-artwork-artist-url="/profile/<%= artwork.username %>"
+  data-artwork-date="<%= nbDate %>"
+  data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>"
+  data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>"
+  data-artwork-likes="<%= nbLikes %>"
+>
+  <span class="nb-art-tape" aria-hidden="true"></span>
+  <span class="nb-art-tack" aria-hidden="true"></span>
+
+  <a class="nb-art-link" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= nbArtist %>">
+    <span class="nb-art-mount">
+      <img
+        src="<%= nbSrc %>"
+        <% if (nbSrcset) { %>srcset="<%= nbSrcset %>" sizes="(max-width: 560px) 42vw, (max-width: 840px) 42vw, (max-width: 1120px) 28vw, 270px"<% } %>
+        width="720"
+        height="900"
+        data-fallback-src="/images/default-artwork.svg"
+        alt="<%= artwork.title %> by <%= nbArtist %>"
+        loading="lazy"
+        decoding="async"
+        data-i18n-skip
+      />
+      <span class="nb-art-open" aria-hidden="true">Open <span>↗</span></span>
+      <% if (nbPinned) { %>
+        <span class="nb-art-pinned" title="Pinned to the homepage">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+          Pinned
+        </span>
+      <% } %>
+    </span>
+  </a>
+
+  <div class="nb-art-caption">
+    <span class="nb-art-index">No. <%= String(nbIndex + 1).padStart(2, '0') %></span>
+    <h3 data-i18n-skip><a href="/art/<%= artwork.id %>" title="<%= artwork.title %>"><%= artwork.title %></a></h3>
+    <div class="nb-art-meta">
+      <a class="nb-art-artist" href="/profile/<%= artwork.username %>">
+        <img src="<%= artwork.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" decoding="async" />
+        <span>by <%= nbArtist %></span>
+      </a>
+      <time datetime="<%= artwork.created_at %>"><%= nbDate %></time>
+    </div>
+
+    <div class="nb-art-actions" aria-label="Artwork actions">
+      <form method="POST" action="/art/<%= artwork.id %>/like">
+        <button type="submit" class="nb-action nb-action-like<%= artwork.is_liked ? ' active' : '' %>" aria-label="<%= artwork.is_liked ? 'Unlike' : 'Like' %> this artwork" aria-pressed="<%= artwork.is_liked ? 'true' : 'false' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.8a5.4 5.4 0 0 0-7.7 0L12 7l-1.1-1.2a5.4 5.4 0 1 0-7.7 7.7L12 22l8.8-8.5a5.4 5.4 0 0 0 0-7.7Z" /></svg>
+          <span class="sr-only" data-action-label><%= artwork.is_liked ? 'Unlike' : 'Like' %></span>
+          <span class="nb-action-count" data-nb-like-count><%= nbLikes %></span>
+        </button>
+      </form>
+      <form method="POST" action="/art/<%= artwork.id %>/bookmark">
+        <button type="submit" class="nb-action nb-action-save<%= artwork.is_bookmarked ? ' active' : '' %>" aria-label="<%= artwork.is_bookmarked ? 'Remove from saved artworks' : 'Save artwork' %>" aria-pressed="<%= artwork.is_bookmarked ? 'true' : 'false' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5h12v16l-6-3.6-6 3.6v-16Z" /></svg>
+          <span class="sr-only" data-action-label><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></span>
+        </button>
+      </form>
+      <% if (nbOwned) { %>
+        <button
+          type="button"
+          class="nb-action nb-action-pin<%= nbPinned ? ' active' : '' %>"
+          data-pin-toggle
+          data-artwork-id="<%= artwork.id %>"
+          data-pinned="<%= nbPinned ? 'true' : 'false' %>"
+          aria-pressed="<%= nbPinned ? 'true' : 'false' %>"
+          title="<%= nbPinned ? 'Unpin from homepage' : 'Pin to homepage' %>"
+          aria-label="<%= nbPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
+          <span class="sr-only" data-pin-label><%= nbPinned ? 'Pinned' : 'Pin' %></span>
+        </button>
+      <% } %>
+    </div>
+  </div>
+</article>
