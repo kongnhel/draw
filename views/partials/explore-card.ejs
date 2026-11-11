@@ -13,7 +13,7 @@
   <%- include('./post-menu', { artwork, postKey: `artwork-${artwork.id}`, isOwner: cardOwned }) %>
 
   <a class="studio-explore-card-image" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
-    <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 320px"<% } %> data-fallback-src="<%= artwork.image_url || '/images/default-artwork.svg' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
+    <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 320px"<% } %> data-fallback-src="<%= artwork.image_url || '/images/default-artwork.svg' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" data-magnify="false" />
     <span class="studio-explore-card-placeholder" aria-hidden="true">
       <svg viewBox="0 0 80 80"><path d="M15 62 26 24l29-12 8 29-23 23-25-2Z" /><path d="m26 24 29 17M35 64l-9-40" /></svg>
       <strong><%= artwork.title %></strong>
