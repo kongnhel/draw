@@ -116,6 +116,28 @@ body.pencil-on [data-native-cursor] * {
   cursor: auto !important;
 }
 
+body.pencil-on dialog,
+body.pencil-on dialog * {
+  cursor: auto !important;
+}
+
+body.pencil-on dialog button,
+body.pencil-on dialog a[href],
+body.pencil-on dialog [role="button"],
+body.pencil-on dialog input[type="submit"],
+body.pencil-on dialog input[type="button"],
+body.pencil-on dialog input[type="checkbox"],
+body.pencil-on dialog label {
+  cursor: pointer !important;
+}
+
+body.pencil-on dialog input:not([type="checkbox"]):not([type="submit"]):not([type="button"]),
+body.pencil-on dialog textarea,
+body.pencil-on dialog [contenteditable="true"],
+body.pencil-on dialog [contenteditable=""] {
+  cursor: text !important;
+}
+
 body.pencil-on .art-viewer,
 body.pencil-on .art-viewer * {
   cursor: auto !important;

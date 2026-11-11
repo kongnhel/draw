@@ -5,15 +5,15 @@
 .lang-switch {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 7px;
+  gap: 3px;
+  padding: 3px 5px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: color-mix(in srgb, var(--card) 82%, transparent);
   box-shadow: 2px 2px 0 color-mix(in srgb, var(--text) 7%, transparent);
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   line-height: 1;
   white-space: nowrap;
 }
@@ -22,9 +22,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 25px;
-  min-height: 25px;
-  padding: 3px 4px;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 2px 3px;
   border-radius: 999px;
   color: var(--muted);
   transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
@@ -71,7 +71,29 @@
 
 @media (max-width: 900px) {
   .lang-switch--top {
-    display: none;
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px 4px;
+    font-size: 0.52rem;
+  }
+
+  .lang-switch--top .lang-option {
+    min-width: 18px;
+    min-height: 18px;
+    padding: 2px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lang-switch--top {
+    gap: 1px;
+    padding: 2px 3px;
+    font-size: 0.5rem;
+  }
+
+  .lang-switch--top .lang-option {
+    min-width: 16px;
+    min-height: 16px;
   }
 }
 

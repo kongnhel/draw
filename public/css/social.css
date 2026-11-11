@@ -897,14 +897,20 @@
   }
 
   .ad-reaction-picker {
+    left: 0;
+    right: auto;
     bottom: auto;
-    top: 100%;
-    transform: translateX(-50%) translateY(-4px);
+    top: calc(100% + 8px);
+    transform: none;
+    max-width: calc(100vw - 24px);
+    padding: 6px;
+    gap: 2px;
+    animation: none;
   }
 
   .ad-reaction-choice {
-    min-width: 42px;
-    padding: 5px 6px 4px;
+    min-width: 36px;
+    padding: 4px 5px;
   }
 
   .ad-reaction-choice-label {
@@ -912,7 +918,7 @@
   }
 
   .ad-reaction-choice-emoji {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
   }
 
   .social-post-menu {
