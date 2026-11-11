@@ -7,6 +7,11 @@
   %>
   <span class="studio-explore-card-tape" aria-hidden="true"></span>
 
+  <button type="button" class="social-post-more social-post-more--card" data-post-menu-toggle aria-label="Post options" aria-haspopup="menu" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="18" cy="12" r="1.7" /></svg>
+  </button>
+  <%- include('./post-menu', { artwork, postKey: `artwork-${artwork.id}`, isOwner: cardOwned }) %>
+
   <a class="studio-explore-card-image" href="/art/<%= artwork.id %>" aria-label="View <%= artwork.title %> by <%= artwork.display_name || artwork.username %>">
     <img src="<%= cardSrc %>"<% if (cardSrcset) { %> srcset="<%= cardSrcset %>" sizes="(max-width: 640px) 88vw, (max-width: 1080px) 44vw, 320px"<% } %> data-fallback-src="<%= artwork.image_url || '/images/default-artwork.svg' %>" alt="<%= artwork.title %>" loading="lazy" decoding="async" />
     <span class="studio-explore-card-placeholder" aria-hidden="true">

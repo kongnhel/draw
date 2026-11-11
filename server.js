@@ -530,6 +530,7 @@ const ASSET_VERSION = (() => {
     'public/css/mobile-bottom-nav.css',
     'public/css/artwork-detail.css',
     'public/css/multi-image.css',
+    'public/css/social.css',
     'public/css/ads.css',
     'public/js/ads.js',
     'public/js/book-slider.js',
@@ -696,15 +697,30 @@ function artworkViewerKey(req) {
   return `g:${crypto.createHash('sha256').update(fingerprint).digest('hex').slice(0, 32)}`;
 }
 
-async function createNotification({ userId, actorId, type, artworkId = null, message = null }) {
+const REACTION_TYPES = ['like', 'love', 'care', 'haha', 'wow', 'sad'];
+const REACTION_LABELS = {
+  like: 'Like',
+  love: 'Love',
+  care: 'Care',
+  haha: 'Haha',
+  wow: 'Wow',
+  sad: 'Sad'
+};
+
+function normalizeReaction(value) {
+  const candidate = String(value || '').trim().toLowerCase();
+  return REACTION_TYPES.includes(candidate) ? candidate : 'like';
+}
+
+async function createNotification({ userId, actorId, type, artworkId = null, commentId = null, message = null }) {
   const recipientId = Number(userId);
   const actor = Number(actorId);
   if (!recipientId || !actor || recipientId === actor) return;
 
   try {
     await db.execute(
-      'INSERT INTO notifications (user_id, actor_id, type, artwork_id, message) VALUES (?, ?, ?, ?, ?)',
-      [recipientId, actor, String(type), artworkId || null, message || null]
+      'INSERT INTO notifications (user_id, actor_id, type, artwork_id, comment_id, message) VALUES (?, ?, ?, ?, ?, ?)',
+      [recipientId, actor, String(type), artworkId || null, commentId || null, message || null]
     );
   } catch (error) {
     console.error('Could not create notification:', error);
@@ -742,6 +758,156 @@ async function countUnreadNotifications(userId) {
   );
   return Number((rows && rows[0] && rows[0].count) || 0);
 }
+
+function escapeHtmlText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[character]));
+}
+
+const MENTION_REGEX = /(^|[^\w@/])@([A-Za-z0-9_]{2,30})/g;
+
+function extractMentionUsernames(text) {
+  const found = new Set();
+  const source = String(text || '');
+  let match = MENTION_REGEX.exec(source);
+  while (match) {
+    found.add(match[2].toLowerCase());
+    match = MENTION_REGEX.exec(source);
+  }
+  MENTION_REGEX.lastIndex = 0;
+  return [...found];
+}
+
+function mentionify(value) {
+  return escapeHtmlText(value).replace(
+    /(^|[^\w@/])@([A-Za-z0-9_]{2,30})/g,
+    (full, prefix, username) => `${prefix}<a class="ad-mention" href="/profile/${encodeURIComponent(username)}" data-i18n-skip>@${username}</a>`
+  );
+}
+
+async function syncMentions({ actorId, text, mentionableType, mentionableId, artworkId = null, notificationMessage = null }) {
+  const author = Number(actorId);
+  const type = String(mentionableType || '');
+  const target = Number(mentionableId);
+  if (!author || !type || !target) return [];
+
+  const usernames = extractMentionUsernames(text);
+  if (!usernames.length) return [];
+
+  const placeholders = usernames.map(() => '?').join(',');
+  let rows = [];
+  try {
+    rows = await db.execute(
+      `SELECT id, username FROM users WHERE LOWER(username) IN (${placeholders}) AND status = 'active'`,
+      usernames
+    );
+  } catch (error) {
+    console.error('Could not resolve mentioned users:', error);
+    return [];
+  }
+
+  const notified = [];
+  for (const row of rows || []) {
+    try {
+      const inserted = await db.execute(
+        `INSERT IGNORE INTO mentions (mentioned_by, mentioned_user_id, mentionable_type, mentionable_id)
+         VALUES (?, ?, ?, ?)`,
+        [author, row.id, type, target]
+      );
+      if (!inserted || inserted.affectedRows === 0) continue;
+
+      await createNotification({
+        userId: row.id,
+        actorId: author,
+        type: 'mention',
+        artworkId,
+        commentId: type === 'comment' ? target : null,
+        message: notificationMessage || String(text || '').slice(0, 240)
+      });
+      notified.push(Number(row.id));
+    } catch (error) {
+      console.error('Could not store mention:', error);
+    }
+  }
+
+  return notified;
+}
+
+async function removeMentionsFor(mentionableType, mentionableId) {
+  try {
+    await db.execute(
+      'DELETE FROM mentions WHERE mentionable_type = ? AND mentionable_id = ?',
+      [String(mentionableType), Number(mentionableId)]
+    );
+  } catch (error) {
+    console.error('Could not clear mentions:', error);
+  }
+}
+
+async function fetchReactionSummary(artworkId) {
+  const rows = await db.execute(
+    'SELECT reaction_type, COUNT(*) AS count FROM likes WHERE artwork_id = ? GROUP BY reaction_type',
+    [artworkId]
+  );
+  const counts = {};
+  let total = 0;
+  for (const type of REACTION_TYPES) counts[type] = 0;
+  for (const row of rows || []) {
+    const type = normalizeReaction(row.reaction_type);
+    const count = Number(row.count || 0);
+    counts[type] += count;
+    total += count;
+  }
+  return { counts, total };
+}
+
+function notificationLink(row) {
+  const type = String(row.type || '');
+  if (row.artwork_id) {
+    if (row.comment_id && ['comment', 'reply', 'comment_like', 'mention'].includes(type)) {
+      return `/art/${row.artwork_id}#comment-${row.comment_id}`;
+    }
+    if (type === 'comment' || type === 'comment_like') {
+      return `/art/${row.artwork_id}#ad-comments`;
+    }
+    return `/art/${row.artwork_id}`;
+  }
+  if (row.actor_username) return `/profile/${encodeURIComponent(row.actor_username)}`;
+  return '/explore';
+}
+
+function mapNotificationRow(row) {
+  return {
+    id: Number(row.id),
+    type: String(row.type || 'update'),
+    message: row.message || '',
+    is_read: Boolean(Number(row.is_read)),
+    artwork_id: row.artwork_id ? Number(row.artwork_id) : null,
+    comment_id: row.comment_id ? Number(row.comment_id) : null,
+    artwork_title: row.artwork_title || null,
+    actor_username: row.actor_username || null,
+    actor_name: row.actor_name || 'Someone',
+    actor_avatar: row.actor_avatar || null,
+    created_at: row.created_at,
+    created_at_label: row.created_at_label || '',
+    link: notificationLink(row)
+  };
+}
+
+const NOTIFICATION_SELECT = `SELECT n.id, n.type, n.message, n.is_read, n.created_at, n.artwork_id, n.comment_id,
+       DATE_FORMAT(n.created_at, '%b %d, %Y') AS created_at_label,
+       u.username AS actor_username,
+       COALESCE(NULLIF(u.name, ''), u.username) AS actor_name,
+       u.avatar AS actor_avatar,
+       a.title AS artwork_title
+  FROM notifications n
+  LEFT JOIN users u ON u.id = n.actor_id
+  LEFT JOIN artworks a ON a.id = n.artwork_id`;
 
 async function getPinnedHomepageArtworks(viewerId) {
   const rows = await db.execute(
@@ -824,6 +990,11 @@ function requireAuthAction(req, res, next) {
     return;
   }
   res.redirect('/login');
+}
+
+function requireAuthApi(req, res, next) {
+  if (req.session && req.session.user) return next();
+  res.status(401).json({ ok: false, error: 'Please log in to continue.' });
 }
 
 function requireAdmin(req, res, next) {
@@ -933,6 +1104,7 @@ const CSS_BUNDLE_FILES = [
   'mobile-bottom-nav.css',
   'artwork-detail.css',
   'multi-image.css',
+  'social.css',
   'ads.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
@@ -1035,6 +1207,8 @@ app.use(async (req, res, next) => {
   res.locals.assetVersion = ASSET_VERSION;
   res.locals.imageTools = imageTools;
   res.locals.imagekitOrigin = imagekitOrigin;
+  res.locals.mentionify = mentionify;
+  res.locals.reactionTypes = REACTION_TYPES;
   res.locals.adsenseClient = ADSENSE_CLIENT;
   res.locals.adsenseScriptUrl = ADSENSE_SCRIPT_URL;
   res.locals.adsenseSlots = ADSENSE_SLOTS;
@@ -1280,8 +1454,9 @@ app.get('/explore', async (req, res, next) => {
       popular: 'likes_count DESC, a.created_at DESC'
     };
     const orderBy = sortMap[sort] || 'a.created_at DESC';
+    const fetchSize = offset + pageSize;
 
-    const [categoryRows, artworks, filteredCountRows, totalRows, artistRows, artistSpotlightRows] = await Promise.all([
+    const [categoryRows, artworks, shareRows, filteredCountRows, shareCountRows, totalRows, artistRows, artistSpotlightRows] = await Promise.all([
       db.execute(
         `SELECT c.slug, c.name, COUNT(a.id) AS count
            FROM categories c
@@ -1290,7 +1465,7 @@ app.get('/explore', async (req, res, next) => {
            ORDER BY c.sort_order`
       ),
       db.execute(
-        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+        `SELECT a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
                 u.username,
                 COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
                 u.avatar,
@@ -1306,7 +1481,34 @@ app.get('/explore', async (req, res, next) => {
            INNER JOIN categories c ON c.id = a.category_id
           ${whereClause}
           ORDER BY ${orderBy}
-          LIMIT ${pageSize} OFFSET ${offset}`,
+          LIMIT ${fetchSize}`,
+        [viewerId, viewerId, ...queryParams]
+      ),
+      db.execute(
+        `SELECT s.id AS share_id, s.message AS share_message, s.created_at AS share_created_at,
+                su.username AS sharer_username,
+                COALESCE(NULLIF(su.name, ''), su.username) AS sharer_name,
+                su.avatar AS sharer_avatar,
+                a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar,
+                c.name AS category_name, c.slug AS category_slug,
+                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                0 AS views, 'auto' AS visual_effect
+           FROM artwork_shares s
+           INNER JOIN artworks a ON a.id = s.artwork_id
+           INNER JOIN users u ON u.id = a.user_id
+           INNER JOIN users su ON su.id = s.user_id
+           INNER JOIN categories c ON c.id = a.category_id
+          WHERE s.platform = 'internal' AND s.user_id IS NOT NULL
+            AND ${whereConditions.join(' AND ')}
+          ORDER BY s.created_at DESC
+          LIMIT ${fetchSize}`,
         [viewerId, viewerId, ...queryParams]
       ),
       db.execute(
@@ -1315,6 +1517,16 @@ app.get('/explore', async (req, res, next) => {
            INNER JOIN users u ON u.id = a.user_id
            INNER JOIN categories c ON c.id = a.category_id
           ${whereClause}`,
+        queryParams
+      ),
+      db.execute(
+        `SELECT COUNT(*) AS count
+           FROM artwork_shares s
+           INNER JOIN artworks a ON a.id = s.artwork_id
+           INNER JOIN users u ON u.id = a.user_id
+           INNER JOIN categories c ON c.id = a.category_id
+          WHERE s.platform = 'internal' AND s.user_id IS NOT NULL
+            AND ${whereConditions.join(' AND ')}`,
         queryParams
       ),
       db.execute("SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"),
@@ -1343,7 +1555,45 @@ app.get('/explore', async (req, res, next) => {
       name: row.name,
       count: Number(row.count) || 0
     }));
-    const filteredTotal = Number((filteredCountRows && filteredCountRows[0] && filteredCountRows[0].count) || 0);
+
+    const artworkItems = (artworks || []).map((row) => ({
+      kind: 'artwork',
+      postKey: `artwork-${row.id}`,
+      sortAt: row.created_at,
+      artwork: row
+    }));
+
+    const shareItems = (shareRows || []).map((row) => ({
+      kind: 'share',
+      postKey: `share-${row.share_id}`,
+      sortAt: row.share_created_at,
+      share: {
+        id: Number(row.share_id),
+        message: row.share_message || '',
+        created_at: row.share_created_at,
+        sharer_username: row.sharer_username,
+        sharer_name: row.sharer_name,
+        sharer_avatar: row.sharer_avatar
+      },
+      artwork: {
+        ...row,
+        created_at: row.created_at
+      }
+    }));
+
+    const mergedItems = [...artworkItems, ...shareItems];
+    mergedItems.sort((left, right) => {
+      if (sort === 'popular') {
+        const diff = Number(right.artwork.likes_count || 0) - Number(left.artwork.likes_count || 0);
+        if (diff !== 0) return diff;
+      }
+      return new Date(right.sortAt || 0).getTime() - new Date(left.sortAt || 0).getTime();
+    });
+
+    const feedItems = mergedItems.slice(offset, offset + pageSize);
+
+    const filteredTotal = Number((filteredCountRows && filteredCountRows[0] && filteredCountRows[0].count) || 0)
+      + Number((shareCountRows && shareCountRows[0] && shareCountRows[0].count) || 0);
     const totalArtworks = Number((totalRows && totalRows[0] && totalRows[0].count) || 0);
     const artistCount = Number((artistRows && artistRows[0] && artistRows[0].count) || 0);
     const artists = artistSpotlightRows || [];
@@ -1353,8 +1603,8 @@ app.get('/explore', async (req, res, next) => {
       : null;
 
     const mediumCount = categories.filter((category) => category.count > 0).length;
-    const spotlightArtwork = (artworks && artworks.length > 0) ? artworks[0] : null;
-    const loadedItems = artworks ? artworks.length : 0;
+    const spotlightArtwork = feedItems.length ? feedItems[0].artwork : null;
+    const loadedItems = feedItems.length;
     const pinnedIds = await getPinnedArtworkIds(viewerId);
 
     const pagination = {
@@ -1374,7 +1624,8 @@ app.get('/explore', async (req, res, next) => {
       query,
       filter,
       categories,
-      artworks: artworks || [],
+      artworks: artworkItems.map((item) => item.artwork),
+      feedItems,
       spotlightArtwork,
       artists,
       activeCategory,
@@ -1534,6 +1785,17 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
     const artworkUrl = visibility === 'private' || saveAsDraft
       ? '/dashboard'
       : `/art/${artworkId}`;
+
+    if (description) {
+      await syncMentions({
+        actorId: req.session.user.id,
+        text: description,
+        mentionableType: 'artwork',
+        mentionableId: artworkId,
+        artworkId,
+        notificationMessage: description.slice(0, 240)
+      });
+    }
 
     if (wantsJson) {
       res.status(201).json({
@@ -1988,13 +2250,14 @@ app.get('/art/:id', async (req, res, next) => {
               (SELECT COUNT(*) FROM artwork_shares s WHERE s.artwork_id = a.id) AS shares_count,
               EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
               EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+              (SELECT l.reaction_type FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ? LIMIT 1) AS viewer_reaction,
               'auto' AS visual_effect
          FROM artworks a
          INNER JOIN users u ON u.id = a.user_id
          LEFT JOIN categories c ON c.id = a.category_id
         WHERE a.id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
         LIMIT 1`,
-      [viewerId, viewerId, artworkId]
+      [viewerId, viewerId, viewerId, artworkId]
     );
     const artwork = (rows && rows[0]) || null;
 
@@ -2017,7 +2280,7 @@ app.get('/art/:id', async (req, res, next) => {
       console.error('Could not record artwork view:', error && (error.code || error.message));
     });
 
-    const [relatedRows, commentData, pinnedIds, following, followerCountRows, viewsCount, galleryRows] = await Promise.all([
+    const [relatedRows, commentData, pinnedIds, following, followerCountRows, viewsCount, galleryRows, reactionSummary] = await Promise.all([
       db.execute(
         `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
                 u.username,
@@ -2054,7 +2317,8 @@ app.get('/art/:id', async (req, res, next) => {
           return 0;
         }
       })(),
-      fetchArtworkImages(artworkId).catch(() => [])
+      fetchArtworkImages(artworkId).catch(() => []),
+      fetchReactionSummary(artworkId).catch(() => ({ counts: {}, total: 0 }))
     ]);
 
     let artworkImages = galleryRows && galleryRows.length
@@ -2090,6 +2354,7 @@ app.get('/art/:id', async (req, res, next) => {
       related: relatedRows || [],
       artistStats: { isFollowing: following, followersCount },
       pinnedIds,
+      reactionSummary,
       reportStatus: typeof req.query.report === 'string' ? req.query.report : null
     });
   } catch (err) {
@@ -2213,19 +2478,31 @@ app.post('/art/:id/like', requireAuth, async (req, res, next) => {
 
     const userId = Number(req.session.user.id);
     const artworkOwnerId = Number(artworks[0].user_id);
-    const removed = await db.execute(
-      'DELETE FROM likes WHERE user_id = ? AND artwork_id = ?',
+    const reaction = normalizeReaction(req.body.reaction || req.query.reaction);
+
+    const existing = await db.execute(
+      'SELECT id, reaction_type FROM likes WHERE user_id = ? AND artwork_id = ? LIMIT 1',
       [userId, artworkId]
     );
 
-    let liked = false;
+    let reacted = false;
+    let activeReaction = null;
 
-    if (!removed || removed.affectedRows === 0) {
+    if (existing && existing.length) {
+      if (normalizeReaction(existing[0].reaction_type) === reaction) {
+        await db.execute('DELETE FROM likes WHERE id = ?', [existing[0].id]);
+      } else {
+        await db.execute('UPDATE likes SET reaction_type = ? WHERE id = ?', [reaction, existing[0].id]);
+        reacted = true;
+        activeReaction = reaction;
+      }
+    } else {
       await db.execute(
-        'INSERT INTO likes (user_id, artwork_id) VALUES (?, ?)',
-        [userId, artworkId]
+        'INSERT INTO likes (user_id, artwork_id, reaction_type) VALUES (?, ?, ?)',
+        [userId, artworkId, reaction]
       );
-      liked = true;
+      reacted = true;
+      activeReaction = reaction;
     }
 
     await removeNotification({
@@ -2235,23 +2512,27 @@ app.post('/art/:id/like', requireAuth, async (req, res, next) => {
       artworkId
     });
 
-    if (liked) {
+    if (reacted) {
       await createNotification({
         userId: artworkOwnerId,
         actorId: userId,
         type: 'like',
-        artworkId
+        artworkId,
+        message: reaction
       });
     }
 
-    const countRows = await db.execute(
-      'SELECT COUNT(*) AS count FROM likes WHERE artwork_id = ?',
-      [artworkId]
-    );
-    const likesCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
+    const summary = await fetchReactionSummary(artworkId);
 
     if (requestWantsJson(req)) {
-      res.json({ ok: true, liked, likes_count: likesCount });
+      res.json({
+        ok: true,
+        liked: reacted,
+        reacted,
+        reaction: activeReaction,
+        likes_count: summary.total,
+        reactions: summary.counts
+      });
       return;
     }
 
@@ -2263,6 +2544,57 @@ app.post('/art/:id/like', requireAuth, async (req, res, next) => {
       return;
     }
     next(err);
+  }
+});
+
+app.get('/art/:id/reactions', async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      res.status(404).json({ ok: false, error: 'The artwork you requested could not be found.' });
+      return;
+    }
+
+    const artworks = await db.execute(
+      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      [artworkId]
+    );
+
+    if (!artworks || artworks.length === 0) {
+      res.status(404).json({ ok: false, error: 'The artwork you requested could not be found.' });
+      return;
+    }
+
+    const [summary, users] = await Promise.all([
+      fetchReactionSummary(artworkId),
+      db.execute(
+        `SELECT u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar, l.reaction_type, l.created_at
+           FROM likes l
+           INNER JOIN users u ON u.id = l.user_id
+          WHERE l.artwork_id = ?
+          ORDER BY l.created_at DESC
+          LIMIT 60`,
+        [artworkId]
+      )
+    ]);
+
+    res.json({
+      ok: true,
+      total: summary.total,
+      reactions: summary.counts,
+      users: (users || []).map((row) => ({
+        username: row.username,
+        display_name: row.display_name,
+        avatar: row.avatar,
+        reaction: normalizeReaction(row.reaction_type),
+        created_at: row.created_at
+      }))
+    });
+  } catch (err) {
+    console.error('Could not load artwork reactions:', err);
+    res.status(500).json({ ok: false, error: 'We could not load those reactions. Please try again.' });
   }
 });
 
@@ -2400,13 +2732,45 @@ app.post('/art/:id/comment', requireAuthAction, async (req, res, next) => {
       [userId, artworkId, parentId, body]
     );
 
-    const notificationTarget = parentComment ? Number(parentComment.user_id) : Number(artworks[0].user_id);
-    await createNotification({
-      userId: notificationTarget,
+    const artworkOwnerId = Number(artworks[0].user_id);
+
+    if (parentComment) {
+      await createNotification({
+        userId: Number(parentComment.user_id),
+        actorId: userId,
+        type: 'reply',
+        artworkId,
+        commentId: parentId,
+        message: body.slice(0, 240)
+      });
+
+      if (artworkOwnerId !== Number(parentComment.user_id)) {
+        await createNotification({
+          userId: artworkOwnerId,
+          actorId: userId,
+          type: 'comment',
+          artworkId,
+          message: body.slice(0, 240)
+        });
+      }
+    } else {
+      await createNotification({
+        userId: artworkOwnerId,
+        actorId: userId,
+        type: 'comment',
+        artworkId,
+        commentId: result.insertId,
+        message: body.slice(0, 240)
+      });
+    }
+
+    await syncMentions({
       actorId: userId,
-      type: 'comment',
+      text: body,
+      mentionableType: 'comment',
+      mentionableId: result.insertId,
       artworkId,
-      message: body.slice(0, 240)
+      notificationMessage: body.slice(0, 240)
     });
 
     const [comment, countRows] = await Promise.all([
@@ -2428,7 +2792,8 @@ app.post('/art/:id/comment', requireAuthAction, async (req, res, next) => {
           artwork: artworks[0],
           currentUser: req.session.user,
           isAuthenticated: true,
-          depth: 0
+          depth: 0,
+          mentionify
         })
         : '';
 
@@ -2483,7 +2848,8 @@ app.get('/art/:id/comments', async (req, res, next) => {
         artwork: artworks[0],
         currentUser,
         isAuthenticated: Boolean(currentUser),
-        depth: 0
+        depth: 0,
+        mentionify
       }
     )));
 
@@ -2616,7 +2982,29 @@ app.post('/comments/:id/edit', requireAuthAction, async (req, res, next) => {
       [body, commentId, req.session.user.id]
     );
 
-    res.json({ ok: true, body, edited: true, comment_id: commentId });
+    const mentionNames = extractMentionUsernames(body);
+    if (mentionNames.length) {
+      await db.execute(
+        `DELETE m FROM mentions m
+          INNER JOIN users u ON u.id = m.mentioned_user_id
+         WHERE m.mentionable_type = 'comment' AND m.mentionable_id = ?
+           AND LOWER(u.username) NOT IN (${mentionNames.map(() => '?').join(',')})`,
+        [commentId, ...mentionNames]
+      ).catch(() => {});
+    } else {
+      await removeMentionsFor('comment', commentId);
+    }
+
+    await syncMentions({
+      actorId: req.session.user.id,
+      text: body,
+      mentionableType: 'comment',
+      mentionableId: commentId,
+      artworkId: Number(comment.artwork_id),
+      notificationMessage: body.slice(0, 240)
+    });
+
+    res.json({ ok: true, body, edited: true, comment_id: commentId, body_html: mentionify(body) });
   } catch (err) {
     console.error('Comment edit failed:', err);
     res.status(500).json({ ok: false, error: 'We could not save that edit. Please try again.' });
@@ -2671,6 +3059,14 @@ app.post('/comments/:id/delete', requireAuthAction, async (req, res, next) => {
 
     const placeholders = deletedIds.map(() => '?').join(',');
     await db.execute(`DELETE FROM comments WHERE id IN (${placeholders})`, deletedIds);
+    await db.execute(
+      `DELETE FROM mentions WHERE mentionable_type = 'comment' AND mentionable_id IN (${placeholders})`,
+      deletedIds
+    ).catch(() => {});
+    await db.execute(
+      `UPDATE notifications SET comment_id = NULL WHERE comment_id IN (${placeholders})`,
+      deletedIds
+    ).catch(() => {});
 
     const [countRows, topCountRows] = await Promise.all([
       db.execute('SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ?', [comment.artwork_id]),
@@ -2710,7 +3106,7 @@ app.post('/art/:id/share', async (req, res, next) => {
     }
 
     const artworks = await db.execute(
-      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      "SELECT id, user_id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
       [artworkId]
     );
 
@@ -2719,16 +3115,45 @@ app.post('/art/:id/share', async (req, res, next) => {
       return;
     }
 
-    const allowedPlatforms = new Set(['copy', 'telegram', 'facebook', 'messenger', 'whatsapp', 'x', 'linkedin', 'email', 'native', 'other']);
-    const platform = allowedPlatforms.has(String(req.body.platform || '').toLowerCase())
-      ? String(req.body.platform).toLowerCase()
-      : 'other';
+    const requested = String(req.body.platform || '').toLowerCase();
+    const allowedPlatforms = new Set(['internal', 'copy', 'telegram', 'facebook', 'messenger', 'whatsapp', 'x', 'linkedin', 'email', 'native', 'other']);
+    const platform = allowedPlatforms.has(requested) ? requested : 'other';
     const userId = (req.session && req.session.user && req.session.user.id) || null;
 
-    await db.execute(
-      'INSERT INTO artwork_shares (artwork_id, user_id, platform) VALUES (?, ?, ?)',
-      [artworkId, userId, platform]
+    if (platform === 'internal' && !userId) {
+      res.status(401).json({ ok: false, error: 'Please log in to share inside ArtSpace.' });
+      return;
+    }
+
+    const message = platform === 'internal'
+      ? String(req.body.message || '').replace(/\r\n/g, '\n').trim().slice(0, 500)
+      : null;
+
+    const result = await db.execute(
+      'INSERT INTO artwork_shares (artwork_id, user_id, platform, message) VALUES (?, ?, ?, ?)',
+      [artworkId, userId, platform, message || null]
     );
+
+    if (platform === 'internal' && userId) {
+      await createNotification({
+        userId: Number(artworks[0].user_id),
+        actorId: userId,
+        type: 'share',
+        artworkId,
+        message: message ? message.slice(0, 240) : null
+      });
+
+      if (message) {
+        await syncMentions({
+          actorId: userId,
+          text: message,
+          mentionableType: 'share',
+          mentionableId: result.insertId,
+          artworkId,
+          notificationMessage: message.slice(0, 240)
+        });
+      }
+    }
 
     const countRows = await db.execute(
       'SELECT COUNT(*) AS count FROM artwork_shares WHERE artwork_id = ?',
@@ -2737,7 +3162,13 @@ app.post('/art/:id/share', async (req, res, next) => {
     const sharesCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
 
     if (requestWantsJson(req)) {
-      res.json({ ok: true, shares_count: sharesCount, platform });
+      res.json({
+        ok: true,
+        shares_count: sharesCount,
+        platform,
+        share_id: result.insertId,
+        internal: platform === 'internal'
+      });
       return;
     }
 
@@ -3150,30 +3581,15 @@ app.get('/notifications', requireAuth, async (req, res, next) => {
   try {
     const userId = Number(req.session.user.id);
     const rows = await db.execute(
-      `SELECT n.id, n.type, n.message, n.is_read, n.created_at, n.artwork_id,
-              DATE_FORMAT(n.created_at, '%b %d, %Y') AS created_at_label,
-              u.username AS actor_username,
-              COALESCE(NULLIF(u.name, ''), u.username) AS actor_name,
-              u.avatar AS actor_avatar,
-              a.title AS artwork_title
-         FROM notifications n
-         LEFT JOIN users u ON u.id = n.actor_id
-         LEFT JOIN artworks a ON a.id = n.artwork_id
+      `${NOTIFICATION_SELECT}
         WHERE n.user_id = ?
         ORDER BY n.created_at DESC, n.id DESC
         LIMIT 100`,
       [userId]
     );
 
-    const notifications = (rows || []).map((row) => ({
-      ...row,
-      is_unread: !Number(row.is_read),
-      actor_name: row.actor_name || 'Someone',
-      link: row.artwork_id
-        ? `/art/${row.artwork_id}${row.type === 'comment' || row.type === 'comment_like' ? '#ad-comments' : ''}`
-        : (row.actor_username ? `/profile/${encodeURIComponent(row.actor_username)}` : '/explore')
-    }));
-    const unreadCount = notifications.filter((item) => item.is_unread).length;
+    const notifications = (rows || []).map(mapNotificationRow);
+    const unreadCount = notifications.filter((item) => !item.is_read).length;
 
     await db.execute(
       'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
@@ -3185,6 +3601,92 @@ app.get('/notifications', requireAuth, async (req, res, next) => {
       pageTitle: 'ArtSpace | Notifications',
       notifications,
       unreadCount
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/notifications', requireAuthApi, async (req, res, next) => {
+  try {
+    const userId = Number(req.session.user.id);
+    const [rows, unread] = await Promise.all([
+      db.execute(
+        `${NOTIFICATION_SELECT}
+         WHERE n.user_id = ?
+         ORDER BY n.created_at DESC, n.id DESC
+         LIMIT 8`,
+        [userId]
+      ),
+      countUnreadNotifications(userId)
+    ]);
+
+    res.json({ ok: true, unread, items: (rows || []).map(mapNotificationRow) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/notifications/read-all', requireAuthApi, async (req, res, next) => {
+  try {
+    await db.execute(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+      [req.session.user.id]
+    );
+    res.locals.unreadNotifications = 0;
+    res.json({ ok: true, unread: 0 });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/notifications/:id/read', requireAuthApi, async (req, res, next) => {
+  try {
+    const notificationId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(notificationId)) {
+      res.status(404).json({ ok: false, error: 'That notification could not be found.' });
+      return;
+    }
+
+    await db.execute(
+      'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
+      [notificationId, req.session.user.id]
+    );
+    const unread = await countUnreadNotifications(req.session.user.id);
+    res.json({ ok: true, unread });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/mentions/search', requireAuthApi, async (req, res, next) => {
+  try {
+    const query = String(req.query.q || '').trim().replace(/^@/, '').slice(0, 40);
+    if (!query) {
+      res.json({ ok: true, users: [] });
+      return;
+    }
+
+    const like = `%${query}%`;
+    const rows = await db.execute(
+      `SELECT username,
+              COALESCE(NULLIF(name, ''), username) AS display_name,
+              avatar
+         FROM users
+        WHERE status = 'active'
+          AND (username LIKE ? OR name LIKE ?)
+        ORDER BY CASE WHEN username LIKE ? THEN 0 ELSE 1 END, username ASC
+        LIMIT 8`,
+      [like, like, `${query}%`]
+    );
+
+    res.json({
+      ok: true,
+      users: (rows || []).map((row) => ({
+        username: row.username,
+        display_name: row.display_name,
+        avatar: row.avatar
+      }))
     });
   } catch (err) {
     next(err);
@@ -3699,6 +4201,18 @@ app.post('/art/:id/edit', requireAuth, handleArtworkEditUpload, async (req, res,
       });
 
       cleanupNewFiles();
+
+      if (description) {
+        await removeMentionsFor('artwork', artworkId);
+        await syncMentions({
+          actorId: req.session.user.id,
+          text: description,
+          mentionableType: 'artwork',
+          mentionableId: artworkId,
+          artworkId,
+          notificationMessage: description.slice(0, 240)
+        });
+      }
 
       // Remove media for deleted gallery rows only after a successful commit.
       if (removedRows.length) {

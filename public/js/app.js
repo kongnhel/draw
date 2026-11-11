@@ -1228,6 +1228,8 @@ const openShareDialog = (context) => {
   if (nativeButton) nativeButton.hidden = typeof navigator.share !== 'function';
   if (copyButton) copyButton.classList.remove('is-copied');
   if (copyLabel) copyLabel.textContent = 'Copy link';
+  const internalMessage = dialog.querySelector('[data-share-message]');
+  if (internalMessage) internalMessage.value = '';
   setShareNote(dialog, '');
 
   dialog.showModal();
@@ -1306,48 +1308,109 @@ const bindShareDialog = () => {
       if (error?.name !== 'AbortError') setShareNote(dialog, 'Sharing was cancelled or is unavailable here.');
     }
   });
+
+  const internalButton = dialog.querySelector('[data-share-internal-submit]');
+  const internalMessage = dialog.querySelector('[data-share-message]');
+
+  internalButton?.addEventListener('click', async () => {
+    const context = shareDialogContext;
+    if (!context || !context.id || internalButton.dataset.busy === 'true') return;
+
+    internalButton.dataset.busy = 'true';
+    internalButton.classList.add('is-loading');
+    setShareNote(dialog, 'Sharing to your feed…');
+
+    try {
+      const response = await fetch(`/art/${encodeURIComponent(context.id)}/share`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        },
+        body: JSON.stringify({
+          platform: 'internal',
+          message: (internalMessage?.value || '').trim()
+        })
+      });
+
+      if (response.status === 401) {
+        setShareNote(dialog, 'Log in to share inside ArtSpace.', 'error');
+        return;
+      }
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = null;
+      }
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'We could not share this artwork right now.');
+      }
+
+      if (typeof payload.shares_count === 'number') updateShareCounters(payload.shares_count);
+      if (internalMessage) internalMessage.value = '';
+      setShareNote(dialog, 'Shared to your feed. Thanks for passing it along!', 'success');
+      showPinToast('Shared to your ArtSpace feed.');
+      window.setTimeout(() => { if (dialog.open) dialog.close(); }, 700);
+    } catch (error) {
+      setShareNote(dialog, error.message || 'We could not share this artwork right now.', 'error');
+    } finally {
+      internalButton.dataset.busy = 'false';
+      internalButton.classList.remove('is-loading');
+    }
+  });
 };
 
+const buildShareContextFromButton = (button) => ({
+  id: button.dataset.shareId || '',
+  title: button.dataset.shareTitle || 'ArtSpace artwork',
+  text: button.dataset.shareText || 'Artwork on ArtSpace',
+  url: new URL(button.dataset.shareUrl || window.location.pathname, window.location.origin).toString(),
+  image: button.dataset.shareImage || '',
+  artist: button.dataset.shareArtist || '',
+  category: button.dataset.shareCategory || ''
+});
+
 const bindShareButtons = () => {
-  document.querySelectorAll('[data-share-artwork]').forEach((button) => {
-    if (button.dataset.shareBound === 'true') return;
-    button.dataset.shareBound = 'true';
+  if (document.documentElement.dataset.shareButtonsBound === 'true') return;
+  document.documentElement.dataset.shareButtonsBound = 'true';
 
-    button.addEventListener('click', async (event) => {
-      event.preventDefault();
-      const context = {
-        id: button.dataset.shareId || '',
-        title: button.dataset.shareTitle || 'ArtSpace artwork',
-        text: button.dataset.shareText || 'Artwork on ArtSpace',
-        url: new URL(button.dataset.shareUrl || window.location.pathname, window.location.origin).toString(),
-        image: button.dataset.shareImage || '',
-        artist: button.dataset.shareArtist || '',
-        category: button.dataset.shareCategory || ''
-      };
+  document.addEventListener('click', async (event) => {
+    const button = event.target instanceof Element
+      ? event.target.closest('[data-share-artwork]')
+      : null;
+    if (!button || button.closest('[data-share-dialog]')) return;
 
-      if (openShareDialog(context)) return;
+    event.preventDefault();
+    const context = buildShareContextFromButton(button);
+    document.querySelectorAll('[data-post-menu]').forEach((menu) => { menu.hidden = true; });
+    document.querySelectorAll('[data-post-menu-toggle]').forEach((toggle) => toggle.setAttribute('aria-expanded', 'false'));
 
-      // Fallback for pages without the share dialog markup.
-      try {
-        if (navigator.share) {
-          await navigator.share({ title: context.title, text: context.text, url: context.url });
-          return;
-        }
-        if (await copyArtworkLink(context.url)) {
-          const label = button.querySelector('[data-share-label]');
-          if (label) {
-            const original = label.textContent;
-            label.textContent = 'Copied!';
-            window.setTimeout(() => { if (label.isConnected) label.textContent = original; }, 1600);
-          }
-        }
-      } catch (error) {
-        if (error?.name !== 'AbortError') {
-          const label = button.querySelector('[data-share-label]');
-          if (label) label.textContent = 'Share unavailable';
+    if (openShareDialog(context)) return;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: context.title, text: context.text, url: context.url });
+        return;
+      }
+      if (await copyArtworkLink(context.url)) {
+        const label = button.querySelector('[data-share-label]');
+        if (label) {
+          const original = label.textContent;
+          label.textContent = 'Copied!';
+          window.setTimeout(() => { if (label.isConnected) label.textContent = original; }, 1600);
         }
       }
-    });
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        const label = button.querySelector('[data-share-label]');
+        if (label) label.textContent = 'Share unavailable';
+      }
+    }
   });
 };
 
@@ -1529,6 +1592,49 @@ const ensureCommentsEmptyState = (list) => {
   list.appendChild(empty);
 };
 
+const REPLY_TOGGLE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 21l1.7-4.7A8.4 8.4 0 0 1 3.5 12 8.5 8.5 0 0 1 12 3.5 8.5 8.5 0 0 1 21 12Z" /></svg>';
+
+const getReplyTotal = (article) => {
+  const container = article?.querySelector(':scope > .ad-comment-main > .ad-comment-replies');
+  if (!container) return 0;
+  return container.querySelectorAll('.ad-reply-slot > .ad-comment').length;
+};
+
+const setReplyLabels = (article, total) => {
+  if (!article) return;
+  const labels = article.querySelectorAll(':scope > .ad-comment-main > .ad-comment-actions [data-replies-label], :scope > .ad-comment-main > [data-replies-toggle] [data-replies-label]');
+  labels.forEach((label) => {
+    const expanded = label.closest('[data-replies-toggle]')?.getAttribute('aria-expanded') !== 'false';
+    label.textContent = expanded ? 'Hide replies' : `View ${total} ${total === 1 ? 'reply' : 'replies'}`;
+  });
+};
+
+const refreshReplyCount = (article) => {
+  if (!article) return;
+  const total = getReplyTotal(article);
+  if (total === 0) return;
+
+  let countButton = article.querySelector(':scope > .ad-comment-main > .ad-comment-actions [data-replies-toggle]');
+  if (!countButton) {
+    const actions = article.querySelector(':scope > .ad-comment-main > .ad-comment-actions');
+    if (actions) {
+      countButton = document.createElement('button');
+      countButton.type = 'button';
+      countButton.className = 'ad-comment-action ad-comment-replies-count';
+      countButton.dataset.repliesToggle = '';
+      countButton.setAttribute('aria-expanded', 'true');
+      countButton.innerHTML = `${REPLY_TOGGLE_SVG}<span data-replies-label></span>`;
+      actions.appendChild(countButton);
+    }
+  }
+
+  if (countButton) {
+    countButton.setAttribute('aria-expanded', 'true');
+    const label = countButton.querySelector('[data-replies-label]');
+    if (label) label.textContent = total === 1 ? '1 reply' : `${total} replies`;
+  }
+};
+
 const insertCommentHtml = (html, parentId) => {
   const list = document.querySelector('[data-comment-list]');
   if (!list || !html) return null;
@@ -1547,7 +1653,12 @@ const insertCommentHtml = (html, parentId) => {
       replies.className = 'ad-comment-replies';
       (parent.querySelector(':scope > .ad-comment-main') || parent).appendChild(replies);
     }
-    replies.appendChild(article);
+    replies.classList.remove('is-collapsed');
+    const slot = document.createElement('div');
+    slot.className = 'ad-reply-slot';
+    slot.appendChild(article);
+    replies.appendChild(slot);
+    refreshReplyCount(parent);
   } else {
     const emptyState = list.querySelector('[data-comments-empty]');
     if (emptyState) emptyState.remove();
@@ -1605,8 +1716,75 @@ const toggleCommentLike = async (button) => {
   }
 };
 
+const submitCommentEdit = async (form, event) => {
+  event.preventDefault();
+  const commentId = form.dataset.commentId || form.closest('.ad-comment')?.dataset.commentId;
+  const textarea = form.querySelector('textarea');
+  const body = (textarea?.value || '').trim();
+
+  if (!commentId || !textarea || !body) {
+    textarea?.focus();
+    return;
+  }
+  if (form.dataset.busy === 'true') return;
+
+  form.dataset.busy = 'true';
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+
+  try {
+    const response = await fetch(`/comments/${encodeURIComponent(commentId)}/edit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        Accept: 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ body })
+    });
+
+    if (response.status === 401) {
+      window.location.assign('/login');
+      return;
+    }
+
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'We could not save that edit. Please try again.');
+    }
+
+    const article = form.closest('.ad-comment');
+    const text = article?.querySelector('[data-comment-text]');
+    if (text) {
+      if (typeof data.body_html === 'string') text.innerHTML = data.body_html;
+      else text.textContent = body;
+    }
+
+    const edited = article?.querySelector('[data-comment-edited]');
+    if (edited) edited.hidden = false;
+
+    textarea.defaultValue = body;
+    form.hidden = true;
+    showPinToast('Comment updated.', 'success');
+  } catch (error) {
+    showPinToast(error.message || 'We could not save that edit. Please try again.', 'error');
+  } finally {
+    form.dataset.busy = 'false';
+    if (submitButton) submitButton.disabled = false;
+  }
+};
+
 const handleCommentFormSubmit = async (event) => {
-  const form = event.target instanceof Element ? event.target.closest('[data-comment-form], [data-reply-form]') : null;
+  if (!(event.target instanceof Element)) return;
+
+  const editForm = event.target.closest('[data-comment-edit-form]');
+  if (editForm) {
+    await submitCommentEdit(editForm, event);
+    return;
+  }
+
+  const form = event.target.closest('[data-comment-form], [data-reply-form]');
   if (!form || form.dataset.busy === 'true') return;
 
   const artworkId = getArtworkDetailRoot()?.dataset.artworkId;
@@ -1827,6 +2005,29 @@ const handleCommentClick = (event) => {
         ?.querySelector(':scope > .ad-comment-main > .ad-comment-actions [data-comment-reply-toggle]')
         ?.setAttribute('aria-expanded', 'false');
     }
+    return;
+  }
+
+  const repliesToggle = target.closest('[data-replies-toggle]');
+  if (repliesToggle) {
+    event.preventDefault();
+    const article = repliesToggle.closest('.ad-comment');
+    const container = article?.querySelector(':scope > .ad-comment-main > .ad-comment-replies');
+    if (!article || !container) return;
+    const collapsed = container.classList.toggle('is-collapsed');
+    article
+      .querySelectorAll(':scope > .ad-comment-main > .ad-comment-actions [data-replies-toggle], :scope > .ad-comment-main > [data-replies-toggle]')
+      .forEach((button) => button.setAttribute('aria-expanded', String(!collapsed)));
+
+    const total = getReplyTotal(article);
+    article
+      .querySelectorAll(':scope > .ad-comment-main > .ad-comment-actions [data-replies-label], :scope > .ad-comment-main > [data-replies-toggle] [data-replies-label]')
+      .forEach((label) => {
+        const isCount = label.closest('.ad-comment-replies-count');
+        label.textContent = collapsed
+          ? `View ${total} ${total === 1 ? 'reply' : 'replies'}`
+          : (isCount ? (total === 1 ? '1 reply' : `${total} replies`) : 'Hide replies');
+      });
     return;
   }
 
@@ -4883,10 +5084,12 @@ const initExplorePage = () => {
         const currentMasonry = results.querySelector('[data-explore-masonry]');
         if (!incomingResults || !incomingMasonry || !currentMasonry) throw new Error('Could not load more artwork');
 
-        const existingIds = new Set([...currentMasonry.querySelectorAll('[data-explore-card]')].map((card) => card.dataset.artworkId));
+        const postKeyOf = (card) => card.dataset.postKey || `artwork-${card.dataset.artworkId || ''}`;
+        const existingKeys = new Set([...currentMasonry.querySelectorAll('[data-explore-card]')].map(postKeyOf));
         incomingMasonry.querySelectorAll('[data-explore-card]').forEach((card) => {
-          if (!existingIds.has(card.dataset.artworkId)) currentMasonry.appendChild(card);
+          if (!existingKeys.has(postKeyOf(card))) currentMasonry.appendChild(card);
         });
+        applyHiddenPosts();
 
         const incomingMeta = incomingResults.querySelector('[data-explore-meta]');
         const currentMeta = results.querySelector('[data-explore-meta]');
@@ -5223,6 +5426,730 @@ document.addEventListener('artwork:bookmark-changed', (event) => {
   });
 });
 
+const REACTION_EMOJIS = { like: '👍', love: '❤️', care: '🥰', haha: '😂', wow: '😮', sad: '😢' };
+const REACTION_NAMES = { like: 'Like', love: 'Love', care: 'Care', haha: 'Haha', wow: 'Wow', sad: 'Sad' };
+
+const bindArtworkReactions = () => {
+  const picker = document.querySelector('[data-reaction-picker]');
+  const detailRoot = document.querySelector('[data-artwork-detail]');
+  if (!picker || !detailRoot || picker.dataset.reactionBound === 'true') return;
+  picker.dataset.reactionBound = 'true';
+
+  const artworkId = detailRoot.dataset.artworkId;
+  const form = picker.querySelector('[data-reaction-form]');
+  const button = picker.querySelector('[data-reaction-button]');
+  const menu = picker.querySelector('[data-reaction-picker-menu]');
+  const emoji = picker.querySelector('[data-reaction-emoji]');
+  const label = picker.querySelector('[data-action-label]');
+  const summaryEmojis = document.querySelector('[data-reaction-summary-emojis]');
+  const summaryCount = document.querySelector('[data-reaction-summary-count]');
+  const summaryLabel = document.querySelector('[data-reaction-summary-label]');
+  let currentReaction = form?.dataset.currentReaction || '';
+  let holdTimer = 0;
+
+  const renderSummary = (count, reactions) => {
+    if (summaryCount) summaryCount.textContent = String(count);
+    if (summaryLabel) summaryLabel.textContent = count === 1 ? 'reaction' : 'reactions';
+    if (summaryEmojis && reactions) {
+      const top = Object.keys(reactions)
+        .filter((type) => reactions[type] > 0)
+        .sort((left, right) => reactions[right] - reactions[left])
+        .slice(0, 3);
+      summaryEmojis.textContent = top.map((type) => REACTION_EMOJIS[type]).join(' ');
+    }
+  };
+
+  const applyState = (reaction, count, reactions) => {
+    currentReaction = reaction || '';
+    if (form) form.dataset.currentReaction = currentReaction;
+    if (emoji) emoji.textContent = REACTION_EMOJIS[currentReaction || 'like'];
+    if (label) label.textContent = currentReaction ? REACTION_NAMES[currentReaction] : 'Like';
+    if (button) {
+      button.classList.toggle('active', Boolean(currentReaction));
+      Object.keys(REACTION_EMOJIS).forEach((type) => {
+        button.classList.toggle(`ad-reaction-${type}`, currentReaction === type || (!currentReaction && type === 'like'));
+      });
+      button.setAttribute('aria-pressed', String(Boolean(currentReaction)));
+    }
+    menu?.querySelectorAll('[data-reaction-choice]').forEach((choice) => {
+      choice.classList.toggle('is-active', choice.dataset.reactionChoice === currentReaction);
+    });
+    document.querySelectorAll('[data-detail-likes-count]').forEach((node) => {
+      node.textContent = String(count);
+    });
+    renderSummary(count, reactions);
+    document.dispatchEvent(new CustomEvent('artwork:like-changed', {
+      detail: { id: Number(artworkId), liked: Boolean(currentReaction), likes: count, reaction: currentReaction || null }
+    }));
+  };
+
+  const closeMenu = () => {
+    if (!menu) return;
+    menu.hidden = true;
+    button?.setAttribute('aria-expanded', 'false');
+  };
+
+  const openMenu = () => {
+    if (!menu) return;
+    menu.hidden = false;
+    button?.setAttribute('aria-expanded', 'true');
+  };
+
+  button?.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (holdTimer) return;
+    if (menu && !menu.hidden) closeMenu();
+    else openMenu();
+  });
+
+  button?.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'touch') return;
+    holdTimer = window.setTimeout(() => {
+      holdTimer = 0;
+      openMenu();
+    }, 380);
+  });
+
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((eventName) => {
+    button?.addEventListener(eventName, () => {
+      if (holdTimer) {
+        window.clearTimeout(holdTimer);
+        holdTimer = 0;
+      }
+    });
+  });
+
+  picker.addEventListener('click', async (event) => {
+    const choice = event.target instanceof Element ? event.target.closest('[data-reaction-choice]') : null;
+    if (!choice) return;
+    event.preventDefault();
+
+    const reaction = choice.dataset.reactionChoice;
+    if (!reaction || !artworkId || choice.dataset.busy === 'true') return;
+
+    choice.dataset.busy = 'true';
+    closeMenu();
+
+    try {
+      const response = await fetch(`/art/${encodeURIComponent(artworkId)}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ reaction })
+      });
+
+      if (response.status === 401) {
+        window.location.assign('/login');
+        return;
+      }
+
+      const data = await response.json();
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || 'We could not update that reaction. Please try again.');
+      }
+
+      applyState(data.reaction, data.likes_count, data.reactions);
+      showPinToast(
+        data.reaction ? `Reacted with ${REACTION_NAMES[data.reaction]}.` : 'Reaction removed.',
+        'success'
+      );
+    } catch (error) {
+      showPinToast(error.message || 'We could not update that reaction. Please try again.', 'error');
+    } finally {
+      choice.dataset.busy = 'false';
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest('[data-reaction-picker]')) return;
+    closeMenu();
+  });
+
+  const likersDialog = document.querySelector('[data-likers-dialog]');
+  const likersSummary = likersDialog?.querySelector('[data-likers-summary]');
+  const likersList = likersDialog?.querySelector('[data-likers-list]');
+  const likersEmpty = likersDialog?.querySelector('[data-likers-empty]');
+  const likersNote = likersDialog?.querySelector('[data-likers-note]');
+
+  const openLikers = async () => {
+    if (!likersDialog || !artworkId) return;
+    likersList?.replaceChildren();
+    if (likersEmpty) likersEmpty.hidden = true;
+    if (likersNote) {
+      likersNote.hidden = false;
+      likersNote.textContent = 'Loading reactions…';
+    }
+    if (!likersDialog.open) likersDialog.showModal();
+
+    try {
+      const response = await fetch(`/art/${encodeURIComponent(artworkId)}/reactions`, {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || 'We could not load those reactions.');
+      }
+
+      if (likersSummary) {
+        likersSummary.replaceChildren();
+        Object.keys(data.reactions || {}).forEach((type) => {
+          const count = Number(data.reactions[type] || 0);
+          if (!count) return;
+          const chip = document.createElement('span');
+          chip.className = 'ad-likers-chip';
+          chip.textContent = `${REACTION_EMOJIS[type] || ''} ${count}`;
+          likersSummary.appendChild(chip);
+        });
+      }
+
+      if (likersList) {
+        (data.users || []).forEach((user) => {
+          const link = document.createElement('a');
+          link.className = 'ad-likers-item';
+          link.href = `/profile/${encodeURIComponent(user.username)}`;
+
+          const avatar = document.createElement('img');
+          avatar.src = user.avatar || '/images/default-avatar.svg';
+          avatar.alt = '';
+          avatar.loading = 'lazy';
+          avatar.dataset.fallbackSrc = '/images/default-avatar.svg';
+
+          const copy = document.createElement('span');
+          copy.className = 'ad-likers-copy';
+          const name = document.createElement('strong');
+          name.textContent = user.display_name || user.username;
+          const handle = document.createElement('small');
+          handle.textContent = `@${user.username}`;
+          copy.append(name, handle);
+
+          const reaction = document.createElement('span');
+          reaction.className = 'ad-likers-reaction';
+          reaction.textContent = REACTION_EMOJIS[user.reaction] || '👍';
+
+          link.append(avatar, copy, reaction);
+          likersList.appendChild(link);
+        });
+      }
+
+      if (likersEmpty) likersEmpty.hidden = Boolean(data.users && data.users.length);
+      if (likersNote) likersNote.hidden = true;
+    } catch (error) {
+      if (likersNote) likersNote.textContent = error.message || 'We could not load those reactions.';
+    }
+  };
+
+  document.querySelectorAll('[data-likers-open]').forEach((trigger) => {
+    trigger.addEventListener('click', (event) => {
+      event.preventDefault();
+      openLikers();
+    });
+    trigger.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      openLikers();
+    });
+  });
+
+  likersDialog?.querySelector('[data-likers-close]')?.addEventListener('click', () => likersDialog.close());
+  likersDialog?.addEventListener('click', (event) => {
+    if (event.target === likersDialog) likersDialog.close();
+  });
+};
+
+const NOTIFICATION_ACTIONS = {
+  like: 'reacted to your artwork',
+  comment: 'commented on your artwork',
+  reply: 'replied to your comment',
+  comment_like: 'liked your comment',
+  mention: 'mentioned you',
+  share: 'shared your artwork',
+  follow: 'started following you'
+};
+
+const updateNotificationBadges = (unread) => {
+  document.querySelectorAll('[data-notifications-badge]').forEach((badge) => {
+    badge.textContent = unread > 9 ? '9+' : String(unread);
+    badge.hidden = !unread;
+  });
+  document.querySelectorAll('[data-notifications-toggle]').forEach((button) => {
+    button.setAttribute('aria-label', unread > 0 ? `Notifications (${unread} unread)` : 'Notifications');
+  });
+};
+
+const bindNotificationBell = () => {
+  if (document.documentElement.dataset.notificationsBound === 'true') return;
+  document.documentElement.dataset.notificationsBound = 'true';
+
+  const wrap = document.querySelector('[data-notifications-wrap]');
+  const toggle = wrap?.querySelector('[data-notifications-toggle]');
+  const panel = wrap?.querySelector('[data-notifications-panel]');
+  const list = wrap?.querySelector('[data-notifications-list]');
+  if (!wrap || !toggle || !panel || !list) return;
+
+  const renderItem = (item) => {
+    const link = document.createElement('a');
+    link.className = `notifications-panel-item${item.is_read ? '' : ' is-unread'}`;
+    link.href = item.link || '/explore';
+    link.dataset.notificationId = String(item.id);
+
+    const avatarWrap = document.createElement('span');
+    avatarWrap.className = 'notifications-panel-avatar';
+    const avatar = document.createElement('img');
+    avatar.src = item.actor_avatar || '/images/default-avatar.svg';
+    avatar.alt = '';
+    avatar.loading = 'lazy';
+    avatar.dataset.fallbackSrc = '/images/default-avatar.svg';
+    avatarWrap.appendChild(avatar);
+
+    const copy = document.createElement('span');
+    copy.className = 'notifications-panel-copy';
+    const line = document.createElement('span');
+    line.className = 'notifications-panel-line';
+    const actor = document.createElement('strong');
+    actor.textContent = item.actor_name || 'Someone';
+    const action = document.createElement('span');
+    action.textContent = NOTIFICATION_ACTIONS[item.type] || 'sent you an update';
+    line.append(actor, document.createTextNode(' '), action);
+    copy.appendChild(line);
+
+    if (item.artwork_title) {
+      const artwork = document.createElement('span');
+      artwork.className = 'notifications-panel-artwork';
+      artwork.textContent = `“${item.artwork_title}”`;
+      copy.appendChild(artwork);
+    }
+
+    const time = document.createElement('time');
+    time.textContent = item.created_at_label || '';
+    copy.appendChild(time);
+
+    const dot = document.createElement('span');
+    dot.className = 'notifications-panel-dot';
+    dot.setAttribute('aria-hidden', 'true');
+
+    link.append(avatarWrap, copy, dot);
+    link.addEventListener('click', () => {
+      fetch(`/api/notifications/${encodeURIComponent(item.id)}/read`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+        credentials: 'same-origin'
+      }).catch(() => {});
+    });
+    return link;
+  };
+
+  const loadPanel = async () => {
+    list.replaceChildren();
+    const loading = document.createElement('p');
+    loading.className = 'notifications-panel-empty';
+    loading.textContent = 'Loading notifications…';
+    list.appendChild(loading);
+
+    try {
+      const response = await fetch('/api/notifications', {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      if (!response.ok) throw new Error('Could not load notifications.');
+      const data = await response.json();
+      if (!data?.ok) throw new Error('Could not load notifications.');
+
+      list.replaceChildren();
+      if (!(data.items || []).length) {
+        const empty = document.createElement('p');
+        empty.className = 'notifications-panel-empty';
+        empty.textContent = 'You are all caught up.';
+        list.appendChild(empty);
+      } else {
+        (data.items || []).forEach((item) => list.appendChild(renderItem(item)));
+      }
+      updateNotificationBadges(Number(data.unread || 0));
+    } catch (error) {
+      list.replaceChildren();
+      const failed = document.createElement('p');
+      failed.className = 'notifications-panel-empty';
+      failed.textContent = error.message || 'Could not load notifications.';
+      list.appendChild(failed);
+    }
+  };
+
+  const closePanel = () => {
+    panel.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+  };
+
+  toggle.addEventListener('click', async (event) => {
+    event.preventDefault();
+    const willOpen = panel.hidden;
+    if (!willOpen) {
+      closePanel();
+      return;
+    }
+    panel.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    await loadPanel();
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest('[data-notifications-wrap]')) return;
+    if (!panel.hidden) closePanel();
+  });
+
+  wrap.querySelector('[data-notifications-read-all]')?.addEventListener('click', async () => {
+    try {
+      await fetch('/api/notifications/read-all', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+        credentials: 'same-origin'
+      });
+      updateNotificationBadges(0);
+      list.querySelectorAll('.notifications-panel-item').forEach((item) => item.classList.remove('is-unread'));
+    } catch (error) {
+      /* keep silent, the panel still shows the current state */
+    }
+  });
+
+  window.setInterval(async () => {
+    try {
+      const response = await fetch('/api/notifications', {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data?.ok) updateNotificationBadges(Number(data.unread || 0));
+    } catch (error) {
+      /* ignore polling errors */
+    }
+  }, 60000);
+};
+
+const bindMentionAutocomplete = () => {
+  if (document.documentElement.dataset.mentionBound === 'true') return;
+  document.documentElement.dataset.mentionBound = 'true';
+
+  let activeInput = null;
+  let dropdown = null;
+  let items = [];
+  let activeIndex = -1;
+  let debounceTimer = 0;
+  let requestToken = 0;
+
+  const ensureDropdown = () => {
+    if (!dropdown) {
+      dropdown = document.createElement('div');
+      dropdown.className = 'mention-suggest';
+      dropdown.hidden = true;
+      dropdown.setAttribute('role', 'listbox');
+    }
+    const container = activeInput?.closest('dialog[open]') || document.body;
+    if (dropdown.parentElement !== container) container.appendChild(dropdown);
+    return dropdown;
+  };
+
+  const hide = () => {
+    if (dropdown) dropdown.hidden = true;
+    items = [];
+    activeIndex = -1;
+  };
+
+  const position = () => {
+    if (!activeInput || !dropdown) return;
+    const rect = activeInput.getBoundingClientRect();
+    dropdown.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 272))}px`;
+    dropdown.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 230)}px`;
+    dropdown.style.width = `${Math.max(230, Math.min(300, rect.width))}px`;
+  };
+
+  const choose = (index) => {
+    const user = items[index];
+    if (!user || !activeInput) return;
+
+    const value = activeInput.value;
+    const caret = activeInput.selectionStart ?? value.length;
+    const before = value.slice(0, caret);
+    const match = before.match(/@([A-Za-z0-9_]*)$/);
+    if (!match) {
+      hide();
+      return;
+    }
+
+    const start = caret - match[0].length;
+    const insert = `@${user.username} `;
+    activeInput.value = value.slice(0, start) + insert + value.slice(caret);
+    const newCaret = start + insert.length;
+    activeInput.setSelectionRange(newCaret, newCaret);
+    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    hide();
+    activeInput.focus();
+  };
+
+  const render = () => {
+    if (!dropdown) return;
+    dropdown.replaceChildren();
+    items.forEach((user, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `mention-suggest-item${index === activeIndex ? ' is-active' : ''}`;
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', String(index === activeIndex));
+
+      const avatar = document.createElement('img');
+      avatar.className = 'mention-suggest-avatar';
+      avatar.src = user.avatar || '/images/default-avatar.svg';
+      avatar.alt = '';
+      avatar.loading = 'lazy';
+      avatar.dataset.fallbackSrc = '/images/default-avatar.svg';
+
+      const copy = document.createElement('span');
+      copy.className = 'mention-suggest-copy';
+      const name = document.createElement('strong');
+      name.textContent = user.display_name || user.username;
+      const handle = document.createElement('small');
+      handle.textContent = `@${user.username}`;
+      copy.append(name, handle);
+
+      button.append(avatar, copy);
+      button.addEventListener('pointerdown', (event) => event.preventDefault());
+      button.addEventListener('click', () => choose(index));
+      dropdown.appendChild(button);
+    });
+    dropdown.hidden = !items.length;
+  };
+
+  const search = async (query) => {
+    const token = ++requestToken;
+    try {
+      const response = await fetch(`/api/mentions/search?q=${encodeURIComponent(query)}`, {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      if (!response.ok) {
+        hide();
+        return;
+      }
+      const data = await response.json();
+      if (token !== requestToken || !data?.ok) return;
+      items = data.users || [];
+      activeIndex = items.length ? 0 : -1;
+      render();
+      position();
+    } catch (error) {
+      hide();
+    }
+  };
+
+  document.addEventListener('input', (event) => {
+    const field = event.target instanceof Element ? event.target.closest('[data-mention-input]') : null;
+    if (!field) return;
+
+    activeInput = field;
+    const value = field.value;
+    const caret = field.selectionStart ?? value.length;
+    const before = value.slice(0, caret);
+    const match = before.match(/(^|[^\w@/])@([A-Za-z0-9_]{0,30})$/);
+    if (!match) {
+      hide();
+      return;
+    }
+
+    ensureDropdown();
+    position();
+    window.clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => search(match[2]), 180);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const field = event.target instanceof Element ? event.target.closest('[data-mention-input]') : null;
+    if (!field || !dropdown || dropdown.hidden) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      render();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      render();
+    } else if (event.key === 'Enter' || event.key === 'Tab') {
+      if (activeIndex >= 0 && items.length) {
+        event.preventDefault();
+        choose(activeIndex);
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      hide();
+    }
+  });
+
+  document.addEventListener('focusout', (event) => {
+    if (!(event.target instanceof Element) || !event.target.matches('[data-mention-input]')) return;
+    window.setTimeout(() => {
+      if (dropdown && !dropdown.matches(':hover')) hide();
+    }, 140);
+  });
+
+  window.addEventListener('scroll', () => {
+    if (dropdown && !dropdown.hidden) position();
+  }, true);
+};
+
+const HIDDEN_POSTS_KEY = 'artspace-hidden-posts';
+
+const readHiddenPosts = () => {
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(HIDDEN_POSTS_KEY) || '[]'));
+  } catch (error) {
+    return new Set();
+  }
+};
+
+const writeHiddenPosts = (hidden) => {
+  try {
+    window.localStorage.setItem(HIDDEN_POSTS_KEY, JSON.stringify([...hidden]));
+  } catch (error) {
+    /* private mode */
+  }
+};
+
+const applyHiddenPosts = () => {
+  const hidden = readHiddenPosts();
+  if (!hidden.size) return;
+  document.querySelectorAll('[data-post-key]').forEach((card) => {
+    if (hidden.has(card.dataset.postKey)) card.remove();
+  });
+};
+
+const bindSocialPostMenu = () => {
+  if (document.documentElement.dataset.postMenuBound === 'true') return;
+  document.documentElement.dataset.postMenuBound = 'true';
+
+  const closeMenus = (except) => {
+    document.querySelectorAll('[data-post-menu]').forEach((menu) => {
+      if (menu !== except) menu.hidden = true;
+    });
+    document.querySelectorAll('[data-post-menu-toggle]').forEach((button) => {
+      const menu = button.closest('article')?.querySelector('[data-post-menu]');
+      if (menu !== except) button.setAttribute('aria-expanded', 'false');
+    });
+  };
+
+  document.addEventListener('click', async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const toggle = target.closest('[data-post-menu-toggle]');
+    if (toggle) {
+      event.preventDefault();
+      const article = toggle.closest('article');
+      const menu = article?.querySelector('[data-post-menu]');
+      if (!menu) return;
+      const willOpen = menu.hidden;
+      closeMenus(menu);
+      menu.hidden = !willOpen;
+      toggle.setAttribute('aria-expanded', String(willOpen));
+      return;
+    }
+
+    if (!target.closest('[data-post-menu]')) closeMenus();
+
+    const copyButton = target.closest('[data-post-copy]');
+    if (copyButton) {
+      event.preventDefault();
+      const artworkId = copyButton.dataset.artworkId;
+      const copied = artworkId
+        ? await copyArtworkLink(new URL(`/art/${artworkId}`, window.location.origin).toString())
+        : false;
+      showPinToast(copied ? 'Link copied.' : 'Could not copy the link.', copied ? 'success' : 'error');
+      closeMenus();
+      return;
+    }
+
+    const hideButton = target.closest('[data-post-hide]');
+    if (hideButton) {
+      event.preventDefault();
+      const key = hideButton.dataset.postKey;
+      if (key) {
+        const hidden = readHiddenPosts();
+        hidden.add(key);
+        writeHiddenPosts(hidden);
+      }
+      hideButton.closest('[data-explore-card]')?.remove();
+      showPinToast('Post hidden.');
+      closeMenus();
+      return;
+    }
+
+    const reportButton = target.closest('[data-post-report]');
+    if (reportButton) {
+      event.preventDefault();
+      const artworkId = reportButton.dataset.artworkId;
+      closeMenus();
+      if (!artworkId || !window.confirm('Report this artwork for review?')) return;
+      try {
+        const response = await fetch(`/art/${encodeURIComponent(artworkId)}/report`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            Accept: 'application/json'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ reason: 'Reported from the feed.' })
+        });
+        if (response.status === 401) {
+          window.location.assign('/login');
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || 'We could not send that report.');
+        }
+        showPinToast('Report sent to the moderation desk.', 'success');
+      } catch (error) {
+        showPinToast(error.message || 'We could not send that report.', 'error');
+      }
+      return;
+    }
+
+    const deleteButton = target.closest('[data-post-delete]');
+    if (deleteButton) {
+      event.preventDefault();
+      const artworkId = deleteButton.dataset.artworkId;
+      closeMenus();
+      if (!artworkId || !window.confirm('Delete this artwork? This cannot be undone.')) return;
+      try {
+        const response = await fetch(`/art/${encodeURIComponent(artworkId)}/delete`, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+          credentials: 'same-origin'
+        });
+        if (response.status === 401) {
+          window.location.assign('/login');
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || 'We could not delete that post.');
+        }
+        document
+          .querySelectorAll(`[data-explore-card][data-artwork-id="${CSS.escape(String(artworkId))}"]`)
+          .forEach((card) => card.remove());
+        showPinToast('Artwork deleted.', 'success');
+      } catch (error) {
+        showPinToast(error.message || 'We could not delete that post.', 'error');
+      }
+    }
+  });
+};
+
 const bindArtworkDetailGallery = () => {
   const gallery = document.querySelector('[data-gallery]');
   if (!gallery) return;
@@ -5496,6 +6423,11 @@ const initPage = () => {
   bindArtworkComments();
   bindArtworkDetailGallery();
   bindArtworkLightbox();
+  bindArtworkReactions();
+  bindNotificationBell();
+  bindMentionAutocomplete();
+  bindSocialPostMenu();
+  applyHiddenPosts();
   bindScrollReveal();
 
   const heroArtwork = document.querySelector('[data-home-feature-image]');

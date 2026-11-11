@@ -1,0 +1,36 @@
+<%
+  const menuIsOwner = typeof isOwner !== 'undefined'
+    ? Boolean(isOwner)
+    : (typeof currentUser !== 'undefined' && currentUser && Number(currentUser.id) === Number(artwork.user_id));
+  const menuPostKey = typeof postKey !== 'undefined' ? postKey : `artwork-${artwork.id}`;
+  const menuShareText = `${artwork.title} by ${artwork.display_name || artwork.username} on ArtSpace`;
+%>
+<div class="social-post-menu" data-post-menu hidden role="menu" aria-label="Post options">
+  <button type="button" class="social-post-menu-item" role="menuitem" data-post-copy data-artwork-id="<%= artwork.id %>">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7.1 0l2.4-2.4a5 5 0 0 0-7.1-7.1L11 5.9" /><path d="M14 10a5 5 0 0 0-7.1 0L4.5 12.4a5 5 0 0 0 7.1 7.1L13 18.1" /></svg>
+    <span>Copy link</span>
+  </button>
+  <button type="button" class="social-post-menu-item" role="menuitem" data-share-artwork data-share-title="<%= artwork.title %>" data-share-text="<%= menuShareText %>" data-share-url="/art/<%= artwork.id %>" data-share-id="<%= artwork.id %>" data-share-image="<%= artwork.thumbnail_url || artwork.image_url %>" data-share-artist="<%= artwork.display_name || artwork.username %>" data-share-category="<%= artwork.category_name || '' %>">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.4" /><circle cx="17.5" cy="5.5" r="2.4" /><circle cx="17.5" cy="18.5" r="2.4" /><path d="M8.3 10.9l7-4.2M8.3 13.1l7 4.2" /></svg>
+    <span>Share</span>
+  </button>
+  <% if (menuIsOwner) { %>
+    <a class="social-post-menu-item" role="menuitem" href="/art/<%= artwork.id %>/edit" data-no-viewer>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17l-1 3Z" /><path d="M13.5 7.5l3 3" /></svg>
+      <span>Edit post</span>
+    </a>
+    <button type="button" class="social-post-menu-item is-danger" role="menuitem" data-post-delete data-artwork-id="<%= artwork.id %>">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13" /></svg>
+      <span>Delete post</span>
+    </button>
+  <% } else if (typeof currentUser !== 'undefined' && currentUser) { %>
+    <button type="button" class="social-post-menu-item" role="menuitem" data-post-report data-artwork-id="<%= artwork.id %>">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M6 5c2.5-1.3 4.5-1 7 .8 2.4 1.7 4.3 1.9 5.6.8l-1.4 5 1.4 5c-1.3 1-3.2.8-5.6-.9-2.5-1.8-4.5-2-7-.8" /></svg>
+      <span>Report</span>
+    </button>
+  <% } %>
+  <button type="button" class="social-post-menu-item" role="menuitem" data-post-hide data-post-key="<%= menuPostKey %>">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c2.7-4 5.7-6 9-6s6.3 2 9 6c-2.7 4-5.7 6-9 6s-6.3-2-9-6Z" /><path d="m5 5 14 14" /></svg>
+    <span>Hide post</span>
+  </button>
+</div>

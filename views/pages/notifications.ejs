@@ -1,11 +1,14 @@
 <%- include('../partials/header') %>
 
 <%
-  const typeLabels = { like: 'Like', comment: 'Comment', comment_like: 'Comment like', follow: 'Follow' };
+  const typeLabels = { like: 'Like', comment: 'Comment', reply: 'Reply', comment_like: 'Comment like', mention: 'Mention', share: 'Share', follow: 'Follow' };
   const typeActions = {
-    like: 'liked your artwork',
+    like: 'reacted to your artwork',
     comment: 'commented on your artwork',
+    reply: 'replied to your comment',
     comment_like: 'liked your comment',
+    mention: 'mentioned you',
+    share: 'shared your artwork',
     follow: 'started following you'
   };
 %>
@@ -29,8 +32,9 @@
           <% const type = typeLabels[item.type] ? item.type : 'update'; %>
           <a
             href="<%= item.link || '/explore' %>"
-            class="notification-item<%= item.is_unread ? ' is-unread' : '' %>"
+            class="notification-item<%= item.is_read ? '' : ' is-unread' %>"
             data-type="<%= type %>"
+            data-notification-id="<%= item.id %>"
           >
             <span class="notification-avatar">
               <img
@@ -52,7 +56,7 @@
                 <span class="notification-artwork" data-i18n-skip>“<%= item.artwork_title %>”</span>
               <% } %>
 
-              <% if ((item.type === 'comment' || item.type === 'comment_like') && item.message) { %>
+              <% if (['comment', 'reply', 'comment_like', 'mention', 'share'].includes(item.type) && item.message) { %>
                 <span class="notification-comment" data-i18n-skip>“<%= item.message %>”</span>
               <% } %>
 

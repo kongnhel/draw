@@ -147,7 +147,7 @@
         </div>
 
         <div class="ad-description-wrap">
-          <p class="ad-description<%= descriptionIsLong ? ' is-clamped' : '' %>" data-description data-i18n-skip><%= descriptionText || 'The artist left this piece without words — let the lines speak for themselves.' %></p>
+          <p class="ad-description<%= descriptionIsLong ? ' is-clamped' : '' %>" data-description data-i18n-skip><%- descriptionText ? mentionify(descriptionText) : 'The artist left this piece without words — let the lines speak for themselves.' %></p>
           <% if (descriptionIsLong) { %>
             <button type="button" class="ad-description-toggle" data-description-toggle aria-expanded="false">Read more</button>
           <% } %>
@@ -175,14 +175,37 @@
           </p>
         <% } %>
 
+        <%
+          const reactionEmojis = { like: '👍', love: '❤️', care: '🥰', haha: '😂', wow: '😮', sad: '😢' };
+          const reactionNames = { like: 'Like', love: 'Love', care: 'Care', haha: 'Haha', wow: 'Wow', sad: 'Sad' };
+          const viewerReaction = artwork.viewer_reaction && reactionNames[artwork.viewer_reaction] ? artwork.viewer_reaction : '';
+          const viewerReactionName = viewerReaction ? reactionNames[viewerReaction] : 'Like';
+          const reactionCounts = reactionSummary && reactionSummary.counts ? reactionSummary.counts : {};
+          const popularReactions = Object.keys(reactionCounts)
+            .filter((type) => reactionCounts[type] > 0)
+            .sort((left, right) => reactionCounts[right] - reactionCounts[left])
+            .slice(0, 3);
+        %>
+
         <div class="ad-reaction-bar" role="group" aria-label="Artwork reactions">
-          <form method="POST" action="/art/<%= artwork.id %>/like" class="ad-reaction-form">
-            <button type="submit" class="ad-reaction ad-reaction-like<%= artwork.is_liked ? ' active' : '' %>" aria-pressed="<%= artwork.is_liked ? 'true' : 'false' %>" aria-label="<%= artwork.is_liked ? 'Unlike' : 'Like' %> this artwork">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
-              <span class="ad-reaction-label" data-action-label><%= artwork.is_liked ? 'Unlike' : 'Like' %></span>
-              <span class="ad-reaction-count" data-detail-likes-count><%= artwork.likes_count || 0 %></span>
-            </button>
-          </form>
+          <div class="ad-reaction-wrap" data-reaction-picker>
+            <form method="POST" action="/art/<%= artwork.id %>/like" class="ad-reaction-form" data-reaction-form data-current-reaction="<%= viewerReaction %>">
+              <button type="button" class="ad-reaction ad-reaction-like<%= viewerReaction ? ' active' : '' %> ad-reaction-<%= viewerReaction || 'like' %>" data-reaction-button aria-pressed="<%= viewerReaction ? 'true' : 'false' %>" aria-haspopup="menu" aria-label="<%= viewerReaction ? 'Change or remove your reaction' : 'React to this artwork' %>">
+                <span class="ad-reaction-emoji" data-reaction-emoji aria-hidden="true"><%= reactionEmojis[viewerReaction || 'like'] %></span>
+                <span class="ad-reaction-label" data-action-label><%= viewerReactionName %></span>
+                <span class="ad-reaction-count" data-detail-likes-count data-likers-open role="button" tabindex="0" aria-label="See who reacted"><%= artwork.likes_count || 0 %></span>
+              </button>
+            </form>
+
+            <div class="ad-reaction-picker" data-reaction-picker-menu hidden role="menu" aria-label="Choose a reaction">
+              <% ['like', 'love', 'care', 'haha', 'wow', 'sad'].forEach((type) => { %>
+                <button type="button" class="ad-reaction-choice<%= viewerReaction === type ? ' is-active' : '' %>" data-reaction-choice="<%= type %>" role="menuitem" aria-label="<%= reactionNames[type] %>" title="<%= reactionNames[type] %>">
+                  <span class="ad-reaction-choice-emoji"><%= reactionEmojis[type] %></span>
+                  <span class="ad-reaction-choice-label"><%= reactionNames[type] %></span>
+                </button>
+              <% }) %>
+            </div>
+          </div>
 
           <a class="ad-reaction" href="#ad-comments">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 21l1.7-4.7A8.4 8.4 0 0 1 3.5 12 8.5 8.5 0 0 1 12 3.5 8.5 8.5 0 0 1 21 12Z" /></svg>
@@ -203,6 +226,15 @@
             <span class="ad-reaction-count" data-shares-count><%= totalShares %></span>
           </button>
         </div>
+
+        <p class="ad-reaction-summary" data-reaction-summary aria-live="polite">
+          <span class="ad-reaction-summary-emojis" data-reaction-summary-emojis>
+            <% popularReactions.forEach((type) => { %><%= reactionEmojis[type] %><% }) %>
+          </span>
+          <span data-reaction-summary-count><%= artwork.likes_count || 0 %></span>
+          <span data-reaction-summary-label><%= Number(artwork.likes_count || 0) === 1 ? 'reaction' : 'reactions' %></span>
+          <button type="button" class="ad-reaction-summary-link" data-likers-open>See who reacted</button>
+        </p>
 
         <div class="ad-toolbar ad-toolbar-secondary" role="group" aria-label="More artwork actions">
           <% if (isOwner) { %>
@@ -308,7 +340,7 @@
         <img class="ad-composer-avatar" src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" />
         <div class="ad-composer-field">
           <label class="ad-comment-label" for="ad-comment-body">Leave a thoughtful note</label>
-          <textarea id="ad-comment-body" name="body" placeholder="What does this piece make you feel?" maxlength="2000" required data-comment-input></textarea>
+          <textarea id="ad-comment-body" name="body" placeholder="What does this piece make you feel? Mention @someone…" maxlength="2000" required data-comment-input data-mention-input></textarea>
           <div class="ad-composer-foot">
             <span class="ad-comment-char" data-comment-char>0 / 2000</span>
             <button type="submit" class="ad-post-btn">
@@ -325,7 +357,7 @@
     <div class="comment-list ad-comment-list" data-comment-list data-page-size="<%= commentPageSize %>">
       <% if (comments && comments.length) { %>
         <% comments.forEach((comment) => { %>
-          <%- include('../partials/artwork-comment', { comment, artwork, currentUser: (typeof currentUser !== 'undefined' ? currentUser : null), isAuthenticated, depth: 0 }) %>
+          <%- include('../partials/artwork-comment', { comment, artwork, currentUser: (typeof currentUser !== 'undefined' ? currentUser : null), isAuthenticated, depth: 0, mentionify }) %>
         <% }) %>
       <% } else { %>
         <div class="empty-state ad-comments-empty" data-comments-empty>
@@ -373,71 +405,21 @@
 
 </div>
 
-<dialog class="ad-share-dialog" data-share-dialog aria-labelledby="ad-share-title">
-  <div class="ad-share-card">
-    <header class="ad-share-head">
+<dialog class="ad-likers-dialog" data-likers-dialog aria-labelledby="ad-likers-title">
+  <div class="ad-likers-card">
+    <header class="ad-likers-head">
       <div>
-        <span class="ad-share-kicker">Pass the page along</span>
-        <h2 id="ad-share-title">Share this artwork</h2>
+        <span class="ad-share-kicker">The audience</span>
+        <h2 id="ad-likers-title">Reactions</h2>
       </div>
-      <button type="button" class="ad-share-close" data-share-close aria-label="Close share dialog">
+      <button type="button" class="ad-share-close" data-likers-close aria-label="Close reactions list">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
       </button>
     </header>
-
-    <div class="ad-share-preview">
-      <img data-share-preview-image src="/images/default-artwork.svg" alt="" loading="lazy" />
-      <div class="ad-share-preview-copy">
-        <span data-share-preview-category>Artwork</span>
-        <strong data-share-preview-title>Artwork title</strong>
-        <small data-share-preview-artist>by ArtSpace artist</small>
-      </div>
-    </div>
-
-    <div class="ad-share-grid" data-share-platforms>
-      <button type="button" class="ad-share-platform" data-share-platform="telegram">
-        <span class="ad-share-icon is-telegram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.8 4.3 2.9 11.6c-.9.4-.9 1.6.1 1.8l4.7 1 1.8 5.6c.2.7 1.1.9 1.6.3l2.5-2.9 4.8 3.5c.6.4 1.5.1 1.6-.6l3.1-14.7c.2-.8-.6-1.5-1.3-1.3Z" /><path d="m8.4 14.2 9-5.6-6.8 7.3" /></svg></span>
-        <span>Telegram</span>
-      </button>
-      <button type="button" class="ad-share-platform" data-share-platform="facebook">
-        <span class="ad-share-icon is-facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8.5V7c0-.8.4-1.2 1.3-1.2H17V3h-2.4c-2.4 0-3.6 1.3-3.6 3.6v1.9H9V12h2v9h3v-9h2.4l.5-3.5H14Z" /></svg></span>
-        <span>Facebook</span>
-      </button>
-      <button type="button" class="ad-share-platform" data-share-platform="messenger">
-        <span class="ad-share-icon is-messenger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5C6.4 2.5 2 6.6 2 11.9c0 3 1.4 5.7 3.7 7.5V22l3.2-1.8c1 .3 2 .4 3.1.4 5.6 0 10-4.1 10-9.4S17.6 2.5 12 2.5Z" /><path d="m6.4 14.8 4.6-4.9 2.7 2.4 4.5-2.4-4.6 4.9-2.7-2.4-4.5 2.4Z" /></svg></span>
-        <span>Messenger</span>
-      </button>
-      <button type="button" class="ad-share-platform" data-share-platform="whatsapp">
-        <span class="ad-share-icon is-whatsapp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2a8.7 8.7 0 0 0-7.4 13.2L3.3 21l4.8-1.3A8.7 8.7 0 1 0 12 3.2Z" /><path d="M8.6 7.8c.2-.4.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.3 0 .5-.2.7l-.5.6c-.2.2-.2.4-.1.6.5 1 1.6 2.2 2.8 2.7.2.1.4.1.6-.1l.6-.6c.2-.2.4-.3.7-.2l1.6.8c.3.1.4.3.4.6 0 .9-.7 1.7-1.5 1.9-.7.2-1.6.1-2.8-.5a10.3 10.3 0 0 1-3.9-3.8c-.6-1-.7-1.9-.5-2.6.2-.6.4-1 .4-1Z" /></svg></span>
-        <span>WhatsApp</span>
-      </button>
-      <button type="button" class="ad-share-platform" data-share-platform="x">
-        <span class="ad-share-icon is-x"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.5h4.6l4.3 6 5-6H21l-6.5 7.6L21.5 20.5H17l-4.7-6.6-5.5 6.6H3.5l7-8.2L4 3.5Z" /></svg></span>
-        <span>X</span>
-      </button>
-      <button type="button" class="ad-share-platform" data-share-platform="linkedin">
-        <span class="ad-share-icon is-linkedin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 8.5A2 2 0 1 0 5.4 4.5a2 2 0 0 0 0 4ZM3.8 10h3.2v10H3.8V10Zm5.1 0H12v1.4c.5-.9 1.7-1.7 3.4-1.7 2.7 0 4.1 1.7 4.1 4.7V20h-3.2v-5.2c0-1.5-.5-2.4-1.8-2.4-1.1 0-1.7.7-2 1.4-.1.2-.1.6-.1.9V20H8.9V10Z" /></svg></span>
-        <span>LinkedIn</span>
-      </button>
-      <button type="button" class="ad-share-platform" data-share-platform="email">
-        <span class="ad-share-icon is-email"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="m4 7 8 6 8-6" /></svg></span>
-        <span>Email</span>
-      </button>
-      <button type="button" class="ad-share-platform ad-share-platform--copy" data-share-copy>
-        <span class="ad-share-icon is-copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2" /></svg></span>
-        <span data-share-copy-label>Copy link</span>
-      </button>
-    </div>
-
-    <div class="ad-share-link-row">
-      <input type="text" readonly data-share-url-input aria-label="Artwork share link" />
-      <button type="button" class="ad-share-native" data-share-native>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" /></svg>
-        <span>Share with device</span>
-      </button>
-    </div>
-
-    <p class="ad-share-note" data-share-note role="status" aria-live="polite"></p>
+    <div class="ad-likers-summary" data-likers-summary></div>
+    <div class="ad-likers-list" data-likers-list></div>
+    <p class="ad-likers-empty" data-likers-empty hidden>No reactions yet. Be the first.</p>
+    <p class="ad-likers-note" data-likers-note hidden role="status"></p>
   </div>
 </dialog>
 

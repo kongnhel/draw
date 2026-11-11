@@ -228,6 +228,21 @@ const schemaStatements = [
     CONSTRAINT fk_notifications_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+  `CREATE TABLE IF NOT EXISTS mentions (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    mentioned_by INT UNSIGNED NOT NULL,
+    mentioned_user_id INT UNSIGNED NOT NULL,
+    mentionable_type VARCHAR(16) NOT NULL,
+    mentionable_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_mentions_target (mentioned_by, mentioned_user_id, mentionable_type, mentionable_id),
+    KEY idx_mentions_user (mentioned_user_id, created_at),
+    KEY idx_mentions_mentionable (mentionable_type, mentionable_id),
+    CONSTRAINT fk_mentions_author FOREIGN KEY (mentioned_by) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_mentions_user FOREIGN KEY (mentioned_user_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
   `CREATE TABLE IF NOT EXISTS reports (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     artwork_id INT UNSIGNED NOT NULL,
@@ -392,6 +407,36 @@ async function ensureArtworkImageColumns(targetPool) {
   );
 }
 
+async function ensureSocialColumns(targetPool) {
+  const addColumn = async (table, column, definition) => {
+    const [columns] = await targetPool.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+      [table]
+    );
+    const names = new Set(columns.map((row) => row.COLUMN_NAME));
+    if (!names.has(column)) {
+      await targetPool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  };
+
+  await addColumn('likes', 'reaction_type', "VARCHAR(16) NOT NULL DEFAULT 'like'");
+  await addColumn('artwork_shares', 'message', 'VARCHAR(500) DEFAULT NULL');
+  await addColumn('notifications', 'comment_id', 'INT UNSIGNED DEFAULT NULL');
+
+  const [indexes] = await targetPool.query(
+    `SELECT INDEX_NAME FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications'`
+  );
+  const indexNames = new Set(indexes.map((row) => row.INDEX_NAME));
+  if (!indexNames.has('idx_notifications_comment')) {
+    await targetPool.query('ALTER TABLE notifications ADD INDEX idx_notifications_comment (comment_id)');
+  }
+
+  // Backfill legacy rows written before reactions existed.
+  await targetPool.query("UPDATE likes SET reaction_type = 'like' WHERE reaction_type IS NULL OR reaction_type = ''");
+}
+
 async function initializeSchema(targetPool) {
   for (const statement of schemaStatements) {
     await targetPool.query(statement);
@@ -399,6 +444,7 @@ async function initializeSchema(targetPool) {
   await ensureUserProfileColumns(targetPool);
   await ensureCommentColumns(targetPool);
   await ensureArtworkImageColumns(targetPool);
+  await ensureSocialColumns(targetPool);
 }
 
 async function initPool() {

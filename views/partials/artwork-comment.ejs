@@ -9,8 +9,12 @@
   const commentIsEdited = comment.is_edited === true || Number(comment.is_edited) === 1;
   const commentIsLiked = comment.is_liked === true || Number(comment.is_liked) === 1;
   const commentReplies = Array.isArray(comment.replies) ? comment.replies : [];
+  const bodyFormatter = typeof mentionify === 'function' ? mentionify : (value) => String(value == null ? '' : value)
+    .replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+  const countReplies = (nodes) => nodes.reduce((total, node) => total + 1 + countReplies(Array.isArray(node.replies) ? node.replies : []), 0);
+  const replyTotal = countReplies(commentReplies);
 %>
-<article class="ad-comment" data-comment-id="<%= comment.id %>" data-comment-depth="<%= commentDepth %>">
+<article class="ad-comment" id="comment-<%= comment.id %>" data-comment-id="<%= comment.id %>" data-comment-depth="<%= commentDepth %>">
   <img
     class="ad-comment-avatar"
     src="<%= comment.avatar || '/images/default-avatar.svg' %>"
@@ -31,10 +35,10 @@
         <time class="ad-comment-date" datetime="<%= comment.created_at %>"><%= comment.created_at_label || 'Just now' %></time>
         <span class="ad-comment-edited" data-comment-edited<%= commentIsEdited ? '' : ' hidden' %>>edited</span>
       </header>
-      <p class="ad-comment-text" data-comment-text data-i18n-skip><%= comment.body %></p>
+      <p class="ad-comment-text" data-comment-text data-i18n-skip><%- bodyFormatter(comment.body) %></p>
       <% if (commentCanEdit) { %>
-        <form class="ad-comment-edit-form" data-comment-edit-form hidden>
-          <textarea name="body" rows="3" maxlength="2000" aria-label="Edit your comment"><%= comment.body %></textarea>
+        <form class="ad-comment-edit-form" data-comment-edit-form data-comment-id="<%= comment.id %>" hidden>
+          <textarea name="body" rows="3" maxlength="2000" aria-label="Edit your comment" data-mention-input><%= comment.body %></textarea>
           <div class="ad-comment-form-actions">
             <button type="submit" class="ad-comment-save">Save changes</button>
             <button type="button" class="ad-comment-cancel" data-comment-edit-cancel>Cancel</button>
@@ -59,6 +63,12 @@
         <button type="button" class="ad-comment-action" data-comment-reply-toggle aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 10 4 15l5 5" /><path d="M4 15h9a7 7 0 0 0 7-7V6" /></svg>
           Reply
+        </button>
+      <% } %>
+      <% if (replyTotal > 0) { %>
+        <button type="button" class="ad-comment-action ad-comment-replies-count" data-replies-toggle aria-expanded="<%= replyTotal > 2 ? 'false' : 'true' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 21l1.7-4.7A8.4 8.4 0 0 1 3.5 12 8.5 8.5 0 0 1 12 3.5 8.5 8.5 0 0 1 21 12Z" /></svg>
+          <span data-replies-label><%= replyTotal === 1 ? '1 reply' : `${replyTotal} replies` %></span>
         </button>
       <% } %>
       <% if (commentCanEdit) { %>
@@ -86,7 +96,8 @@
           decoding="async"
         />
         <div class="ad-reply-field">
-          <textarea name="body" rows="2" maxlength="2000" placeholder="Reply to <%= comment.display_name || comment.username %>…" aria-label="Reply to <%= comment.display_name || comment.username %>"></textarea>
+          <p class="ad-reply-to">Replying to <a href="/profile/<%= comment.username %>" data-i18n-skip>@<%= comment.username %></a></p>
+          <textarea name="body" rows="2" maxlength="2000" placeholder="Reply to <%= comment.display_name || comment.username %>…" aria-label="Reply to <%= comment.display_name || comment.username %>" data-mention-input></textarea>
           <div class="ad-comment-form-actions">
             <button type="submit" class="ad-comment-save">Post reply</button>
             <button type="button" class="ad-comment-cancel" data-reply-cancel>Cancel</button>
@@ -96,17 +107,25 @@
     <% } %>
 
     <% if (commentReplies.length) { %>
-      <div class="ad-comment-replies">
-        <% commentReplies.forEach((reply) => { %>
-          <%- include('./artwork-comment', {
-            comment: reply,
-            artwork,
-            currentUser: viewer,
-            isAuthenticated: Boolean(viewer),
-            depth: commentDepth + 1
-          }) %>
+      <div class="ad-comment-replies<%= replyTotal > 2 ? ' is-collapsed' : '' %>" data-comment-replies>
+        <% commentReplies.forEach((reply, replyIndex) => { %>
+          <div class="ad-reply-slot<%= replyTotal > 2 && replyIndex >= 2 ? ' is-extra-reply' : '' %>" data-reply-slot="<%= replyIndex %>">
+            <%- include('./artwork-comment', {
+              comment: reply,
+              artwork,
+              currentUser: viewer,
+              isAuthenticated: Boolean(viewer),
+              depth: commentDepth + 1,
+              mentionify: bodyFormatter
+            }) %>
+          </div>
         <% }) %>
       </div>
+      <% if (replyTotal > 2) { %>
+        <button type="button" class="ad-replies-toggle" data-replies-toggle aria-expanded="false">
+          <span data-replies-label>View <%= replyTotal %> replies</span>
+        </button>
+      <% } %>
     <% } %>
   </div>
 </article>
