@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SUPPORTED = ['km', 'en'];
-const DEFAULT_LOCALE = 'km';
+const DEFAULT_LOCALE = 'en';
 const LOCALE_COOKIE = 'artspace-locale';
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000;
 

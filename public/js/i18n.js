@@ -2,7 +2,7 @@
   'use strict';
 
   const root = document.documentElement;
-  const locale = root.getAttribute('lang') || 'km';
+  const locale = root.getAttribute('lang') || 'en';
   const dictionaryNode = document.querySelector('[data-i18n-km]');
   const FORM_STATE_KEY = 'artspace-form-state-v1';
 

@@ -1977,7 +1977,7 @@ app.post('/register', async (req, res, next) => {
     const result = await db.execute(
       `INSERT INTO users (username, email, password, name, locale, role, status)
        VALUES (?, ?, ?, ?, ?, 'artist', 'active')`,
-      [username, email, passwordHash, displayName, req.locale || 'km']
+      [username, email, passwordHash, displayName, req.locale || i18n.DEFAULT_LOCALE]
     );
 
     req.session.user = {
@@ -1987,7 +1987,7 @@ app.post('/register', async (req, res, next) => {
       display_name: displayName,
       avatar: null,
       role: 'artist',
-      locale: req.locale || 'km'
+      locale: req.locale || i18n.DEFAULT_LOCALE
     };
     i18n.setLocaleCookie(res, req.session.user.locale);
     res.redirect('/');
@@ -2040,7 +2040,7 @@ app.post('/login', async (req, res, next) => {
       display_name: user.name || user.username,
       avatar: user.avatar || null,
       role: user.role,
-      locale: i18n.SUPPORTED.includes(user.locale) ? user.locale : 'km'
+      locale: i18n.SUPPORTED.includes(user.locale) ? user.locale : i18n.DEFAULT_LOCALE
     };
     i18n.setLocaleCookie(res, req.session.user.locale);
     res.redirect('/');

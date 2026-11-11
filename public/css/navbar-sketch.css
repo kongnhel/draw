@@ -1089,11 +1089,12 @@ body.nav-open {
 }
 
 
-/* Compact desktop navbar: five links plus search must fit on mid-size screens */
-@media (max-width: 1440px) and (min-width: 1081px) {
+/* Mid-size desktop navbar: fold the search into a toggle so the links breathe */
+@media (min-width: 1081px) {
   .topbar .nav-wrap {
-    grid-template-columns: auto minmax(0, 1fr) minmax(140px, 200px) auto;
-    gap: 10px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand links actions";
+    gap: 12px;
   }
 
   .topbar .nav-links {
@@ -1105,36 +1106,60 @@ body.nav-open {
   }
 
   .topbar .nav-link-group a {
-    padding-inline: 8px;
-    font-size: 1.08rem;
+    padding-inline: 13px;
+    font-size: 1.45rem;
   }
 
   .topbar .nav-link-group a::after {
-    right: 6px;
-    left: 6px;
+    right: 7px;
+    left: 7px;
   }
 
   .topbar .brand-word {
-    font-size: 1.6rem;
+    font-size: 1.66rem;
   }
 
   .topbar .profile-chip-name {
     display: none;
   }
+
+  .topbar .nav-search {
+    display: none;
+  }
+
+  .topbar .nav-search-toggle {
+    display: grid;
+  }
+
+  .topbar.is-search-open .nav-search {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 2px;
+    margin-bottom: 4px;
+  }
 }
 
-/* Khmer labels are wider than English — tighten a little more */
-@media (max-width: 1440px) and (min-width: 1081px) {
+/* Slightly tighter English nav on the smallest desktop widths */
+@media (min-width: 1081px) and (max-width: 1240px) {
+  .topbar .nav-link-group a {
+    padding-inline: 9px;
+    font-size: 1.28rem;
+  }
+}
+
+/* Khmer labels are wider than English */
+@media (min-width: 1081px) {
   body[data-locale='km'] .topbar .nav-link-group a {
-    padding-inline: 6px;
-    font-size: 1.02rem;
+    padding-inline: 8px;
+    font-size: 1.08rem;
   }
 
   body[data-locale='km'] .topbar .brand-word {
-    font-size: 1.52rem;
+    font-size: 1.56rem;
   }
 
   body[data-locale='km'] .topbar .nav-wrap {
-    gap: 8px;
+    gap: 10px;
   }
 }
