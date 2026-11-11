@@ -66,6 +66,7 @@
 
     <div class="nb-art-actions" aria-label="Artwork actions">
       <form method="POST" action="/art/<%= artwork.id %>/like">
+          <input type="hidden" name="reaction" value="like" />
         <button type="submit" class="nb-action nb-action-like<%= artwork.is_liked ? ' active' : '' %>" aria-label="<%= artwork.is_liked ? 'Unlike' : 'Like' %> this artwork" aria-pressed="<%= artwork.is_liked ? 'true' : 'false' %>">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.8a5.4 5.4 0 0 0-7.7 0L12 7l-1.1-1.2a5.4 5.4 0 1 0-7.7 7.7L12 22l8.8-8.5a5.4 5.4 0 0 0 0-7.7Z" /></svg>
           <span class="sr-only" data-action-label><%= artwork.is_liked ? 'Unlike' : 'Like' %></span>

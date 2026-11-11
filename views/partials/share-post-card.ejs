@@ -42,6 +42,7 @@
 
   <div class="social-post-actions" role="group" aria-label="Post actions">
     <form method="POST" action="/art/<%= shareArtwork.id %>/like" class="social-post-action-form">
+          <input type="hidden" name="reaction" value="like" />
       <button type="submit" class="social-post-action<%= shareArtwork.is_liked ? ' is-active' : '' %>" aria-pressed="<%= shareArtwork.is_liked ? 'true' : 'false' %>">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
         <span>Like</span>

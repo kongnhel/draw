@@ -44,6 +44,7 @@
 
     <div class="card-actions">
       <form method="POST" action="/art/<%= artwork.id %>/like">
+          <input type="hidden" name="reaction" value="like" />
         <button type="submit" class="action-btn <%= artwork.is_liked ? 'active' : '' %>">
           <%= artwork.is_liked ? 'Unlike' : 'Like' %>
         </button>

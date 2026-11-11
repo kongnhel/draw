@@ -77,6 +77,7 @@
 
       <div class="pf-art-actions">
         <form method="POST" action="/art/<%= artwork.id %>/like" class="pf-art-action-form">
+          <input type="hidden" name="reaction" value="like" />
           <button
             type="submit"
             class="pf-art-action pf-art-like <%= artwork.is_liked ? 'active' : '' %>"

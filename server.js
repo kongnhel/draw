@@ -1181,6 +1181,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
+// Express 5 leaves req.body undefined when a request has no parsed body.
+// Normalize it so route handlers can safely read fields from any POST.
+app.use((req, res, next) => {
+  if (req.body === undefined || req.body === null) req.body = {};
+  next();
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'artspace-dev-secret',
   store: new MySQLSessionStore(),
@@ -2478,7 +2485,7 @@ app.post('/art/:id/like', requireAuth, async (req, res, next) => {
 
     const userId = Number(req.session.user.id);
     const artworkOwnerId = Number(artworks[0].user_id);
-    const reaction = normalizeReaction(req.body.reaction || req.query.reaction);
+    const reaction = normalizeReaction((req.body && req.body.reaction) || req.query.reaction);
 
     const existing = await db.execute(
       'SELECT id, reaction_type FROM likes WHERE user_id = ? AND artwork_id = ? LIMIT 1',
@@ -3115,7 +3122,7 @@ app.post('/art/:id/share', async (req, res, next) => {
       return;
     }
 
-    const requested = String(req.body.platform || '').toLowerCase();
+    const requested = String((req.body && req.body.platform) || '').toLowerCase();
     const allowedPlatforms = new Set(['internal', 'copy', 'telegram', 'facebook', 'messenger', 'whatsapp', 'x', 'linkedin', 'email', 'native', 'other']);
     const platform = allowedPlatforms.has(requested) ? requested : 'other';
     const userId = (req.session && req.session.user && req.session.user.id) || null;
@@ -3126,7 +3133,7 @@ app.post('/art/:id/share', async (req, res, next) => {
     }
 
     const message = platform === 'internal'
-      ? String(req.body.message || '').replace(/\r\n/g, '\n').trim().slice(0, 500)
+      ? String((req.body && req.body.message) || '').replace(/\r\n/g, '\n').trim().slice(0, 500)
       : null;
 
     const result = await db.execute(
