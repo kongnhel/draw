@@ -1,0 +1,113 @@
+<%- include('../partials/header') %>
+
+<%
+  const communityQuery = typeof query !== 'undefined' ? query : '';
+  const communitySort = typeof sort !== 'undefined' ? sort : 'latest';
+  const communityScope = typeof scope !== 'undefined' ? scope : 'all';
+  const isFollowingScope = communityScope === 'following';
+  const nextCommunityUrl = `/community?sort=${encodeURIComponent(communitySort)}&scope=${encodeURIComponent(communityScope)}${communityQuery ? `&q=${encodeURIComponent(communityQuery)}` : ''}&page=${pagination.nextPage}`;
+%>
+
+<div class="community-page" data-community-page>
+  <header class="community-hero">
+    <span class="community-kicker">The shared sketchbook <i>/</i> community wall</span>
+    <div class="community-hero-row">
+      <div>
+        <h1>Community</h1>
+        <p>Artwork shared by artists and collectors around ArtSpace. Discover what the community is passing along.</p>
+      </div>
+      <a class="community-hero-link" href="/explore">
+        Explore original artwork
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+      </a>
+    </div>
+  </header>
+
+  <div class="community-toolbar">
+    <nav class="community-scope" aria-label="Community feed scope">
+      <a class="community-scope-link<%= communityScope === 'all' ? ' is-active' : '' %>" href="/community?sort=<%= encodeURIComponent(communitySort) %>&scope=all<%= communityQuery ? `&q=${encodeURIComponent(communityQuery)}` : '' %>"<%= communityScope === 'all' ? ' aria-current="page"' : '' %>>All Community</a>
+      <% if (isAuthenticated) { %>
+        <a class="community-scope-link<%= isFollowingScope ? ' is-active' : '' %>" href="/community?sort=<%= encodeURIComponent(communitySort) %>&scope=following<%= communityQuery ? `&q=${encodeURIComponent(communityQuery)}` : '' %>"<%= isFollowingScope ? ' aria-current="page"' : '' %>>Following</a>
+      <% } %>
+    </nav>
+
+    <div class="community-toolbar-right">
+      <div class="community-sort" role="group" aria-label="Sort community posts">
+        <a class="community-sort-link<%= communitySort === 'latest' ? ' is-active' : '' %>" href="/community?sort=latest&scope=<%= encodeURIComponent(communityScope) %><%= communityQuery ? `&q=${encodeURIComponent(communityQuery)}` : '' %>"<%= communitySort === 'latest' ? ' aria-current="page"' : '' %>>Latest</a>
+        <a class="community-sort-link<%= communitySort === 'popular' ? ' is-active' : '' %>" href="/community?sort=popular&scope=<%= encodeURIComponent(communityScope) %><%= communityQuery ? `&q=${encodeURIComponent(communityQuery)}` : '' %>"<%= communitySort === 'popular' ? ' aria-current="page"' : '' %>>Popular</a>
+      </div>
+
+      <form class="community-search" action="/community" method="GET" role="search">
+        <input type="hidden" name="sort" value="<%= communitySort %>" />
+        <input type="hidden" name="scope" value="<%= communityScope %>" />
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" /><path d="m15.6 15.6 4.4 4.4" /></svg>
+        <input type="search" name="q" value="<%= communityQuery %>" placeholder="Search community shares..." aria-label="Search community shares" />
+      </form>
+    </div>
+  </div>
+
+  <div class="community-results" data-community-results data-page="<%= pagination.page %>" data-total="<%= pagination.total %>" data-has-more="<%= pagination.hasMore ? 'true' : 'false' %>">
+    <p class="community-results-meta" data-community-meta aria-live="polite">
+      <% if (communityQuery) { %>
+        <strong><%= pagination.total %></strong> <%= pagination.total === 1 ? 'share' : 'shares' %> matching &ldquo;<%= communityQuery %>&rdquo;
+      <% } else if (isFollowingScope) { %>
+        <strong><%= pagination.total %></strong> <%= pagination.total === 1 ? 'share' : 'shares' %> from artists you follow
+      <% } else { %>
+        Showing <strong><%= pagination.start %>&ndash;<%= pagination.end %></strong> of <strong><%= pagination.total %></strong> community shares
+      <% } %>
+    </p>
+
+    <div class="community-skeleton" data-community-skeleton hidden aria-hidden="true">
+      <% [1, 2, 3].forEach((index) => { %>
+        <span class="community-skeleton-card">
+          <i></i><b></b><b></b><span></span>
+        </span>
+      <% }) %>
+    </div>
+
+    <% if (posts.length) { %>
+      <div class="community-feed" data-community-feed>
+        <% posts.forEach((share) => { %>
+          <%- include('../partials/community-post', { share, viewerId: (isAuthenticated ? currentUser.id : 0), context: 'community' }) %>
+        <% }) %>
+      </div>
+
+      <% if (pagination.hasMore) { %>
+        <div class="community-more-wrap">
+          <button type="button" class="community-more" data-community-more data-next-url="<%= nextCommunityUrl %>">
+            <span>Load more community posts</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15m-5-5 5 5 5-5" /></svg>
+          </button>
+        </div>
+      <% } else if (pagination.total > pagination.pageSize) { %>
+        <p class="community-end-note"><span aria-hidden="true">✦</span> You have reached the end of the community wall. <span aria-hidden="true">✦</span></p>
+      <% } %>
+    <% } else { %>
+      <div class="community-empty">
+        <svg viewBox="0 0 220 160" aria-hidden="true">
+          <path d="M30 138c52-10 108-10 160 0" />
+          <path d="M52 34c38-4 82-4 120 0l-6 92c-36 4-74 4-110 0L52 34Z" />
+          <path d="M52 34l-4 92M58 50l108-1M58 120l104 1" />
+          <path d="M76 66c24-4 44-4 66 0M76 84c20-3 38-3 56 0M76 102c12-2 26-2 40 0" />
+          <path d="M180 108l20-24 8 7-19 26-9 4v-13Z" />
+        </svg>
+        <p class="community-empty-kicker">A quiet wall</p>
+        <% if (communityQuery) { %>
+          <h2>No shares match that search.</h2>
+          <p>Try another artist, a broader word, or head back to the whole community.</p>
+          <a class="community-empty-link" href="/community?sort=<%= encodeURIComponent(communitySort) %>&scope=<%= encodeURIComponent(communityScope) %>">Clear search</a>
+        <% } else if (isFollowingScope) { %>
+          <h2>No shares from the artists you follow yet.</h2>
+          <p>Follow a few more artists or browse the whole community wall.</p>
+          <a class="community-empty-link" href="/community?sort=<%= encodeURIComponent(communitySort) %>&scope=all">Browse all community</a>
+        <% } else { %>
+          <h2>No shared posts yet.</h2>
+          <p>When someone shares an artwork into the community, it will appear here.</p>
+          <a class="community-empty-link" href="/explore">Explore original artwork</a>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

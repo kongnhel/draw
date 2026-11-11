@@ -8,14 +8,18 @@
   const profileUrl = '/profile/' + profileUser.username;
   const numeral = (v) => Number(v || 0).toLocaleString('en-US');
   const pinnedItems = typeof pinnedArtworks !== 'undefined' && pinnedArtworks ? pinnedArtworks : [];
-  const portfolioItems = activeTab === 'liked'
-    ? likedArtworks
-    : activeTab === 'saved'
-      ? savedArtworks
-      : activeTab === 'pinned'
-        ? pinnedItems
-        : artworks;
-  const portfolioCount = activeTab === 'artworks' ? stats.totalArtworks : portfolioItems.length;
+  const sharedPosts = typeof profileShares !== 'undefined' && profileShares ? profileShares : [];
+  const sharedCount = typeof profileSharesTotal !== 'undefined' ? profileSharesTotal : sharedPosts.length;
+  const portfolioItems = activeTab === 'shared'
+    ? []
+    : activeTab === 'liked'
+      ? likedArtworks
+      : activeTab === 'saved'
+        ? savedArtworks
+        : activeTab === 'pinned'
+          ? pinnedItems
+          : artworks;
+  const portfolioCount = activeTab === 'artworks' ? stats.totalArtworks : (activeTab === 'shared' ? sharedCount : portfolioItems.length);
   const categoryMap = new Map();
   portfolioItems.forEach((artwork) => {
     const name = (artwork.category_name || 'Uncategorised').trim();
@@ -28,16 +32,20 @@
       ? 'Private clippings'
       : activeTab === 'pinned'
         ? 'Featured pinboard'
-        : 'The sketchbook';
+        : activeTab === 'shared'
+          ? 'The community wall'
+          : 'The sketchbook';
   const collectionTitle = activeTab === 'liked'
     ? 'Liked Artworks'
     : activeTab === 'saved'
       ? 'Saved Artworks'
       : activeTab === 'pinned'
         ? 'My Pinned Artwork'
-        : isOwner
-          ? 'My Art Collection'
-          : 'Art Collection';
+        : activeTab === 'shared'
+          ? 'Shared Artworks'
+          : isOwner
+            ? 'My Art Collection'
+            : 'Art Collection';
   const collectionBlurb = activeTab === 'liked'
     ? (isOwner
       ? 'Pieces that caught your eye, pinned here for another look.'
@@ -46,39 +54,53 @@
       ? 'Pages saved for quiet inspiration, tucked away until you need them.'
       : activeTab === 'pinned'
         ? 'Your favourite pages, pinned to the top of the community sketchbook.'
-        : isOwner
-          ? 'Every page here is an original thought — drawn, kept, and pinned for you.'
-          : `Original pages from ${profileUser.display_name}'s ongoing sketchbook.`;
+        : activeTab === 'shared'
+          ? (isOwner
+            ? 'Artworks you shared into the ArtSpace community.'
+            : `Artworks ${profileUser.display_name} shared into the ArtSpace community.`)
+          : isOwner
+            ? 'Every page here is an original thought — drawn, kept, and pinned for you.'
+            : `Original pages from ${profileUser.display_name}'s ongoing sketchbook.`;
   const collectionCountLabel = activeTab === 'liked'
     ? `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'inspiration' : 'inspirations'} pinned`
     : activeTab === 'saved'
       ? `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'page' : 'pages'} tucked away`
       : activeTab === 'pinned'
         ? `${numeral(portfolioCount)} of ${pinLimit} pinned`
-        : `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'piece' : 'pieces'} pinned`;
+        : activeTab === 'shared'
+          ? `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'share' : 'shares'}`
+          : `${numeral(portfolioCount)} ${portfolioCount === 1 ? 'piece' : 'pieces'} pinned`;
   const emptyKicker = activeTab === 'liked'
     ? 'The inspiration page'
     : activeTab === 'saved'
       ? 'The clippings folder'
       : activeTab === 'pinned'
         ? 'The pinboard'
-        : 'A fresh page';
+        : activeTab === 'shared'
+          ? 'The community wall'
+          : 'A fresh page';
   const emptyTitle = activeTab === 'liked'
     ? 'No liked artwork yet.'
     : activeTab === 'saved'
       ? 'Nothing saved yet.'
       : activeTab === 'pinned'
         ? 'Nothing pinned yet.'
-        : 'No artwork yet.';
+        : activeTab === 'shared'
+          ? 'No shared posts yet.'
+          : 'No artwork yet.';
   const emptyMessage = activeTab === 'liked'
     ? 'When a drawing catches your eye, it will be pinned here for another look.'
     : activeTab === 'saved'
       ? 'Save the pages that stay with you and they will wait here, ready when inspiration calls.'
       : activeTab === 'pinned'
         ? `Pin up to ${pinLimit} of your own artworks to feature them on the homepage.`
-        : isOwner
-          ? 'Your sketchbook is open and waiting. Pin the first page of your collection.'
-          : 'When this artist shares a new drawing, it will appear here.';
+        : activeTab === 'shared'
+          ? (isOwner
+            ? 'Share an artwork from its page and it will appear here for the community.'
+            : `When ${profileUser.display_name} shares artwork with the community, it will appear here.`)
+          : isOwner
+            ? 'Your sketchbook is open and waiting. Pin the first page of your collection.'
+            : 'When this artist shares a new drawing, it will appear here.';
 %>
 
 <div class="pf-page">
@@ -259,6 +281,7 @@
           <div class="pf-collection-bar">
             <nav class="pf-tabs" aria-label="Portfolio collections">
               <a class="pf-tab <%= activeTab === 'artworks' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=artworks" aria-current="<%= activeTab === 'artworks' ? 'page' : 'false' %>">Artworks <sup><%= numeral(stats.totalArtworks) %></sup></a>
+              <a class="pf-tab <%= activeTab === 'shared' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=shared" aria-current="<%= activeTab === 'shared' ? 'page' : 'false' %>">Shared <sup><%= numeral(sharedCount) %></sup></a>
               <a class="pf-tab <%= activeTab === 'liked' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=liked" aria-current="<%= activeTab === 'liked' ? 'page' : 'false' %>">Liked <sup><%= numeral(likedArtworks.length) %></sup></a>
               <% if (isOwner) { %>
                 <a class="pf-tab <%= activeTab === 'pinned' ? 'is-active' : '' %>" href="/profile/<%= profileUser.username %>?tab=pinned" aria-current="<%= activeTab === 'pinned' ? 'page' : 'false' %>">Pinned <sup><%= numeral(pinnedItems.length) %>/<%= pinLimit %></sup></a>
@@ -297,7 +320,13 @@
           <% } %>
         </div>
 
-        <% if (portfolioItems.length) { %>
+        <% if (activeTab === 'shared' && sharedPosts.length) { %>
+          <div class="community-feed community-feed--profile" data-community-feed>
+            <% sharedPosts.forEach((share) => { %>
+              <%- include('../partials/community-post', { share, viewerId: (typeof currentUser !== 'undefined' && currentUser ? currentUser.id : 0), context: 'profile' }) %>
+            <% }) %>
+          </div>
+        <% } else if (portfolioItems.length) { %>
           <div class="pf-collection-status-row">
             <p class="pf-collection-status" aria-live="polite" data-portfolio-status>Showing <strong><%= portfolioItems.length %></strong> of <strong><%= portfolioItems.length %></strong> pieces</p>
             <button type="button" class="pf-collection-reset" data-portfolio-reset hidden>Clear filters</button>

@@ -77,7 +77,7 @@
     const bgSceneValue = String(bgSceneSource || '').trim().toLowerCase();
     const bodyTitle = typeof pageTitle === 'string' ? pageTitle : '';
   %>
-  <body data-theme="dark" data-locale="<%= typeof locale !== 'undefined' ? locale : 'km' %>" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Login') || bodyTitle.includes('Register') ? 'auth-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Admin') ? 'admin-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %> <%= bodyTitle.includes('Edit artwork') ? 'edit-body' : '' %>">
+  <body data-theme="dark" data-locale="<%= typeof locale !== 'undefined' ? locale : 'km' %>" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Login') || bodyTitle.includes('Register') ? 'auth-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Admin') ? 'admin-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %> <%= bodyTitle.includes('Community') ? 'community-body' : '' %> <%= bodyTitle.includes('Edit artwork') ? 'edit-body' : '' %>">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <%- include('./intro') %>
     <div class="bg-falling" aria-hidden="true">

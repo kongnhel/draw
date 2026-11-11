@@ -29,19 +29,10 @@
     <% }) %>
   </div>
 
-  <%
-    const feedList = Array.isArray(feedItems)
-      ? feedItems
-      : (artworks || []).map((artwork) => ({ kind: 'artwork', postKey: `artwork-${artwork.id}`, artwork }));
-  %>
-  <% if (feedList.length) { %>
+  <% if (artworks.length) { %>
     <div class="studio-explore-masonry" data-explore-masonry>
-      <% feedList.forEach((item, index) => { %>
-        <% if (item.kind === 'share') { %>
-          <%- include('./share-post-card', { item, index }) %>
-        <% } else { %>
-          <%- include('./explore-card', { artwork: item.artwork || item, index }) %>
-        <% } %>
+      <% artworks.forEach((artwork, index) => { %>
+        <%- include('./explore-card', { artwork, index }) %>
       <% }) %>
     </div>
 

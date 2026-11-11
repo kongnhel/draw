@@ -531,6 +531,7 @@ const ASSET_VERSION = (() => {
     'public/css/artwork-detail.css',
     'public/css/multi-image.css',
     'public/css/social.css',
+    'public/css/community.css',
     'public/css/ads.css',
     'public/js/ads.js',
     'public/js/book-slider.js',
@@ -712,15 +713,15 @@ function normalizeReaction(value) {
   return REACTION_TYPES.includes(candidate) ? candidate : 'like';
 }
 
-async function createNotification({ userId, actorId, type, artworkId = null, commentId = null, message = null }) {
+async function createNotification({ userId, actorId, type, artworkId = null, commentId = null, shareId = null, message = null }) {
   const recipientId = Number(userId);
   const actor = Number(actorId);
   if (!recipientId || !actor || recipientId === actor) return;
 
   try {
     await db.execute(
-      'INSERT INTO notifications (user_id, actor_id, type, artwork_id, comment_id, message) VALUES (?, ?, ?, ?, ?, ?)',
-      [recipientId, actor, String(type), artworkId || null, commentId || null, message || null]
+      'INSERT INTO notifications (user_id, actor_id, type, artwork_id, comment_id, share_id, message) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [recipientId, actor, String(type), artworkId || null, commentId || null, shareId || null, message || null]
     );
   } catch (error) {
     console.error('Could not create notification:', error);
@@ -790,7 +791,7 @@ function mentionify(value) {
   );
 }
 
-async function syncMentions({ actorId, text, mentionableType, mentionableId, artworkId = null, notificationMessage = null }) {
+async function syncMentions({ actorId, text, mentionableType, mentionableId, artworkId = null, shareId = null, notificationMessage = null }) {
   const author = Number(actorId);
   const type = String(mentionableType || '');
   const target = Number(mentionableId);
@@ -826,7 +827,8 @@ async function syncMentions({ actorId, text, mentionableType, mentionableId, art
         actorId: author,
         type: 'mention',
         artworkId,
-        commentId: type === 'comment' ? target : null,
+        commentId: type === 'comment' || type === 'share_comment' ? target : null,
+        shareId,
         message: notificationMessage || String(text || '').slice(0, 240)
       });
       notified.push(Number(row.id));
@@ -866,8 +868,171 @@ async function fetchReactionSummary(artworkId) {
   return { counts, total };
 }
 
+const COMMUNITY_PAGE_SIZE = 8;
+const SHARE_COMMENT_PAGE_SIZE = 10;
+
+const COMMUNITY_SHARE_SELECT = `SELECT s.id AS share_id, s.message AS share_message, s.created_at AS share_created_at,
+       s.user_id AS sharer_id,
+       su.username AS sharer_username,
+       COALESCE(NULLIF(su.name, ''), su.username) AS sharer_name,
+       su.avatar AS sharer_avatar,
+       a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+       u.username,
+       COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+       u.avatar,
+       c.name AS category_name,
+       a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+       (SELECT COUNT(*) FROM share_likes sl WHERE sl.share_id = s.id) AS shared_likes_count,
+       (SELECT COUNT(*) FROM share_comments sc WHERE sc.share_id = s.id) AS shared_comments_count,
+       (SELECT COUNT(*) FROM artwork_shares ash WHERE ash.artwork_id = a.id AND ash.platform = 'internal') AS artwork_shares_count,
+       EXISTS(SELECT 1 FROM share_likes sl WHERE sl.share_id = s.id AND sl.user_id = ?) AS viewer_shared_liked,
+       (SELECT sl.reaction_type FROM share_likes sl WHERE sl.share_id = s.id AND sl.user_id = ? LIMIT 1) AS viewer_shared_reaction,
+       (SELECT COUNT(*) FROM artwork_images ai WHERE ai.artwork_id = a.id) AS artwork_images_count
+  FROM artwork_shares s
+  INNER JOIN artworks a ON a.id = s.artwork_id
+  INNER JOIN users u ON u.id = a.user_id
+  INNER JOIN users su ON su.id = s.user_id
+  LEFT JOIN categories c ON c.id = a.category_id`;
+
+const COMMUNITY_SHARE_FILTERS = "s.platform = 'internal' AND s.user_id IS NOT NULL AND su.status = 'active' AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'";
+
+function decorateCommunityShare(row) {
+  return {
+    share_id: Number(row.share_id),
+    message: row.share_message || '',
+    created_at: row.share_created_at,
+    sharer: {
+      id: Number(row.sharer_id),
+      username: row.sharer_username,
+      display_name: row.sharer_name || row.sharer_username,
+      avatar: row.sharer_avatar
+    },
+    artwork: {
+      id: Number(row.id),
+      user_id: Number(row.user_id),
+      title: row.title,
+      description: row.description,
+      image_url: row.image_url,
+      thumbnail_url: row.thumbnail_url,
+      tags: row.tags,
+      username: row.username,
+      display_name: row.display_name,
+      avatar: row.avatar,
+      category_name: row.category_name,
+      created_at: row.created_at,
+      created_at_label: row.created_at_label,
+      images_count: Number(row.artwork_images_count || 0),
+      shares_count: Number(row.artwork_shares_count || 0)
+    },
+    likes_count: Number(row.shared_likes_count || 0),
+    comments_count: Number(row.shared_comments_count || 0),
+    is_liked: Boolean(Number(row.viewer_shared_liked)),
+    viewer_reaction: row.viewer_shared_reaction ? normalizeReaction(row.viewer_shared_reaction) : null
+  };
+}
+
+async function fetchCommunityShare(shareId, viewerId) {
+  const rows = await db.execute(
+    `${COMMUNITY_SHARE_SELECT}
+      WHERE s.id = ? AND ${COMMUNITY_SHARE_FILTERS}
+      LIMIT 1`,
+    [viewerId, viewerId, shareId]
+  );
+  const row = rows && rows[0];
+  return row ? decorateCommunityShare(row) : null;
+}
+
+async function fetchShareReactionSummary(shareId) {
+  const rows = await db.execute(
+    'SELECT reaction_type, COUNT(*) AS count FROM share_likes WHERE share_id = ? GROUP BY reaction_type',
+    [shareId]
+  );
+  const counts = {};
+  let total = 0;
+  for (const type of REACTION_TYPES) counts[type] = 0;
+  for (const row of rows || []) {
+    const type = normalizeReaction(row.reaction_type);
+    const count = Number(row.count || 0);
+    counts[type] += count;
+    total += count;
+  }
+  return { counts, total };
+}
+
+const SHARE_COMMENT_SELECT = `SELECT sc.id, sc.parent_id, sc.body, sc.created_at, sc.updated_at,
+       u.id AS user_id, u.username,
+       COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+       u.avatar,
+       DATE_FORMAT(sc.created_at, '%b %d, %Y') AS created_at_label,
+       (sc.updated_at > sc.created_at) AS is_edited
+  FROM share_comments sc
+  INNER JOIN users u ON u.id = sc.user_id`;
+
+async function fetchShareComments(shareId, page = 1) {
+  const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const offset = (safePage - 1) * SHARE_COMMENT_PAGE_SIZE;
+
+  const [topRows, replyRows, topCountRows, totalRows] = await Promise.all([
+    db.execute(
+      `${SHARE_COMMENT_SELECT}
+        WHERE sc.share_id = ? AND sc.parent_id IS NULL
+        ORDER BY sc.created_at DESC, sc.id DESC
+        LIMIT ${SHARE_COMMENT_PAGE_SIZE} OFFSET ${offset}`,
+      [shareId]
+    ),
+    db.execute(
+      `${SHARE_COMMENT_SELECT}
+        WHERE sc.share_id = ? AND sc.parent_id IS NOT NULL
+        ORDER BY sc.created_at ASC, sc.id ASC`,
+      [shareId]
+    ),
+    db.execute(
+      'SELECT COUNT(*) AS count FROM share_comments WHERE share_id = ? AND parent_id IS NULL',
+      [shareId]
+    ),
+    db.execute(
+      'SELECT COUNT(*) AS count FROM share_comments WHERE share_id = ?',
+      [shareId]
+    )
+  ]);
+
+  const topTotal = Number((topCountRows && topCountRows[0] && topCountRows[0].count) || 0);
+  const total = Number((totalRows && totalRows[0] && totalRows[0].count) || 0);
+
+  return {
+    comments: buildCommentTree(topRows || [], replyRows || []),
+    page: safePage,
+    pageSize: SHARE_COMMENT_PAGE_SIZE,
+    topTotal,
+    total,
+    hasMore: safePage * SHARE_COMMENT_PAGE_SIZE < topTotal
+  };
+}
+
+async function fetchShareCommentForRender(commentId) {
+  const rows = await db.execute(
+    `${SHARE_COMMENT_SELECT} WHERE sc.id = ? LIMIT 1`,
+    [commentId]
+  );
+  return rows && rows[0] ? decorateCommentRows([rows[0]])[0] : null;
+}
+
+async function deleteNotificationsForShare(shareId) {
+  try {
+    await db.execute('DELETE FROM notifications WHERE share_id = ?', [Number(shareId)]);
+  } catch (error) {
+    console.error('Could not clear share notifications:', error);
+  }
+}
+
 function notificationLink(row) {
   const type = String(row.type || '');
+  if (row.share_id) {
+    const anchor = row.comment_id && ['share_comment', 'share_reply', 'share_mention', 'mention'].includes(type)
+      ? `#share-comment-${row.comment_id}`
+      : '';
+    return `/community/${row.share_id}${anchor}`;
+  }
   if (row.artwork_id) {
     if (row.comment_id && ['comment', 'reply', 'comment_like', 'mention'].includes(type)) {
       return `/art/${row.artwork_id}#comment-${row.comment_id}`;
@@ -889,6 +1054,7 @@ function mapNotificationRow(row) {
     is_read: Boolean(Number(row.is_read)),
     artwork_id: row.artwork_id ? Number(row.artwork_id) : null,
     comment_id: row.comment_id ? Number(row.comment_id) : null,
+    share_id: row.share_id ? Number(row.share_id) : null,
     artwork_title: row.artwork_title || null,
     actor_username: row.actor_username || null,
     actor_name: row.actor_name || 'Someone',
@@ -899,7 +1065,7 @@ function mapNotificationRow(row) {
   };
 }
 
-const NOTIFICATION_SELECT = `SELECT n.id, n.type, n.message, n.is_read, n.created_at, n.artwork_id, n.comment_id,
+const NOTIFICATION_SELECT = `SELECT n.id, n.type, n.message, n.is_read, n.created_at, n.artwork_id, n.comment_id, n.share_id,
        DATE_FORMAT(n.created_at, '%b %d, %Y') AS created_at_label,
        u.username AS actor_username,
        COALESCE(NULLIF(u.name, ''), u.username) AS actor_name,
@@ -1105,6 +1271,7 @@ const CSS_BUNDLE_FILES = [
   'artwork-detail.css',
   'multi-image.css',
   'social.css',
+  'community.css',
   'ads.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
@@ -1461,9 +1628,8 @@ app.get('/explore', async (req, res, next) => {
       popular: 'likes_count DESC, a.created_at DESC'
     };
     const orderBy = sortMap[sort] || 'a.created_at DESC';
-    const fetchSize = offset + pageSize;
 
-    const [categoryRows, artworks, shareRows, filteredCountRows, shareCountRows, totalRows, artistRows, artistSpotlightRows] = await Promise.all([
+    const [categoryRows, artworks, filteredCountRows, totalRows, artistRows, artistSpotlightRows] = await Promise.all([
       db.execute(
         `SELECT c.slug, c.name, COUNT(a.id) AS count
            FROM categories c
@@ -1488,34 +1654,7 @@ app.get('/explore', async (req, res, next) => {
            INNER JOIN categories c ON c.id = a.category_id
           ${whereClause}
           ORDER BY ${orderBy}
-          LIMIT ${fetchSize}`,
-        [viewerId, viewerId, ...queryParams]
-      ),
-      db.execute(
-        `SELECT s.id AS share_id, s.message AS share_message, s.created_at AS share_created_at,
-                su.username AS sharer_username,
-                COALESCE(NULLIF(su.name, ''), su.username) AS sharer_name,
-                su.avatar AS sharer_avatar,
-                a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-                u.username,
-                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-                u.avatar,
-                c.name AS category_name, c.slug AS category_slug,
-                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
-                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
-                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
-                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
-                0 AS views, 'auto' AS visual_effect
-           FROM artwork_shares s
-           INNER JOIN artworks a ON a.id = s.artwork_id
-           INNER JOIN users u ON u.id = a.user_id
-           INNER JOIN users su ON su.id = s.user_id
-           INNER JOIN categories c ON c.id = a.category_id
-          WHERE s.platform = 'internal' AND s.user_id IS NOT NULL
-            AND ${whereConditions.join(' AND ')}
-          ORDER BY s.created_at DESC
-          LIMIT ${fetchSize}`,
+          LIMIT ${pageSize} OFFSET ${offset}`,
         [viewerId, viewerId, ...queryParams]
       ),
       db.execute(
@@ -1524,16 +1663,6 @@ app.get('/explore', async (req, res, next) => {
            INNER JOIN users u ON u.id = a.user_id
            INNER JOIN categories c ON c.id = a.category_id
           ${whereClause}`,
-        queryParams
-      ),
-      db.execute(
-        `SELECT COUNT(*) AS count
-           FROM artwork_shares s
-           INNER JOIN artworks a ON a.id = s.artwork_id
-           INNER JOIN users u ON u.id = a.user_id
-           INNER JOIN categories c ON c.id = a.category_id
-          WHERE s.platform = 'internal' AND s.user_id IS NOT NULL
-            AND ${whereConditions.join(' AND ')}`,
         queryParams
       ),
       db.execute("SELECT COUNT(*) AS count FROM artworks WHERE visibility = 'public' AND is_published = 1 AND status = 'active'"),
@@ -1563,44 +1692,7 @@ app.get('/explore', async (req, res, next) => {
       count: Number(row.count) || 0
     }));
 
-    const artworkItems = (artworks || []).map((row) => ({
-      kind: 'artwork',
-      postKey: `artwork-${row.id}`,
-      sortAt: row.created_at,
-      artwork: row
-    }));
-
-    const shareItems = (shareRows || []).map((row) => ({
-      kind: 'share',
-      postKey: `share-${row.share_id}`,
-      sortAt: row.share_created_at,
-      share: {
-        id: Number(row.share_id),
-        message: row.share_message || '',
-        created_at: row.share_created_at,
-        sharer_username: row.sharer_username,
-        sharer_name: row.sharer_name,
-        sharer_avatar: row.sharer_avatar
-      },
-      artwork: {
-        ...row,
-        created_at: row.created_at
-      }
-    }));
-
-    const mergedItems = [...artworkItems, ...shareItems];
-    mergedItems.sort((left, right) => {
-      if (sort === 'popular') {
-        const diff = Number(right.artwork.likes_count || 0) - Number(left.artwork.likes_count || 0);
-        if (diff !== 0) return diff;
-      }
-      return new Date(right.sortAt || 0).getTime() - new Date(left.sortAt || 0).getTime();
-    });
-
-    const feedItems = mergedItems.slice(offset, offset + pageSize);
-
-    const filteredTotal = Number((filteredCountRows && filteredCountRows[0] && filteredCountRows[0].count) || 0)
-      + Number((shareCountRows && shareCountRows[0] && shareCountRows[0].count) || 0);
+    const filteredTotal = Number((filteredCountRows && filteredCountRows[0] && filteredCountRows[0].count) || 0);
     const totalArtworks = Number((totalRows && totalRows[0] && totalRows[0].count) || 0);
     const artistCount = Number((artistRows && artistRows[0] && artistRows[0].count) || 0);
     const artists = artistSpotlightRows || [];
@@ -1610,8 +1702,8 @@ app.get('/explore', async (req, res, next) => {
       : null;
 
     const mediumCount = categories.filter((category) => category.count > 0).length;
-    const spotlightArtwork = feedItems.length ? feedItems[0].artwork : null;
-    const loadedItems = feedItems.length;
+    const spotlightArtwork = (artworks && artworks.length > 0) ? artworks[0] : null;
+    const loadedItems = artworks ? artworks.length : 0;
     const pinnedIds = await getPinnedArtworkIds(viewerId);
 
     const pagination = {
@@ -1631,8 +1723,7 @@ app.get('/explore', async (req, res, next) => {
       query,
       filter,
       categories,
-      artworks: artworkItems.map((item) => item.artwork),
-      feedItems,
+      artworks: artworks || [],
       spotlightArtwork,
       artists,
       activeCategory,
@@ -2122,6 +2213,26 @@ app.get('/profile/:username', async (req, res, next) => {
     let savedRows = [];
     let pinnedRows = [];
 
+    const [sharedRows, sharedCountRows] = await Promise.all([
+      db.execute(
+        `${COMMUNITY_SHARE_SELECT}
+          WHERE s.user_id = ? AND ${COMMUNITY_SHARE_FILTERS}
+          ORDER BY s.created_at DESC
+          LIMIT 30`,
+        [viewerId, viewerId, profileUser.id]
+      ),
+      db.execute(
+        `SELECT COUNT(*) AS count
+           FROM artwork_shares s
+           INNER JOIN artworks a ON a.id = s.artwork_id
+           INNER JOIN users su ON su.id = s.user_id
+          WHERE s.user_id = ? AND ${COMMUNITY_SHARE_FILTERS}`,
+        [profileUser.id]
+      )
+    ]);
+    const profileShares = (sharedRows || []).map(decorateCommunityShare);
+    const profileSharesTotal = Number((sharedCountRows && sharedCountRows[0] && sharedCountRows[0].count) || 0);
+
     if (isOwner) {
       savedRows = await db.execute(
         `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
@@ -2200,7 +2311,7 @@ app.get('/profile/:username', async (req, res, next) => {
     ]);
     const followersCount = Number((followerCountRows && followerCountRows[0] && followerCountRows[0].count) || 0);
 
-    const requestedTab = ['artworks', 'liked', 'saved', 'pinned'].includes(req.query.tab) ? req.query.tab : 'artworks';
+    const requestedTab = ['artworks', 'shared', 'liked', 'saved', 'pinned'].includes(req.query.tab) ? req.query.tab : 'artworks';
     const activeTab = (requestedTab === 'saved' || requestedTab === 'pinned') && !isOwner ? 'artworks' : requestedTab;
     const pinnedIds = await getPinnedArtworkIds(viewerId);
     res.locals.adsAllowed = activeTab === 'artworks' || activeTab === 'liked';
@@ -2212,6 +2323,8 @@ app.get('/profile/:username', async (req, res, next) => {
       likedArtworks: likedRows || [],
       savedArtworks: savedRows || [],
       pinnedArtworks: pinnedRows || [],
+      profileShares,
+      profileSharesTotal,
       pinnedIds,
       stats: {
         totalArtworks,
@@ -3147,6 +3260,7 @@ app.post('/art/:id/share', async (req, res, next) => {
         actorId: userId,
         type: 'share',
         artworkId,
+        shareId: result.insertId,
         message: message ? message.slice(0, 240) : null
       });
 
@@ -3157,6 +3271,7 @@ app.post('/art/:id/share', async (req, res, next) => {
           mentionableType: 'share',
           mentionableId: result.insertId,
           artworkId,
+          shareId: result.insertId,
           notificationMessage: message.slice(0, 240)
         });
       }
@@ -3584,6 +3699,646 @@ app.get('/privacy', (req, res) => {
 });
 
 // 9. Notifications Page Route
+// 9b. Community — shared artwork posts and interactions
+app.get('/community', async (req, res, next) => {
+  try {
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
+    const sort = req.query.sort === 'popular' ? 'popular' : 'latest';
+    const scope = req.query.scope === 'following' && viewerId ? 'following' : 'all';
+    const query = String(req.query.q || '').trim().slice(0, 80);
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const offset = (page - 1) * COMMUNITY_PAGE_SIZE;
+
+    const conditions = [COMMUNITY_SHARE_FILTERS];
+    const params = [viewerId, viewerId];
+
+    if (scope === 'following') {
+      conditions.push('s.user_id IN (SELECT f.following_id FROM follows f WHERE f.follower_id = ?)');
+      params.push(viewerId);
+    }
+
+    if (query) {
+      conditions.push('(s.message LIKE ? OR a.title LIKE ? OR su.username LIKE ?)');
+      const like = `%${query}%`;
+      params.push(like, like, like);
+    }
+
+    const whereClause = conditions.join(' AND ');
+    const orderBy = sort === 'popular'
+      ? 'shared_likes_count DESC, shared_comments_count DESC, s.created_at DESC'
+      : 's.created_at DESC';
+
+    const [rows, countRows] = await Promise.all([
+      db.execute(
+        `${COMMUNITY_SHARE_SELECT}
+          WHERE ${whereClause}
+          ORDER BY ${orderBy}
+          LIMIT ${COMMUNITY_PAGE_SIZE} OFFSET ${offset}`,
+        params
+      ),
+      db.execute(
+        `SELECT COUNT(*) AS count
+           FROM artwork_shares s
+           INNER JOIN artworks a ON a.id = s.artwork_id
+           INNER JOIN users su ON su.id = s.user_id
+          WHERE ${whereClause}`,
+        params.slice(2)
+      )
+    ]);
+
+    const posts = (rows || []).map(decorateCommunityShare);
+    const total = Number((countRows && countRows[0] && countRows[0].count) || 0);
+    const loaded = posts.length;
+
+    const pagination = {
+      page,
+      pageSize: COMMUNITY_PAGE_SIZE,
+      total,
+      start: total === 0 ? 0 : offset + 1,
+      end: Math.min(offset + loaded, total),
+      hasMore: offset + loaded < total,
+      nextPage: page + 1
+    };
+
+    res.locals.adsAllowed = false;
+
+    res.render('pages/community', {
+      pageTitle: 'ArtSpace | Community',
+      posts,
+      pagination,
+      sort,
+      scope,
+      query
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/community/:id', async (req, res, next) => {
+  try {
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
+    const shareId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(shareId)) {
+      return res.status(404).render('pages/error', {
+        message: 'That shared post could not be found.',
+        pageTitle: 'ArtSpace | Page not found',
+        isAuthenticated: false,
+        currentUser: null,
+        unreadNotifications: 0
+      });
+    }
+
+    const share = await fetchCommunityShare(shareId, viewerId);
+    if (!share) {
+      return res.status(404).render('pages/error', {
+        message: 'That shared post could not be found.',
+        pageTitle: 'ArtSpace | Page not found',
+        isAuthenticated: false,
+        currentUser: null,
+        unreadNotifications: 0
+      });
+    }
+
+    const [commentData, reactionSummary] = await Promise.all([
+      fetchShareComments(shareId, 1),
+      fetchShareReactionSummary(shareId)
+    ]);
+
+    const isShareOwner = Boolean(viewerId && viewerId === share.sharer.id);
+
+    res.locals.adsAllowed = false;
+
+    res.render('pages/community-post', {
+      pageTitle: `ArtSpace | ${share.artwork.title} shared by ${share.sharer.display_name}`,
+      share,
+      reactionSummary,
+      comments: commentData.comments,
+      commentsPage: commentData.page,
+      commentsPageSize: commentData.pageSize,
+      commentsTotal: commentData.total,
+      commentsTopTotal: commentData.topTotal,
+      commentsHasMore: commentData.hasMore,
+      commentsNextPage: commentData.page + 1,
+      isShareOwner
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/community/:id/like', requireAuthAction, async (req, res, next) => {
+  try {
+    const shareId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(shareId)) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT s.id, s.user_id, s.artwork_id
+         FROM artwork_shares s
+         INNER JOIN artworks a ON a.id = s.artwork_id
+         INNER JOIN users su ON su.id = s.user_id
+        WHERE s.id = ? AND ${COMMUNITY_SHARE_FILTERS}
+        LIMIT 1`,
+      [shareId]
+    );
+    const share = rows && rows[0];
+    if (!share) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const userId = Number(req.session.user.id);
+    const reaction = normalizeReaction((req.body && req.body.reaction) || req.query.reaction);
+
+    const existing = await db.execute(
+      'SELECT id, reaction_type FROM share_likes WHERE share_id = ? AND user_id = ? LIMIT 1',
+      [shareId, userId]
+    );
+
+    let reacted = false;
+    let activeReaction = null;
+
+    if (existing && existing.length) {
+      if (normalizeReaction(existing[0].reaction_type) === reaction) {
+        await db.execute('DELETE FROM share_likes WHERE id = ?', [existing[0].id]);
+      } else {
+        await db.execute('UPDATE share_likes SET reaction_type = ? WHERE id = ?', [reaction, existing[0].id]);
+        reacted = true;
+        activeReaction = reaction;
+      }
+    } else {
+      await db.execute(
+        'INSERT INTO share_likes (share_id, user_id, reaction_type) VALUES (?, ?, ?)',
+        [shareId, userId, reaction]
+      );
+      reacted = true;
+      activeReaction = reaction;
+    }
+
+    await db.execute(
+      "DELETE FROM notifications WHERE user_id = ? AND actor_id = ? AND type = 'share_like' AND share_id = ?",
+      [Number(share.user_id), userId, shareId]
+    ).catch(() => {});
+
+    if (reacted) {
+      await createNotification({
+        userId: Number(share.user_id),
+        actorId: userId,
+        type: 'share_like',
+        artworkId: Number(share.artwork_id),
+        shareId,
+        message: reaction
+      });
+    }
+
+    const summary = await fetchShareReactionSummary(shareId);
+    res.json({
+      ok: true,
+      liked: reacted,
+      reacted,
+      reaction: activeReaction,
+      likes_count: summary.total,
+      reactions: summary.counts
+    });
+  } catch (err) {
+    console.error('Shared post like failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not update that reaction. Please try again.' });
+  }
+});
+
+app.post('/community/:id/comment', requireAuthAction, async (req, res, next) => {
+  try {
+    const shareId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(shareId)) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const body = String((req.body && req.body.body) || '').replace(/\r\n/g, '\n').trim();
+    if (!body || body.length > 2000) {
+      res.status(400).json({
+        ok: false,
+        error: !body
+          ? 'Please write a comment before posting.'
+          : 'Comments must be 2,000 characters or fewer.'
+      });
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT s.id, s.user_id, s.artwork_id
+         FROM artwork_shares s
+         INNER JOIN artworks a ON a.id = s.artwork_id
+         INNER JOIN users su ON su.id = s.user_id
+        WHERE s.id = ? AND ${COMMUNITY_SHARE_FILTERS}
+        LIMIT 1`,
+      [shareId]
+    );
+    const share = rows && rows[0];
+    if (!share) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const userId = Number(req.session.user.id);
+    let parentId = null;
+    let parentComment = null;
+
+    const rawParent = req.body && req.body.parent_id !== undefined && req.body.parent_id !== null
+      ? String(req.body.parent_id).trim()
+      : '';
+
+    if (rawParent) {
+      parentId = Number.parseInt(rawParent, 10);
+      if (!Number.isFinite(parentId) || parentId <= 0) {
+        res.status(400).json({ ok: false, error: 'That comment thread could not be found.' });
+        return;
+      }
+      const parentRows = await db.execute(
+        'SELECT id, user_id FROM share_comments WHERE id = ? AND share_id = ? LIMIT 1',
+        [parentId, shareId]
+      );
+      parentComment = (parentRows && parentRows[0]) || null;
+      if (!parentComment) {
+        res.status(404).json({ ok: false, error: 'That comment thread could not be found.' });
+        return;
+      }
+    }
+
+    const [recentRows, duplicateRows] = await Promise.all([
+      db.execute(
+        'SELECT id FROM share_comments WHERE user_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 3 SECOND) LIMIT 1',
+        [userId]
+      ),
+      db.execute(
+        `SELECT id FROM share_comments
+          WHERE user_id = ? AND share_id = ? AND body = ?
+            AND created_at > DATE_SUB(NOW(), INTERVAL 30 SECOND)
+          LIMIT 1`,
+        [userId, shareId, body]
+      )
+    ]);
+
+    if (recentRows && recentRows.length) {
+      res.status(429).json({ ok: false, error: 'Give the ink a moment to dry. Please wait a few seconds before posting again.' });
+      return;
+    }
+
+    if (duplicateRows && duplicateRows.length) {
+      res.status(409).json({ ok: false, error: 'You just posted that same note. Try adding something new.' });
+      return;
+    }
+
+    const result = await db.execute(
+      'INSERT INTO share_comments (share_id, user_id, parent_id, body) VALUES (?, ?, ?, ?)',
+      [shareId, userId, parentId, body]
+    );
+
+    if (parentComment) {
+      await createNotification({
+        userId: Number(parentComment.user_id),
+        actorId: userId,
+        type: 'share_reply',
+        artworkId: Number(share.artwork_id),
+        shareId,
+        commentId: parentId,
+        message: body.slice(0, 240)
+      });
+    } else {
+      await createNotification({
+        userId: Number(share.user_id),
+        actorId: userId,
+        type: 'share_comment',
+        artworkId: Number(share.artwork_id),
+        shareId,
+        commentId: result.insertId,
+        message: body.slice(0, 240)
+      });
+    }
+
+    await syncMentions({
+      actorId: userId,
+      text: body,
+      mentionableType: 'share_comment',
+      mentionableId: result.insertId,
+      artworkId: Number(share.artwork_id),
+      shareId,
+      notificationMessage: body.slice(0, 240)
+    });
+
+    const [comment, countRows] = await Promise.all([
+      fetchShareCommentForRender(result.insertId),
+      db.execute('SELECT COUNT(*) AS count FROM share_comments WHERE share_id = ?', [shareId])
+    ]);
+
+    const commentsCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
+
+    const communityShare = await fetchCommunityShare(shareId, userId);
+
+    const commentHtml = comment
+      ? await renderViewPartial(req.app, 'partials/share-comment', {
+        comment,
+        share: communityShare || share,
+        viewerId: userId,
+        currentUser: req.session.user,
+        isAuthenticated: true,
+        depth: 0,
+        mentionify
+      })
+      : '';
+
+    res.status(201).json({
+      ok: true,
+      comment,
+      comment_html: commentHtml,
+      parent_id: parentId,
+      comments_count: commentsCount
+    });
+  } catch (err) {
+    console.error('Shared post comment failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not post that comment. Please try again.' });
+  }
+});
+
+app.get('/community/:id/comments', async (req, res, next) => {
+  try {
+    const shareId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(shareId)) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT s.id FROM artwork_shares s
+        INNER JOIN artworks a ON a.id = s.artwork_id
+        INNER JOIN users su ON su.id = s.user_id
+        WHERE s.id = ? AND ${COMMUNITY_SHARE_FILTERS} LIMIT 1`,
+      [shareId]
+    );
+    if (!rows || !rows.length) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
+    const share = await fetchCommunityShare(shareId, viewerId);
+    const data = await fetchShareComments(shareId, req.query.page);
+
+    const htmlParts = await Promise.all(data.comments.map((comment) => renderViewPartial(
+      req.app,
+      'partials/share-comment',
+      {
+        comment,
+        share,
+        viewerId,
+        currentUser: (req.session && req.session.user) || null,
+        isAuthenticated: Boolean(viewerId),
+        depth: 0,
+        mentionify
+      }
+    )));
+
+    res.json({
+      ok: true,
+      html: htmlParts.join(''),
+      page: data.page,
+      has_more: data.hasMore,
+      next_page: data.page + 1,
+      comments_count: data.total,
+      comments_top_count: data.topTotal
+    });
+  } catch (err) {
+    console.error('Could not load shared post comments:', err);
+    res.status(500).json({ ok: false, error: 'We could not load more comments. Please try again.' });
+  }
+});
+
+app.post('/community/comments/:id/edit', requireAuthAction, async (req, res, next) => {
+  try {
+    const commentId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(commentId)) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const body = String((req.body && req.body.body) || '').replace(/\r\n/g, '\n').trim();
+    if (!body || body.length > 2000) {
+      res.status(400).json({
+        ok: false,
+        error: !body ? 'Please write a comment before saving.' : 'Comments must be 2,000 characters or fewer.'
+      });
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT sc.id, sc.user_id, sc.share_id, s.artwork_id
+         FROM share_comments sc
+         INNER JOIN artwork_shares s ON s.id = sc.share_id
+        WHERE sc.id = ?
+        LIMIT 1`,
+      [commentId]
+    );
+    const comment = rows && rows[0];
+    if (!comment) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    if (Number(comment.user_id) !== Number(req.session.user.id)) {
+      res.status(403).json({ ok: false, error: 'You can only edit your own comments.' });
+      return;
+    }
+
+    await db.execute(
+      'UPDATE share_comments SET body = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      [body, commentId, req.session.user.id]
+    );
+
+    const mentionNames = extractMentionUsernames(body);
+    if (mentionNames.length) {
+      await db.execute(
+        `DELETE m FROM mentions m
+          INNER JOIN users u ON u.id = m.mentioned_user_id
+         WHERE m.mentionable_type = 'share_comment' AND m.mentionable_id = ?
+           AND LOWER(u.username) NOT IN (${mentionNames.map(() => '?').join(',')})`,
+        [commentId, ...mentionNames]
+      ).catch(() => {});
+    } else {
+      await removeMentionsFor('share_comment', commentId);
+    }
+
+    await syncMentions({
+      actorId: req.session.user.id,
+      text: body,
+      mentionableType: 'share_comment',
+      mentionableId: commentId,
+      artworkId: Number(comment.artwork_id),
+      shareId: Number(comment.share_id),
+      notificationMessage: body.slice(0, 240)
+    });
+
+    res.json({ ok: true, body, edited: true, comment_id: commentId, body_html: mentionify(body) });
+  } catch (err) {
+    console.error('Shared comment edit failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not save that edit. Please try again.' });
+  }
+});
+
+app.post('/community/comments/:id/delete', requireAuthAction, async (req, res, next) => {
+  try {
+    const commentId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(commentId)) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT sc.id, sc.user_id, sc.share_id, s.user_id AS sharer_id, s.artwork_id
+         FROM share_comments sc
+         INNER JOIN artwork_shares s ON s.id = sc.share_id
+        WHERE sc.id = ?
+        LIMIT 1`,
+      [commentId]
+    );
+    const comment = rows && rows[0];
+    if (!comment) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const userId = Number(req.session.user.id);
+    const canDelete = Number(comment.user_id) === userId
+      || Number(comment.sharer_id) === userId
+      || req.session.user.role === 'admin';
+
+    if (!canDelete) {
+      res.status(403).json({ ok: false, error: 'You do not have permission to delete this comment.' });
+      return;
+    }
+
+    const deletedIds = [commentId];
+    let frontier = [commentId];
+
+    for (let depth = 0; depth < 10 && frontier.length; depth += 1) {
+      const placeholders = frontier.map(() => '?').join(',');
+      const children = await db.execute(
+        `SELECT id FROM share_comments WHERE parent_id IN (${placeholders})`,
+        frontier
+      );
+      frontier = (children || []).map((row) => Number(row.id)).filter((id) => !deletedIds.includes(id));
+      deletedIds.push(...frontier);
+    }
+
+    const placeholders = deletedIds.map(() => '?').join(',');
+    await db.execute(`DELETE FROM share_comments WHERE id IN (${placeholders})`, deletedIds);
+    await db.execute(
+      `DELETE FROM mentions WHERE mentionable_type = 'share_comment' AND mentionable_id IN (${placeholders})`,
+      deletedIds
+    ).catch(() => {});
+
+    const countRows = await db.execute(
+      'SELECT COUNT(*) AS count FROM share_comments WHERE share_id = ?',
+      [comment.share_id]
+    );
+
+    res.json({
+      ok: true,
+      deleted_ids: deletedIds,
+      comments_count: Number((countRows && countRows[0] && countRows[0].count) || 0)
+    });
+  } catch (err) {
+    console.error('Shared comment delete failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not delete that comment. Please try again.' });
+  }
+});
+
+app.post('/community/:id/edit', requireAuthAction, async (req, res, next) => {
+  try {
+    const shareId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(shareId)) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const rows = await db.execute(
+      'SELECT id, user_id, artwork_id FROM artwork_shares WHERE id = ? AND platform = ? LIMIT 1',
+      [shareId, 'internal']
+    );
+    const share = rows && rows[0];
+    if (!share) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    if (Number(share.user_id) !== Number(req.session.user.id)) {
+      res.status(403).json({ ok: false, error: 'You can only edit your own shares.' });
+      return;
+    }
+
+    const message = String((req.body && req.body.message) || '').replace(/\r\n/g, '\n').trim().slice(0, 500);
+
+    await db.execute(
+      'UPDATE artwork_shares SET message = ? WHERE id = ?',
+      [message || null, shareId]
+    );
+
+    await removeMentionsFor('share', shareId);
+    if (message) {
+      await syncMentions({
+        actorId: req.session.user.id,
+        text: message,
+        mentionableType: 'share',
+        mentionableId: shareId,
+        artworkId: Number(share.artwork_id),
+        shareId,
+        notificationMessage: message.slice(0, 240)
+      });
+    }
+
+    res.json({ ok: true, message, message_html: message ? mentionify(message) : '' });
+  } catch (err) {
+    console.error('Shared post edit failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not save that message. Please try again.' });
+  }
+});
+
+app.post('/community/:id/delete', requireAuthAction, async (req, res, next) => {
+  try {
+    const shareId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(shareId)) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    const rows = await db.execute(
+      "SELECT id, user_id, artwork_id FROM artwork_shares WHERE id = ? AND platform = 'internal' LIMIT 1",
+      [shareId]
+    );
+    const share = rows && rows[0];
+    if (!share) {
+      res.status(404).json({ ok: false, error: 'That shared post could not be found.' });
+      return;
+    }
+
+    if (Number(share.user_id) !== Number(req.session.user.id)) {
+      res.status(403).json({ ok: false, error: 'You can only delete your own shares.' });
+      return;
+    }
+
+    await db.execute('DELETE FROM artwork_shares WHERE id = ?', [shareId]);
+    await removeMentionsFor('share', shareId);
+    await deleteNotificationsForShare(shareId);
+
+    res.json({ ok: true, deleted: true, share_id: shareId, artwork_id: Number(share.artwork_id) });
+  } catch (err) {
+    console.error('Shared post delete failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not delete that share. Please try again.' });
+  }
+});
+
 app.get('/notifications', requireAuth, async (req, res, next) => {
   try {
     const userId = Number(req.session.user.id);

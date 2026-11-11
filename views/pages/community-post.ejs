@@ -1,0 +1,86 @@
+<%- include('../partials/header') %>
+
+<%
+  const viewerId = isAuthenticated && currentUser ? currentUser.id : 0;
+  const commentsCount = typeof commentsTotal !== 'undefined' ? commentsTotal : share.comments_count;
+  const hasMoreComments = typeof commentsHasMore !== 'undefined' ? commentsHasMore : false;
+  const nextCommentsPage = typeof commentsNextPage !== 'undefined' ? commentsNextPage : 2;
+  const commentPageSize = typeof commentsPageSize !== 'undefined' ? commentsPageSize : 10;
+%>
+
+<div class="community-page community-post-page" data-community-post-page>
+  <a class="community-back" href="/community">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+    <span>Back to Community</span>
+  </a>
+
+  <div class="community-post-layout">
+    <div class="community-post-main">
+      <%- include('../partials/community-post', { share, viewerId, context: 'post' }) %>
+
+      <% if (isShareOwner) { %>
+        <form class="community-message-editor" data-community-message-editor data-share-id="<%= share.share_id %>" hidden>
+          <label for="community-message-input">Your sharing message</label>
+          <textarea id="community-message-input" name="message" rows="3" maxlength="500" data-mention-input placeholder="Say something about this artwork…"><%= share.message %></textarea>
+          <div class="community-message-editor-actions">
+            <button type="submit" class="ad-comment-save">Save message</button>
+            <button type="button" class="ad-comment-cancel" data-community-edit-cancel>Cancel</button>
+          </div>
+        </form>
+      <% } %>
+
+      <section class="ad-comments community-comments" id="share-comments" aria-labelledby="share-comments-title">
+        <header class="ad-comments-head">
+          <div>
+            <span class="ad-comments-kicker">The conversation</span>
+            <h2 id="share-comments-title">Comments <span class="ad-comments-count" data-share-comments-total><%= commentsCount %></span></h2>
+          </div>
+        </header>
+
+        <% if (isAuthenticated) { %>
+          <form class="ad-comment-form ad-comment-composer" data-share-comment-form>
+            <img class="ad-composer-avatar" src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" />
+            <div class="ad-composer-field">
+              <label class="ad-comment-label" for="share-comment-body">Leave a note about this share</label>
+              <textarea id="share-comment-body" name="body" placeholder="What do you think about this artwork? Mention @someone…" maxlength="2000" required data-share-comment-input data-mention-input></textarea>
+              <div class="ad-composer-foot">
+                <span class="ad-comment-char" data-share-comment-char>0 / 2000</span>
+                <button type="submit" class="ad-post-btn">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 3l-4.5 18-3.6-7.9L3 11.5Z" /><path d="M12.9 13.1 21 3" /></svg>
+                  <span>Post comment</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        <% } else { %>
+          <div class="empty-state ad-login-note"><a href="/login">Log in</a> to join the conversation.</div>
+        <% } %>
+
+        <div class="comment-list ad-comment-list" data-share-comment-list data-page-size="<%= commentPageSize %>">
+          <% if (comments && comments.length) { %>
+            <% comments.forEach((comment) => { %>
+              <%- include('../partials/share-comment', { comment, share, viewerId, currentUser: (typeof currentUser !== 'undefined' ? currentUser : null), isAuthenticated, depth: 0, mentionify }) %>
+            <% }) %>
+          <% } else { %>
+            <div class="empty-state ad-comments-empty" data-share-comments-empty>
+              <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M20 58l5-17 24-24 11 11-24 24-16 6Z" /><path d="M44 22l11 11" /><path d="M14 66c8-2 16-2 24 0" /></svg>
+              <p class="ad-comments-empty-title">No thoughts yet.</p>
+              <p>Be the first to leave a pencil-soft note about this share.</p>
+            </div>
+          <% } %>
+        </div>
+
+        <% if (hasMoreComments) { %>
+          <div class="ad-comment-more-wrap">
+            <button type="button" class="ad-comments-more" data-share-comments-more data-next-page="<%= nextCommentsPage %>">
+              <span>Load more comments</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15m-5-5 5 5 5-5" /></svg>
+            </button>
+          </div>
+        <% } %>
+      </section>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

@@ -6150,6 +6150,639 @@ const bindSocialPostMenu = () => {
   });
 };
 
+const updateCommunityShareState = (shareId, payload) => {
+  const posts = document.querySelectorAll(`[data-community-post][data-share-id="${CSS.escape(String(shareId))}"]`);
+
+  posts.forEach((post) => {
+    const likeButton = post.querySelector('[data-share-like]');
+    if (likeButton) {
+      likeButton.classList.toggle('is-active', Boolean(payload.reaction));
+      likeButton.setAttribute('aria-pressed', String(Boolean(payload.reaction)));
+      const label = post.querySelector('[data-share-like-label]');
+      if (label) label.textContent = payload.reaction ? 'Reacted' : 'Like';
+    }
+
+    const menu = post.querySelector('[data-share-reaction-menu]');
+    if (menu) {
+      menu.hidden = true;
+      menu.querySelectorAll('[data-share-reaction]').forEach((choice) => {
+        choice.classList.toggle('is-active', choice.dataset.shareReaction === payload.reaction);
+      });
+    }
+
+    post.querySelectorAll('[data-share-like-count], [data-share-summary-count]').forEach((node) => {
+      node.textContent = String(payload.likes_count);
+    });
+    post.querySelectorAll('[data-share-summary-label]').forEach((node) => {
+      node.textContent = payload.likes_count === 1 ? 'reaction' : 'reactions';
+    });
+  });
+};
+
+const bindCommunityFeed = () => {
+  if (document.documentElement.dataset.communityBound === 'true') return;
+  document.documentElement.dataset.communityBound = 'true';
+
+  const closeReactionMenus = (except) => {
+    document.querySelectorAll('[data-share-reaction-menu]').forEach((menu) => {
+      if (menu !== except) menu.hidden = true;
+    });
+  };
+
+  document.addEventListener('click', async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const likeButton = target.closest('[data-share-like]');
+    if (likeButton) {
+      event.preventDefault();
+      const wrap = likeButton.closest('[data-community-reaction]');
+      const menu = wrap?.querySelector('[data-share-reaction-menu]');
+      if (!menu) return;
+      const willOpen = menu.hidden;
+      closeReactionMenus(menu);
+      menu.hidden = !willOpen;
+      return;
+    }
+
+    const reactionChoice = target.closest('[data-share-reaction]');
+    if (reactionChoice) {
+      event.preventDefault();
+      const shareId = reactionChoice.dataset.shareId;
+      const reaction = reactionChoice.dataset.shareReaction;
+      if (!shareId || !reaction || reactionChoice.dataset.busy === 'true') return;
+
+      reactionChoice.dataset.busy = 'true';
+      try {
+        const response = await fetch(`/community/${encodeURIComponent(shareId)}/like`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            Accept: 'application/json'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ reaction })
+        });
+        if (response.status === 401) {
+          window.location.assign('/login');
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || 'We could not update that reaction.');
+        }
+        updateCommunityShareState(shareId, data);
+        showPinToast(data.reaction ? `Reacted with ${REACTION_NAMES[data.reaction]}.` : 'Reaction removed.', 'success');
+      } catch (error) {
+        showPinToast(error.message || 'We could not update that reaction.', 'error');
+      } finally {
+        reactionChoice.dataset.busy = 'false';
+      }
+      return;
+    }
+
+    const copyButton = target.closest('[data-community-copy]');
+    if (copyButton) {
+      event.preventDefault();
+      const shareId = copyButton.dataset.shareId;
+      const copied = shareId
+        ? await copyArtworkLink(new URL(`/community/${shareId}`, window.location.origin).toString())
+        : false;
+      showPinToast(copied ? 'Link copied.' : 'Could not copy the link.', copied ? 'success' : 'error');
+      document.querySelectorAll('[data-post-menu]').forEach((menu) => { menu.hidden = true; });
+      return;
+    }
+
+    const reportButton = target.closest('[data-community-report]');
+    if (reportButton) {
+      event.preventDefault();
+      const artworkId = reportButton.dataset.artworkId;
+      document.querySelectorAll('[data-post-menu]').forEach((menu) => { menu.hidden = true; });
+      if (!artworkId || !window.confirm('Report this shared post for review?')) return;
+      try {
+        const response = await fetch(`/art/${encodeURIComponent(artworkId)}/report`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            Accept: 'application/json'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ reason: 'Reported from the community feed.' })
+        });
+        if (response.status === 401) {
+          window.location.assign('/login');
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || 'We could not send that report.');
+        }
+        showPinToast('Report sent to the moderation desk.', 'success');
+      } catch (error) {
+        showPinToast(error.message || 'We could not send that report.', 'error');
+      }
+      return;
+    }
+
+    const deleteButton = target.closest('[data-community-delete]');
+    if (deleteButton) {
+      event.preventDefault();
+      const shareId = deleteButton.dataset.shareId;
+      document.querySelectorAll('[data-post-menu]').forEach((menu) => { menu.hidden = true; });
+      if (!shareId || !window.confirm('Delete this shared post? The original artwork will stay online.')) return;
+      try {
+        const response = await fetch(`/community/${encodeURIComponent(shareId)}/delete`, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+          credentials: 'same-origin'
+        });
+        if (response.status === 401) {
+          window.location.assign('/login');
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || 'We could not delete that share.');
+        }
+        document.querySelectorAll(`[data-community-post][data-share-id="${CSS.escape(String(shareId))}"]`).forEach((post) => post.remove());
+        showPinToast('Shared post deleted.', 'success');
+        if (document.querySelector('[data-community-post-page]')) {
+          window.location.assign('/community');
+        }
+      } catch (error) {
+        showPinToast(error.message || 'We could not delete that share.', 'error');
+      }
+      return;
+    }
+
+    const editToggle = target.closest('[data-community-edit-toggle]');
+    if (editToggle) {
+      event.preventDefault();
+      document.querySelectorAll('[data-post-menu]').forEach((menu) => { menu.hidden = true; });
+      const editor = document.querySelector('[data-community-message-editor]');
+      if (!editor) return;
+      const postRoot = document.querySelector('[data-community-post]');
+      const currentMessage = postRoot?.querySelector('[data-share-message]')?.textContent?.trim() || '';
+      const field = editor.querySelector('textarea');
+      if (field) field.value = currentMessage;
+      editor.hidden = false;
+      field?.focus();
+      field?.setSelectionRange(field.value.length, field.value.length);
+      editor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return;
+    }
+
+    const editCancel = target.closest('[data-community-edit-cancel]');
+    if (editCancel) {
+      event.preventDefault();
+      const editor = editCancel.closest('[data-community-message-editor]');
+      if (editor) editor.hidden = true;
+      return;
+    }
+
+    if (!target.closest('[data-community-reaction]')) closeReactionMenus();
+  });
+
+  document.addEventListener('submit', async (event) => {
+    const form = event.target instanceof Element ? event.target.closest('[data-community-message-editor]') : null;
+    if (!form) return;
+    event.preventDefault();
+
+    const shareId = form.dataset.shareId;
+    const field = form.querySelector('textarea');
+    const message = (field?.value || '').trim();
+    if (!shareId || !field) return;
+
+    try {
+      const response = await fetch(`/community/${encodeURIComponent(shareId)}/edit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ message })
+      });
+      if (response.status === 401) {
+        window.location.assign('/login');
+        return;
+      }
+      const data = await response.json();
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || 'We could not save that message.');
+      }
+
+      document.querySelectorAll(`[data-community-post][data-share-id="${CSS.escape(String(shareId))}"] [data-share-message]`).forEach((node) => {
+        node.innerHTML = data.message_html || '';
+        node.classList.toggle('is-empty', !data.message);
+      });
+      form.hidden = true;
+      showPinToast('Sharing message updated.', 'success');
+    } catch (error) {
+      showPinToast(error.message || 'We could not save that message.', 'error');
+    }
+  });
+
+  document.addEventListener('click', async (event) => {
+    const moreButton = event.target instanceof Element ? event.target.closest('[data-community-more]') : null;
+    if (!moreButton || moreButton.dataset.busy === 'true') return;
+
+    event.preventDefault();
+    const nextUrl = moreButton.dataset.nextUrl;
+    const results = document.querySelector('[data-community-results]');
+    const feed = results?.querySelector('[data-community-feed]');
+    if (!nextUrl || !feed) return;
+
+    moreButton.dataset.busy = 'true';
+    const label = moreButton.querySelector('span');
+    const original = label?.textContent || '';
+    if (label) label.textContent = 'Turning the page…';
+    const skeleton = results.querySelector('[data-community-skeleton]');
+    if (skeleton) skeleton.hidden = false;
+
+    try {
+      const response = await fetch(nextUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!response.ok) throw new Error('Could not load more community posts.');
+      const html = await response.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const incomingResults = doc.querySelector('[data-community-results]');
+      const incomingFeed = incomingResults?.querySelector('[data-community-feed]');
+      if (!incomingResults || !incomingFeed) throw new Error('Could not load more community posts.');
+
+      const existing = new Set([...feed.querySelectorAll('[data-community-post]')].map((post) => post.dataset.shareId));
+      incomingFeed.querySelectorAll('[data-community-post]').forEach((post) => {
+        if (!existing.has(post.dataset.shareId)) feed.appendChild(post);
+      });
+
+      results.dataset.page = incomingResults.dataset.page;
+      results.dataset.total = incomingResults.dataset.total;
+      results.dataset.hasMore = incomingResults.dataset.hasMore;
+
+      const incomingMeta = incomingResults.querySelector('[data-community-meta]');
+      const currentMeta = results.querySelector('[data-community-meta]');
+      if (incomingMeta && currentMeta) currentMeta.replaceWith(incomingMeta);
+
+      results.querySelector('.community-more-wrap')?.remove();
+      const incomingMore = incomingResults.querySelector('[data-community-more]');
+      if (incomingMore) {
+        const wrap = document.createElement('div');
+        wrap.className = 'community-more-wrap';
+        wrap.appendChild(incomingMore);
+        results.appendChild(wrap);
+      } else {
+        const endNote = incomingResults.querySelector('.community-end-note');
+        if (endNote) results.appendChild(endNote);
+      }
+    } catch (error) {
+      showPinToast(error.message || 'Could not load more community posts.', 'error');
+    } finally {
+      moreButton.dataset.busy = 'false';
+      if (label && label.isConnected) label.textContent = original;
+      if (skeleton) skeleton.hidden = true;
+    }
+  });
+};
+
+const bindShareComments = () => {
+  if (document.documentElement.dataset.shareCommentsBound === 'true') return;
+  document.documentElement.dataset.shareCommentsBound = 'true';
+
+  const getShareId = () => document.querySelector('[data-community-post]')?.dataset.shareId;
+
+  const updateShareCommentCounters = (count) => {
+    document.querySelectorAll('[data-share-comments-count]').forEach((node) => { node.textContent = String(count); });
+    document.querySelectorAll('[data-share-comments-label]').forEach((node) => {
+      node.textContent = count === 1 ? 'comment' : 'comments';
+    });
+    document.querySelectorAll('[data-share-comments-total]').forEach((node) => { node.textContent = String(count); });
+  };
+
+  const getShareReplyTotal = (article) => {
+    const container = article?.querySelector(':scope > .ad-comment-main > .ad-comment-replies');
+    return container ? container.querySelectorAll('.ad-reply-slot > .ad-comment').length : 0;
+  };
+
+  const refreshShareReplyCount = (article) => {
+    if (!article) return;
+    const total = getShareReplyTotal(article);
+    if (!total) return;
+    let countButton = article.querySelector(':scope > .ad-comment-main > .ad-comment-actions [data-share-replies-toggle]');
+    if (!countButton) {
+      const actions = article.querySelector(':scope > .ad-comment-main > .ad-comment-actions');
+      if (actions) {
+        countButton = document.createElement('button');
+        countButton.type = 'button';
+        countButton.className = 'ad-comment-action ad-comment-replies-count';
+        countButton.dataset.shareRepliesToggle = '';
+        countButton.setAttribute('aria-expanded', 'true');
+        countButton.innerHTML = `${REPLY_TOGGLE_SVG}<span data-share-replies-label></span>`;
+        actions.appendChild(countButton);
+      }
+    }
+    if (countButton) {
+      const label = countButton.querySelector('[data-share-replies-label]');
+      if (label) label.textContent = total === 1 ? '1 reply' : `${total} replies`;
+    }
+  };
+
+  const insertShareCommentHtml = (html, parentId) => {
+    const list = document.querySelector('[data-share-comment-list]');
+    if (!list || !html) return null;
+    const holder = document.createElement('div');
+    holder.innerHTML = html.trim();
+    const article = holder.firstElementChild;
+    if (!(article instanceof HTMLElement)) return null;
+
+    if (parentId) {
+      const parent = list.querySelector(`.ad-comment[data-share-comment-id="${CSS.escape(String(parentId))}"]`);
+      if (!parent) return null;
+      let replies = parent.querySelector(':scope > .ad-comment-main > .ad-comment-replies');
+      if (!replies) {
+        replies = document.createElement('div');
+        replies.className = 'ad-comment-replies';
+        (parent.querySelector(':scope > .ad-comment-main') || parent).appendChild(replies);
+      }
+      replies.classList.remove('is-collapsed');
+      const slot = document.createElement('div');
+      slot.className = 'ad-reply-slot';
+      slot.appendChild(article);
+      replies.appendChild(slot);
+      refreshShareReplyCount(parent);
+    } else {
+      list.querySelector('[data-share-comments-empty]')?.remove();
+      list.prepend(article);
+    }
+
+    enhanceCommentMedia(article);
+    return article;
+  };
+
+  document.addEventListener('input', (event) => {
+    const field = event.target instanceof Element ? event.target.closest('[data-share-comment-input]') : null;
+    if (!field) return;
+    const counter = document.querySelector('[data-share-comment-char]');
+    if (counter) counter.textContent = `${field.value.length} / ${field.getAttribute('maxlength') || '2000'}`;
+  });
+
+  document.addEventListener('submit', async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const editForm = target.closest('[data-share-comment-edit-form]');
+    if (editForm) {
+      event.preventDefault();
+      const commentId = editForm.dataset.shareCommentId || editForm.closest('.ad-comment')?.dataset.shareCommentId;
+      const field = editForm.querySelector('textarea');
+      const body = (field?.value || '').trim();
+      if (!commentId || !field || !body) {
+        field?.focus();
+        return;
+      }
+      try {
+        const response = await fetch(`/community/comments/${encodeURIComponent(commentId)}/edit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            Accept: 'application/json'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ body })
+        });
+        if (response.status === 401) {
+          window.location.assign('/login');
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok || !data?.ok) throw new Error(data?.error || 'We could not save that edit.');
+        const article = editForm.closest('.ad-comment');
+        const text = article?.querySelector('[data-share-comment-text]');
+        if (text) text.innerHTML = data.body_html || '';
+        const edited = article?.querySelector('[data-share-comment-edited]');
+        if (edited) edited.hidden = false;
+        field.defaultValue = body;
+        editForm.hidden = true;
+        showPinToast('Comment updated.', 'success');
+      } catch (error) {
+        showPinToast(error.message || 'We could not save that edit.', 'error');
+      }
+      return;
+    }
+
+    const form = target.closest('[data-share-comment-form], [data-share-reply-form]');
+    if (!form) return;
+    event.preventDefault();
+
+    const shareId = getShareId();
+    const field = form.querySelector('textarea[name="body"]');
+    const body = (field?.value || '').trim();
+    if (!shareId || !field || !body) {
+      field?.focus();
+      return;
+    }
+
+    const isReply = form.matches('[data-share-reply-form]');
+    const parentId = isReply ? String(form.dataset.shareCommentId || '') : '';
+
+    field.disabled = true;
+    try {
+      const response = await fetch(`/community/${encodeURIComponent(shareId)}/comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ body, parent_id: parentId || undefined })
+      });
+      if (response.status === 401) {
+        window.location.assign('/login');
+        return;
+      }
+      const data = await response.json();
+      if (!response.ok || !data?.ok) throw new Error(data?.error || 'Your comment could not be posted.');
+
+      const inserted = insertShareCommentHtml(data.comment_html, parentId);
+      if (inserted) {
+        inserted.classList.add('is-new');
+        window.setTimeout(() => inserted.classList.remove('is-new'), 1700);
+        inserted.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+
+      updateShareCommentCounters(data.comments_count);
+      form.reset();
+      if (isReply) form.hidden = true;
+      const counter = document.querySelector('[data-share-comment-char]');
+      if (counter && !isReply) counter.textContent = '0 / 2000';
+      showPinToast(isReply ? 'Reply posted.' : 'Your note was posted.', 'success');
+    } catch (error) {
+      showPinToast(error.message || 'Your comment could not be posted.', 'error');
+    } finally {
+      field.disabled = false;
+    }
+  });
+
+  document.addEventListener('click', async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const replyToggle = target.closest('[data-share-reply-toggle]');
+    if (replyToggle) {
+      event.preventDefault();
+      const article = replyToggle.closest('.ad-comment');
+      const form = article?.querySelector(':scope > .ad-comment-main > [data-share-reply-form]');
+      if (!form) return;
+      const willShow = form.hidden;
+      document.querySelectorAll('[data-share-reply-form]:not([hidden]), [data-share-comment-edit-form]:not([hidden])').forEach((openForm) => {
+        if (openForm === form) return;
+        openForm.hidden = true;
+      });
+      form.hidden = !willShow;
+      replyToggle.setAttribute('aria-expanded', String(willShow));
+      if (willShow) form.querySelector('textarea')?.focus();
+      return;
+    }
+
+    const editToggle = target.closest('[data-share-edit-toggle]');
+    if (editToggle) {
+      event.preventDefault();
+      const article = editToggle.closest('.ad-comment');
+      const form = article?.querySelector(':scope > .ad-comment-main > .ad-comment-bubble > [data-share-comment-edit-form]');
+      if (!form) return;
+      const willShow = form.hidden;
+      document.querySelectorAll('[data-share-reply-form]:not([hidden]), [data-share-comment-edit-form]:not([hidden])').forEach((openForm) => {
+        if (openForm === form) return;
+        openForm.hidden = true;
+      });
+      form.hidden = !willShow;
+      if (willShow) {
+        const field = form.querySelector('textarea');
+        field?.focus();
+        field?.setSelectionRange(field.value.length, field.value.length);
+      }
+      return;
+    }
+
+    const editCancel = target.closest('[data-share-edit-cancel]');
+    if (editCancel) {
+      event.preventDefault();
+      const form = editCancel.closest('[data-share-comment-edit-form]');
+      if (form) {
+        form.hidden = true;
+        const field = form.querySelector('textarea');
+        if (field) field.value = field.defaultValue;
+      }
+      return;
+    }
+
+    const replyCancel = target.closest('[data-share-reply-cancel]');
+    if (replyCancel) {
+      event.preventDefault();
+      const form = replyCancel.closest('[data-share-reply-form]');
+      if (form) form.hidden = true;
+      return;
+    }
+
+    const deleteButton = target.closest('[data-share-comment-delete]');
+    if (deleteButton) {
+      event.preventDefault();
+      const commentId = deleteButton.dataset.shareCommentId;
+      if (!commentId || !window.confirm('Delete this comment? Replies will be removed too.')) return;
+      try {
+        const response = await fetch(`/community/comments/${encodeURIComponent(commentId)}/delete`, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+          credentials: 'same-origin'
+        });
+        if (response.status === 401) {
+          window.location.assign('/login');
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok || !data?.ok) throw new Error(data?.error || 'We could not delete that comment.');
+        const deleted = new Set((data.deleted_ids || []).map(String));
+        deleted.add(String(commentId));
+        document.querySelectorAll('.ad-comment[data-share-comment-id]').forEach((article) => {
+          if (deleted.has(String(article.dataset.shareCommentId))) article.remove();
+        });
+        updateShareCommentCounters(data.comments_count);
+        showPinToast('Comment deleted.', 'success');
+      } catch (error) {
+        showPinToast(error.message || 'We could not delete that comment.', 'error');
+      }
+      return;
+    }
+
+    const repliesToggle = target.closest('[data-share-replies-toggle]');
+    if (repliesToggle) {
+      event.preventDefault();
+      const article = repliesToggle.closest('.ad-comment');
+      const container = article?.querySelector(':scope > .ad-comment-main > .ad-comment-replies');
+      if (!article || !container) return;
+      const collapsed = container.classList.toggle('is-collapsed');
+      article
+        .querySelectorAll(':scope > .ad-comment-main > .ad-comment-actions [data-share-replies-toggle], :scope > .ad-comment-main > [data-share-replies-toggle]')
+        .forEach((button) => button.setAttribute('aria-expanded', String(!collapsed)));
+
+      const total = getShareReplyTotal(article);
+      article
+        .querySelectorAll(':scope > .ad-comment-main > .ad-comment-actions [data-share-replies-label], :scope > .ad-comment-main > [data-share-replies-toggle] [data-share-replies-label]')
+        .forEach((label) => {
+          const isCount = label.closest('.ad-comment-replies-count');
+          label.textContent = collapsed
+            ? `View ${total} ${total === 1 ? 'reply' : 'replies'}`
+            : (isCount ? (total === 1 ? '1 reply' : `${total} replies`) : 'Hide replies');
+        });
+      return;
+    }
+
+    const moreButton = target.closest('[data-share-comments-more]');
+    if (moreButton) {
+      event.preventDefault();
+      const shareId = getShareId();
+      const nextPage = moreButton.dataset.nextPage;
+      if (!shareId || !nextPage || moreButton.dataset.busy === 'true') return;
+      moreButton.dataset.busy = 'true';
+      const label = moreButton.querySelector('span');
+      const original = label?.textContent || '';
+      if (label) label.textContent = 'Loading…';
+      try {
+        const response = await fetch(`/community/${encodeURIComponent(shareId)}/comments?page=${encodeURIComponent(nextPage)}`, {
+          headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        });
+        const data = await response.json();
+        if (!response.ok || !data?.ok) throw new Error(data?.error || 'We could not load more comments.');
+        const list = document.querySelector('[data-share-comment-list]');
+        if (list && data.html) {
+          const holder = document.createElement('div');
+          holder.innerHTML = data.html;
+          while (holder.firstElementChild) {
+            const node = holder.firstElementChild;
+            list.appendChild(node);
+            enhanceCommentMedia(node);
+          }
+        }
+        updateShareCommentCounters(data.comments_count);
+        if (data.has_more && data.next_page) {
+          moreButton.dataset.nextPage = String(data.next_page);
+        } else {
+          moreButton.closest('.ad-comment-more-wrap')?.remove();
+        }
+      } catch (error) {
+        showPinToast(error.message || 'We could not load more comments.', 'error');
+      } finally {
+        moreButton.dataset.busy = 'false';
+        if (label && label.isConnected) label.textContent = original;
+      }
+    }
+  });
+};
+
 const bindArtworkDetailGallery = () => {
   const gallery = document.querySelector('[data-gallery]');
   if (!gallery) return;

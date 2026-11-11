@@ -228,6 +228,37 @@ const schemaStatements = [
     CONSTRAINT fk_notifications_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+  `CREATE TABLE IF NOT EXISTS share_likes (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    share_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    reaction_type VARCHAR(16) NOT NULL DEFAULT 'like',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_share_likes_share_user (share_id, user_id),
+    KEY idx_share_likes_share (share_id),
+    KEY idx_share_likes_user (user_id),
+    CONSTRAINT fk_share_likes_share FOREIGN KEY (share_id) REFERENCES artwork_shares (id) ON DELETE CASCADE,
+    CONSTRAINT fk_share_likes_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS share_comments (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    share_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    parent_id INT UNSIGNED DEFAULT NULL,
+    body TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_share_comments_share (share_id, created_at),
+    KEY idx_share_comments_user (user_id),
+    KEY idx_share_comments_parent (parent_id),
+    CONSTRAINT fk_share_comments_share FOREIGN KEY (share_id) REFERENCES artwork_shares (id) ON DELETE CASCADE,
+    CONSTRAINT fk_share_comments_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_share_comments_parent FOREIGN KEY (parent_id) REFERENCES share_comments (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
   `CREATE TABLE IF NOT EXISTS mentions (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     mentioned_by INT UNSIGNED NOT NULL,
@@ -423,15 +454,23 @@ async function ensureSocialColumns(targetPool) {
   await addColumn('likes', 'reaction_type', "VARCHAR(16) NOT NULL DEFAULT 'like'");
   await addColumn('artwork_shares', 'message', 'VARCHAR(500) DEFAULT NULL');
   await addColumn('notifications', 'comment_id', 'INT UNSIGNED DEFAULT NULL');
+  await addColumn('notifications', 'share_id', 'INT UNSIGNED DEFAULT NULL');
 
-  const [indexes] = await targetPool.query(
-    `SELECT INDEX_NAME FROM information_schema.STATISTICS
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications'`
-  );
-  const indexNames = new Set(indexes.map((row) => row.INDEX_NAME));
-  if (!indexNames.has('idx_notifications_comment')) {
-    await targetPool.query('ALTER TABLE notifications ADD INDEX idx_notifications_comment (comment_id)');
-  }
+  const ensureIndex = async (table, indexName, definition) => {
+    const [indexes] = await targetPool.query(
+      `SELECT INDEX_NAME FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+      [table]
+    );
+    const names = new Set(indexes.map((row) => row.INDEX_NAME));
+    if (!names.has(indexName)) {
+      await targetPool.query(`ALTER TABLE ${table} ADD INDEX ${indexName} ${definition}`);
+    }
+  };
+
+  await ensureIndex('notifications', 'idx_notifications_comment', '(comment_id)');
+  await ensureIndex('notifications', 'idx_notifications_share', '(share_id)');
+  await ensureIndex('artwork_shares', 'idx_artwork_shares_feed', '(platform, created_at)');
 
   // Backfill legacy rows written before reactions existed.
   await targetPool.query("UPDATE likes SET reaction_type = 'like' WHERE reaction_type IS NULL OR reaction_type = ''");

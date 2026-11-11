@@ -1,7 +1,7 @@
 <%- include('../partials/header') %>
 
 <%
-  const typeLabels = { like: 'Like', comment: 'Comment', reply: 'Reply', comment_like: 'Comment like', mention: 'Mention', share: 'Share', follow: 'Follow' };
+  const typeLabels = { like: 'Like', comment: 'Comment', reply: 'Reply', comment_like: 'Comment like', mention: 'Mention', share: 'Share', share_like: 'Share reaction', share_comment: 'Share comment', share_reply: 'Share reply', follow: 'Follow' };
   const typeActions = {
     like: 'reacted to your artwork',
     comment: 'commented on your artwork',
@@ -9,6 +9,9 @@
     comment_like: 'liked your comment',
     mention: 'mentioned you',
     share: 'shared your artwork',
+    share_like: 'reacted to your shared post',
+    share_comment: 'commented on your shared post',
+    share_reply: 'replied to your comment on a share',
     follow: 'started following you'
   };
 %>
@@ -56,7 +59,7 @@
                 <span class="notification-artwork" data-i18n-skip>“<%= item.artwork_title %>”</span>
               <% } %>
 
-              <% if (['comment', 'reply', 'comment_like', 'mention', 'share'].includes(item.type) && item.message) { %>
+              <% if (['comment', 'reply', 'comment_like', 'mention', 'share', 'share_like', 'share_comment', 'share_reply'].includes(item.type) && item.message) { %>
                 <span class="notification-comment" data-i18n-skip>“<%= item.message %>”</span>
               <% } %>
 
