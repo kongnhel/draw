@@ -280,14 +280,14 @@
 
 .topbar .nav-actions {
   grid-area: actions;
-  gap: 5px;
+  gap: 7px;
 }
 
 .topbar .nav-icon-btn {
   position: relative;
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   place-items: center;
   border: 1px solid var(--border);
@@ -299,8 +299,8 @@
 }
 
 .topbar .nav-icon-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -329,20 +329,20 @@
 
 .topbar .nav-badge {
   position: absolute;
-  top: -2px;
-  right: -3px;
+  top: -3px;
+  right: -4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
   border: 1.5px solid var(--bg);
   border-radius: 50% 45% 55% 50%;
   background: #c25a3a;
   color: #fff9ef;
   font-family: 'Inter', sans-serif;
-  font-size: 0.52rem;
+  font-size: 0.6rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -701,7 +701,7 @@ body.nav-open {
   }
 
   .topbar .nav-menu-toggle {
-    display: none !important;
+    display: grid;
   }
 
   .topbar .nav-auth-link,
@@ -1009,9 +1009,9 @@ body.nav-open {
 
 @media (max-width: 640px) {
   .topbar .profile-chip {
-    width: 34px;
-    height: 34px;
-    max-width: 34px;
+    width: 38px;
+    height: 38px;
+    max-width: 38px;
     padding: 3px;
     justify-content: center;
     overflow: hidden;
@@ -1019,8 +1019,8 @@ body.nav-open {
   }
 
   .topbar .profile-chip img {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
   }
 
   .topbar .profile-chip-caret {
@@ -1060,17 +1060,12 @@ body.nav-open {
   }
 
   .topbar .nav-actions {
-    gap: 4px;
+    gap: 5px;
   }
 
   .topbar .nav-icon-btn {
-    width: 32px;
-    height: 32px;
-  }
-
-  .topbar .nav-icon-btn svg {
-    width: 16px;
-    height: 16px;
+    width: 38px;
+    height: 38px;
   }
 
   .topbar .nav-notify {
@@ -1080,21 +1075,21 @@ body.nav-open {
   .topbar .nav-notify .nav-badge {
     top: -2px;
     right: -3px;
-    min-width: 14px;
-    height: 14px;
-    padding: 0 3px;
-    font-size: 0.5rem;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 0.56rem;
   }
 
   .topbar .profile-chip {
-    width: 32px;
-    height: 32px;
-    max-width: 32px;
+    width: 38px;
+    height: 38px;
+    max-width: 38px;
   }
 
   .topbar .profile-chip img {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
   }
 
   .topbar .brand-word {
@@ -1189,5 +1184,12 @@ body.nav-open {
 
   body[data-locale='km'] .topbar .nav-wrap {
     gap: 10px;
+  }
+}
+
+/* Touch phones use the bottom nav instead of the drawer toggle */
+@media (max-width: 1080px) and (pointer: coarse) {
+  .topbar .nav-menu-toggle {
+    display: none !important;
   }
 }

@@ -6,11 +6,15 @@
   display: none;
 }
 
-@media (max-width: 1080px) {
-  body {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  }
+/* Safety defaults so the bar can never render oversized if it is shown. */
+.mobile-bottom-nav .mbn-icon-wrap svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+}
 
+@media (max-width: 1080px) {
   .mobile-bottom-nav {
     --mbn-paper: #f7f1e4;
     --mbn-paper-deep: #eee4d3;
@@ -25,7 +29,6 @@
     bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     z-index: 95;
-    display: flex;
     width: min(540px, calc(100vw - 18px));
     min-height: 62px;
     overflow: hidden;
@@ -201,8 +204,18 @@
     pointer-events: none;
     transform: translate(-50%, 18px);
   }
+}
 
-  /* The bottom bar is now the primary mobile map; keep the drawer for extras. */
+/* Show the bottom bar on touch devices only (phones/tablets) */
+@media (max-width: 1080px) and (pointer: coarse) {
+  body {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-bottom-nav {
+    display: flex !important;
+  }
+
   .topbar .nav-links .nav-link-group {
     display: none;
   }

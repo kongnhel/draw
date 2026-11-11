@@ -7769,19 +7769,77 @@ body.studio-dialog-open {
 
   .studio-art-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 10px;
+  }
+
+  .studio-art-card {
+    padding: 6px 6px 8px;
+    border-radius: 10px 14px 9px 15px / 14px 9px 15px 10px;
+    box-shadow: 2px 3px 0 rgba(66, 55, 38, 0.08);
+    transform: none;
+  }
+
+  .studio-art-card:hover {
+    transform: translateY(-3px);
+  }
+
+  .studio-art-card > .studio-tape {
+    width: 40px;
+    height: 12px;
+    top: -6px;
+  }
+
+  .studio-art-body {
+    padding: 8px 2px 0;
+  }
+
+  .studio-art-meta {
+    gap: 6px;
+    font-size: 8px;
   }
 
   .studio-art-meta span:last-child {
     display: none;
   }
 
+  .studio-art-body h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 2px 0 5px;
+    font-size: 16px;
+    line-height: 1.1;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .studio-art-metrics {
-    gap: 8px;
-    font-size: 9.5px;
+    gap: 7px;
+    margin-bottom: 7px;
+    font-size: 9px;
   }
 
   .studio-art-actions {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding-top: 7px;
+  }
+
+  .studio-art-actions form {
+    display: flex;
+  }
+
+  .studio-mini-btn {
+    width: 100%;
+    min-height: 28px;
+    padding: 3px 2px;
+    font-size: 9px;
+  }
+
+  .studio-art-ribbon {
+    top: 8px;
+    padding: 2px 7px 2px 6px;
+    font-size: 10px;
   }
 
   .studio-welcome-actions {
@@ -14855,6 +14913,10 @@ a.pf-social:focus-visible { outline: 2px dashed var(--secondary); outline-offset
   transform: translateY(-6px) rotate(0);
 }
 
+.pf-art-card:active {
+  transform: translateY(-2px) scale(0.99);
+}
+
 .pf-art-tape {
   position: absolute;
   z-index: 2;
@@ -15306,7 +15368,58 @@ a.pf-social:focus-visible { outline: 2px dashed var(--secondary); outline-offset
   }
 
   .pf-art-grid {
-    columns: 1;
+    columns: 2;
+    column-gap: 12px;
+  }
+
+  .pf-art-card {
+    margin-bottom: 12px;
+    padding: 7px 7px 0;
+  }
+
+  .pf-art-body {
+    padding: 8px 2px 8px;
+  }
+
+  .pf-art-meta {
+    gap: 6px;
+    font-size: 0.48rem;
+  }
+
+  .pf-art-body h3 {
+    margin: 4px 0 2px;
+    font-size: 1.2rem;
+    line-height: 1.05;
+  }
+
+  .pf-art-artist {
+    font-size: 0.62rem;
+  }
+
+  .pf-art-footer {
+    margin-top: 7px;
+    padding-top: 7px;
+    gap: 6px;
+  }
+
+  .pf-art-actions {
+    gap: 1px;
+  }
+
+  .pf-art-action {
+    padding: 5px;
+    min-height: 30px;
+  }
+
+  .pf-art-action svg,
+  .pf-art-open svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .pf-art-open {
+    width: 30px;
+    height: 30px;
   }
 
   .pf-collection-status-row {
@@ -15366,11 +15479,11 @@ a.pf-social:focus-visible { outline: 2px dashed var(--secondary); outline-offset
   }
 
   .pf-art-card {
-    padding: 9px 9px 0;
+    padding: 7px 7px 0;
   }
 
   .pf-art-body h3 {
-    font-size: 1.65rem;
+    font-size: 1.2rem;
   }
 
   .pf-art-footer {
@@ -20866,4 +20979,79 @@ body.auth-body .auth-register a:hover {
 .art-viewer-related-close:focus-visible {
   outline: 2px dashed var(--viewer-accent);
   outline-offset: 3px;
+}
+
+/* ==========================================================================
+   Footer - tablet & phone layout
+   ========================================================================== */
+
+@media (max-width: 980px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 20px;
+  }
+
+  .footer-grid > div:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 18px;
+    border-bottom: 1px dashed var(--border);
+  }
+}
+
+@media (max-width: 640px) {
+  .site-footer {
+    margin-top: 36px;
+  }
+
+  .footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 14px;
+    padding: 26px 0 20px;
+  }
+
+  .footer-grid > div:first-child {
+    padding-bottom: 16px;
+  }
+
+  .footer-brand {
+    margin-bottom: 8px;
+  }
+
+  .site-footer h4 {
+    margin-bottom: 8px;
+    font-size: 1.02rem;
+  }
+
+  .site-footer ul {
+    gap: 6px;
+    font-size: 0.84rem;
+  }
+
+  .site-footer p {
+    max-width: 36ch;
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding-top: 14px;
+    padding-bottom: 18px;
+    font-size: 0.76rem;
+    text-align: center;
+  }
+
+  .footer-bottom > span {
+    width: 100%;
+  }
+
+  .footer-bottom .intro-replay,
+  .footer-bottom .sound-toggle {
+    min-height: 34px;
+    padding: 6px 12px;
+    font-size: 0.72rem;
+  }
 }
