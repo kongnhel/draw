@@ -1087,3 +1087,54 @@ body.nav-open {
     width: min(92vw, 372px);
   }
 }
+
+
+/* Compact desktop navbar: five links plus search must fit on mid-size screens */
+@media (max-width: 1440px) and (min-width: 1081px) {
+  .topbar .nav-wrap {
+    grid-template-columns: auto minmax(0, 1fr) minmax(140px, 200px) auto;
+    gap: 10px;
+  }
+
+  .topbar .nav-links {
+    min-width: 0;
+  }
+
+  .topbar .nav-link-group {
+    gap: 0;
+  }
+
+  .topbar .nav-link-group a {
+    padding-inline: 8px;
+    font-size: 1.08rem;
+  }
+
+  .topbar .nav-link-group a::after {
+    right: 6px;
+    left: 6px;
+  }
+
+  .topbar .brand-word {
+    font-size: 1.6rem;
+  }
+
+  .topbar .profile-chip-name {
+    display: none;
+  }
+}
+
+/* Khmer labels are wider than English — tighten a little more */
+@media (max-width: 1440px) and (min-width: 1081px) {
+  body[data-locale='km'] .topbar .nav-link-group a {
+    padding-inline: 6px;
+    font-size: 1.02rem;
+  }
+
+  body[data-locale='km'] .topbar .brand-word {
+    font-size: 1.52rem;
+  }
+
+  body[data-locale='km'] .topbar .nav-wrap {
+    gap: 8px;
+  }
+}
