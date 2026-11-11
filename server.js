@@ -1392,7 +1392,31 @@ app.use(async (req, res, next) => {
 
   if (currentUser) {
     try {
-      res.locals.unreadNotifications = await countUnreadNotifications(currentUser.id);
+      const rows = await db.execute(
+        'SELECT id, name, username, email, role, status, avatar, locale FROM users WHERE id = ? LIMIT 1',
+        [currentUser.id]
+      );
+      const freshUser = rows && rows[0];
+      if (freshUser) {
+        req.session.user = {
+          id: freshUser.id,
+          username: freshUser.username,
+          email: freshUser.email,
+          display_name: freshUser.name || freshUser.username,
+          avatar: freshUser.avatar || null,
+          role: freshUser.role,
+          locale: i18n.SUPPORTED.includes(freshUser.locale)
+            ? freshUser.locale
+            : (currentUser.locale || i18n.DEFAULT_LOCALE)
+        };
+        res.locals.currentUser = req.session.user;
+      }
+    } catch (error) {
+      console.error('Could not refresh session user:', error);
+    }
+
+    try {
+      res.locals.unreadNotifications = await countUnreadNotifications(res.locals.currentUser.id);
     } catch (error) {
       console.error('Could not load notification count:', error);
     }

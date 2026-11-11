@@ -1188,7 +1188,7 @@ body.nav-open {
 }
 
 /* Touch phones use the bottom nav instead of the drawer toggle */
-@media (max-width: 1080px) and (pointer: coarse) {
+@media (max-width: 1080px) and (pointer: coarse) and (hover: none) {
   .topbar .nav-menu-toggle {
     display: none !important;
   }

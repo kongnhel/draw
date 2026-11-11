@@ -15,16 +15,18 @@
     isAuthenticated && mbnUsername && mbnSavedTab
     && mbnPath === `/profile/${encodeURIComponent(mbnUsername)}`
   );
+  const mbnIsAdmin = Boolean(isAuthenticated && currentUser && currentUser.role === 'admin');
   const mbnActive = {
     home: mbnPath === '/',
     explore: mbnPath.startsWith('/explore') || mbnPath.startsWith('/search'),
     community: mbnPath.startsWith('/community'),
     upload: mbnPath.startsWith('/upload'),
     saved: mbnOwnSaved,
+    admin: mbnPath.startsWith('/admin'),
     profile: mbnOnProfile && !mbnOwnSaved
   };
 %>
-<nav class="mobile-bottom-nav" data-mobile-bottom-nav aria-label="Mobile primary navigation" style="display:none">
+<nav class="mobile-bottom-nav" data-mobile-bottom-nav aria-label="Mobile primary navigation">
   <a
     href="/"
     class="mbn-item<%= mbnActive.home ? ' is-active' : '' %>"
@@ -85,6 +87,20 @@
     </span>
     <span class="mbn-label">Saved</span>
   </a>
+
+  <% if (mbnIsAdmin) { %>
+  <a
+    href="/admin"
+    class="mbn-item<%= mbnActive.admin ? ' is-active' : '' %>"
+    data-mbn-key="admin"
+    <%- mbnActive.admin ? 'aria-current="page"' : '' %>
+  >
+    <span class="mbn-icon-wrap" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="m12 3.5 7 3v5c0 4.3-2.9 7.3-7 9-4.1-1.7-7-4.7-7-9v-5l7-3Z" /><path d="m9 12 2 2 4-4.5" /></svg>
+    </span>
+    <span class="mbn-label">Admin</span>
+  </a>
+  <% } %>
 
   <a
     href="<%= mbnProfileHref %>"

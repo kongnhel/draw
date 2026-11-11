@@ -6,14 +6,6 @@
   display: none;
 }
 
-/* Safety defaults so the bar can never render oversized if it is shown. */
-.mobile-bottom-nav .mbn-icon-wrap svg {
-  width: 21px;
-  height: 21px;
-  fill: none;
-  stroke: currentColor;
-}
-
 @media (max-width: 1080px) {
   .mobile-bottom-nav {
     --mbn-paper: #f7f1e4;
@@ -206,8 +198,8 @@
   }
 }
 
-/* Show the bottom bar on touch devices only (phones/tablets) */
-@media (max-width: 1080px) and (pointer: coarse) {
+/* Touch devices only: phones/tablets get the bottom bar, desktop keeps the drawer. */
+@media (max-width: 1080px) and (pointer: coarse) and (hover: none) {
   body {
     padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   }
@@ -218,6 +210,13 @@
 
   .topbar .nav-links .nav-link-group {
     display: none;
+  }
+}
+
+/* Any mouse / fine pointer means PC: never show the bottom bar. */
+@media (hover: hover) and (pointer: fine), (any-pointer: fine) {
+  .mobile-bottom-nav {
+    display: none !important;
   }
 }
 
