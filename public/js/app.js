@@ -6813,14 +6813,14 @@ const bindArtworkDetailGallery = () => {
   const buildMainSrc = (fullUrl) => {
     if (!transformEndpoint || !fullUrl.startsWith(transformEndpoint)) return fullUrl;
     const separator = fullUrl.includes('?') ? '&' : '?';
-    return `${fullUrl}${separator}tr=w-1200,q-82,f-auto`;
+    return `${fullUrl}${separator}tr=w-1200%2Cq-82%2Cf-auto`;
   };
 
   const buildMainSrcset = (fullUrl) => {
     if (!transformEndpoint || !fullUrl.startsWith(transformEndpoint)) return '';
     const separator = fullUrl.includes('?') ? '&' : '?';
     return [640, 960, 1200, 1600]
-      .map((width) => `${fullUrl}${separator}tr=w-${width},q-82,f-auto ${width}w`)
+      .map((width) => `${fullUrl}${separator}tr=w-${width}%2Cq-82%2Cf-auto ${width}w`)
       .join(', ');
   };
 
@@ -6940,7 +6940,7 @@ const bindArtworkLightbox = () => {
   const fullSrc = (url) => {
     if (!transformEndpoint || !url.startsWith(transformEndpoint)) return url;
     const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}tr=w-1600,q-90,f-auto`;
+    return `${url}${separator}tr=w-1600%2Cq-90%2Cf-auto`;
   };
 
   const render = () => {
@@ -7060,6 +7060,8 @@ const initPage = () => {
   bindNotificationBell();
   bindMentionAutocomplete();
   bindSocialPostMenu();
+  bindCommunityFeed();
+  bindShareComments();
   applyHiddenPosts();
   bindScrollReveal();
 

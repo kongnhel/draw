@@ -468,7 +468,7 @@ function isTransformableImage(url) {
 function transformImageUrl(url, width, quality = 78) {
   if (!isTransformableImage(url)) return url;
   const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}tr=w-${Math.round(width)},q-${quality},f-auto`;
+  return `${url}${separator}tr=w-${Math.round(width)}%2Cq-${quality}%2Cf-auto`;
 }
 
 function buildImageSrcset(url, widths, quality = 78) {
