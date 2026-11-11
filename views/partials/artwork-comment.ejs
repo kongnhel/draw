@@ -1,0 +1,112 @@
+<%
+  const commentDepth = Math.min(Number(depth) || 0, 3);
+  const commentAuthorId = Number(comment.user_id);
+  const artworkOwnerId = Number(artwork.user_id);
+  const viewer = typeof currentUser !== 'undefined' && currentUser ? currentUser : null;
+  const viewerId = viewer ? Number(viewer.id) : 0;
+  const commentCanEdit = Boolean(viewer && viewerId === commentAuthorId);
+  const commentCanDelete = Boolean(viewer && (viewerId === commentAuthorId || viewerId === artworkOwnerId || viewer.role === 'admin'));
+  const commentIsEdited = comment.is_edited === true || Number(comment.is_edited) === 1;
+  const commentIsLiked = comment.is_liked === true || Number(comment.is_liked) === 1;
+  const commentReplies = Array.isArray(comment.replies) ? comment.replies : [];
+%>
+<article class="ad-comment" data-comment-id="<%= comment.id %>" data-comment-depth="<%= commentDepth %>">
+  <img
+    class="ad-comment-avatar"
+    src="<%= comment.avatar || '/images/default-avatar.svg' %>"
+    data-fallback-src="/images/default-avatar.svg"
+    alt="<%= comment.display_name || comment.username %>"
+    loading="lazy"
+    decoding="async"
+    data-i18n-skip
+  />
+  <div class="ad-comment-main">
+    <div class="ad-comment-bubble">
+      <header class="ad-comment-head">
+        <a class="ad-comment-author" href="/profile/<%= comment.username %>" data-i18n-skip><%= comment.display_name || comment.username %></a>
+        <span class="ad-comment-handle" data-i18n-skip>@<%= comment.username %></span>
+        <% if (commentAuthorId === artworkOwnerId) { %>
+          <span class="ad-comment-badge">Artist</span>
+        <% } %>
+        <time class="ad-comment-date" datetime="<%= comment.created_at %>"><%= comment.created_at_label || 'Just now' %></time>
+        <span class="ad-comment-edited" data-comment-edited<%= commentIsEdited ? '' : ' hidden' %>>edited</span>
+      </header>
+      <p class="ad-comment-text" data-comment-text data-i18n-skip><%= comment.body %></p>
+      <% if (commentCanEdit) { %>
+        <form class="ad-comment-edit-form" data-comment-edit-form hidden>
+          <textarea name="body" rows="3" maxlength="2000" aria-label="Edit your comment"><%= comment.body %></textarea>
+          <div class="ad-comment-form-actions">
+            <button type="submit" class="ad-comment-save">Save changes</button>
+            <button type="button" class="ad-comment-cancel" data-comment-edit-cancel>Cancel</button>
+          </div>
+        </form>
+      <% } %>
+    </div>
+
+    <div class="ad-comment-actions" aria-label="Comment actions">
+      <button
+        type="button"
+        class="ad-comment-action ad-comment-like<%= commentIsLiked ? ' is-liked' : '' %>"
+        data-comment-like
+        data-comment-id="<%= comment.id %>"
+        aria-pressed="<%= commentIsLiked ? 'true' : 'false' %>"
+        aria-label="<%= commentIsLiked ? 'Unlike this comment' : 'Like this comment' %>"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
+        <span data-comment-like-count><%= comment.likes_count || 0 %></span>
+      </button>
+      <% if (viewer) { %>
+        <button type="button" class="ad-comment-action" data-comment-reply-toggle aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 10 4 15l5 5" /><path d="M4 15h9a7 7 0 0 0 7-7V6" /></svg>
+          Reply
+        </button>
+      <% } %>
+      <% if (commentCanEdit) { %>
+        <button type="button" class="ad-comment-action" data-comment-edit-toggle>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17l-1 3Z" /><path d="m13.5 7.5 3 3" /></svg>
+          Edit
+        </button>
+      <% } %>
+      <% if (commentCanDelete) { %>
+        <button type="button" class="ad-comment-action ad-comment-delete" data-comment-delete>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13" /></svg>
+          Delete
+        </button>
+      <% } %>
+    </div>
+
+    <% if (viewer) { %>
+      <form class="ad-reply-form" data-reply-form data-comment-id="<%= comment.id %>" hidden>
+        <img
+          class="ad-reply-avatar"
+          src="<%= viewer.avatar || '/images/default-avatar.svg' %>"
+          data-fallback-src="/images/default-avatar.svg"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="ad-reply-field">
+          <textarea name="body" rows="2" maxlength="2000" placeholder="Reply to <%= comment.display_name || comment.username %>…" aria-label="Reply to <%= comment.display_name || comment.username %>"></textarea>
+          <div class="ad-comment-form-actions">
+            <button type="submit" class="ad-comment-save">Post reply</button>
+            <button type="button" class="ad-comment-cancel" data-reply-cancel>Cancel</button>
+          </div>
+        </div>
+      </form>
+    <% } %>
+
+    <% if (commentReplies.length) { %>
+      <div class="ad-comment-replies">
+        <% commentReplies.forEach((reply) => { %>
+          <%- include('./artwork-comment', {
+            comment: reply,
+            artwork,
+            currentUser: viewer,
+            isAuthenticated: Boolean(viewer),
+            depth: commentDepth + 1
+          }) %>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</article>

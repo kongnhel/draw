@@ -56,6 +56,9 @@
     const viewer = document.querySelector('[data-art-viewer]');
     if (viewer?.open && typeof viewer.close === 'function') viewer.close();
 
+    const lightbox = document.querySelector('[data-lightbox]');
+    if (lightbox?.open && typeof lightbox.close === 'function') lightbox.close();
+
     const topbar = document.querySelector('[data-topbar]');
     topbar?.classList.remove('is-open', 'is-search-open');
 
@@ -63,7 +66,7 @@
     navToggle?.setAttribute('aria-expanded', 'false');
     navToggle?.setAttribute('aria-label', 'Open menu');
 
-    document.body.classList.remove('nav-open', 'ae-modal-open', 'art-viewer-open', 'studio-dialog-open');
+    document.body.classList.remove('nav-open', 'ae-modal-open', 'art-viewer-open', 'ad-lightbox-open', 'studio-dialog-open');
   };
 
   const syncDocumentHead = (doc) => {

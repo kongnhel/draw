@@ -132,14 +132,69 @@ const schemaStatements = [
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id INT UNSIGNED NOT NULL,
     artwork_id INT UNSIGNED NOT NULL,
+    parent_id INT UNSIGNED DEFAULT NULL,
     body TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_comments_artwork (artwork_id, created_at),
     KEY idx_comments_user (user_id),
+    KEY idx_comments_parent (parent_id),
     CONSTRAINT fk_comments_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_comments_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE
+    CONSTRAINT fk_comments_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE,
+    CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS comment_likes (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    comment_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_comment_likes_user_comment (user_id, comment_id),
+    KEY idx_comment_likes_comment (comment_id),
+    CONSTRAINT fk_comment_likes_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_comment_likes_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS artwork_shares (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    artwork_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED DEFAULT NULL,
+    platform VARCHAR(32) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_artwork_shares_artwork (artwork_id, created_at),
+    KEY idx_artwork_shares_user (user_id),
+    CONSTRAINT fk_artwork_shares_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE,
+    CONSTRAINT fk_artwork_shares_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS artwork_views (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    artwork_id INT UNSIGNED NOT NULL,
+    viewer_key VARCHAR(80) NOT NULL,
+    user_id INT UNSIGNED DEFAULT NULL,
+    first_viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_artwork_views_artwork_viewer (artwork_id, viewer_key),
+    KEY idx_artwork_views_artwork (artwork_id),
+    KEY idx_artwork_views_user (user_id),
+    CONSTRAINT fk_artwork_views_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE,
+    CONSTRAINT fk_artwork_views_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS artwork_images (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    artwork_id INT UNSIGNED NOT NULL,
+    image_url VARCHAR(1000) NOT NULL,
+    thumbnail_url VARCHAR(1000) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_artwork_images_artwork (artwork_id, sort_order),
+    CONSTRAINT fk_artwork_images_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
   `CREATE TABLE IF NOT EXISTS follows (
@@ -265,11 +320,85 @@ async function ensureUserProfileColumns(targetPool = pool) {
   }
 }
 
+async function ensureCommentColumns(targetPool) {
+  const [columns] = await targetPool.query(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'comments'`
+  );
+  const existing = new Set(columns.map((row) => row.COLUMN_NAME));
+
+  if (!existing.has('parent_id')) {
+    await targetPool.query('ALTER TABLE comments ADD COLUMN parent_id INT UNSIGNED DEFAULT NULL AFTER artwork_id');
+  }
+
+  const [indexes] = await targetPool.query(
+    `SELECT INDEX_NAME FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'comments'`
+  );
+  const indexNames = new Set(indexes.map((row) => row.INDEX_NAME));
+  if (!indexNames.has('idx_comments_parent')) {
+    await targetPool.query('ALTER TABLE comments ADD INDEX idx_comments_parent (parent_id)');
+  }
+
+  const [constraints] = await targetPool.query(
+    `SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'comments' AND CONSTRAINT_TYPE = 'FOREIGN KEY'`
+  );
+  const constraintNames = new Set(constraints.map((row) => row.CONSTRAINT_NAME));
+  if (!constraintNames.has('fk_comments_parent')) {
+    await targetPool.query(
+      'ALTER TABLE comments ADD CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE CASCADE'
+    );
+  }
+}
+
+async function ensureArtworkImageColumns(targetPool) {
+  const [artworkColumns] = await targetPool.query(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'artworks'`
+  );
+  const artworkColumnNames = new Set(artworkColumns.map((row) => row.COLUMN_NAME));
+
+  if (!artworkColumnNames.has('cover_image_id')) {
+    await targetPool.query('ALTER TABLE artworks ADD COLUMN cover_image_id INT UNSIGNED DEFAULT NULL');
+  }
+
+  // Backfill legacy artworks: copy the single cover into artwork_images,
+  // then point cover_image_id at the first gallery row.
+  await targetPool.query(
+    `INSERT INTO artwork_images (artwork_id, image_url, thumbnail_url, sort_order)
+     SELECT a.id, a.image_url, a.thumbnail_url, 0
+       FROM artworks a
+      WHERE a.image_url IS NOT NULL AND a.image_url <> ''
+        AND a.cover_image_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM artwork_images ai WHERE ai.artwork_id = a.id)`
+  );
+
+  await targetPool.query(
+    `UPDATE artworks a
+        LEFT JOIN artwork_images ai ON ai.id = a.cover_image_id
+        SET a.cover_image_id = NULL
+      WHERE a.cover_image_id IS NOT NULL AND ai.id IS NULL`
+  );
+
+  await targetPool.query(
+    `UPDATE artworks a
+        LEFT JOIN artwork_images first_image
+               ON first_image.artwork_id = a.id
+              AND first_image.sort_order = 0
+        SET a.cover_image_id = first_image.id
+      WHERE a.image_url IS NOT NULL AND a.image_url <> ''
+        AND a.cover_image_id IS NULL`
+  );
+}
+
 async function initializeSchema(targetPool) {
   for (const statement of schemaStatements) {
     await targetPool.query(statement);
   }
   await ensureUserProfileColumns(targetPool);
+  await ensureCommentColumns(targetPool);
+  await ensureArtworkImageColumns(targetPool);
 }
 
 async function initPool() {

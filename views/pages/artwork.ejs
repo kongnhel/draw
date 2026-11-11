@@ -8,9 +8,27 @@
   const isOwner = isAuthenticated && currentUser && currentUser.id === artwork.user_id;
   const artworkPinned = typeof pinnedIds !== 'undefined' && pinnedIds && pinnedIds.has(Number(artwork.id));
   const shareUrl = '/art/' + artwork.id;
+  const descriptionText = artwork.description && artwork.description.trim() ? artwork.description.trim() : '';
+  const descriptionIsLong = descriptionText.length > 280;
+  const tagList = artwork.tags ? artwork.tags.split(' ') : [];
+  const visibleTags = tagList.map((tag) => tag.trim()).filter((tag) => tag && !/^effect:/i.test(tag));
+  const visibilityLabel = artwork.visibility || 'public';
+  const totalComments = typeof commentsTotal !== 'undefined' ? commentsTotal : (artwork.comments_count || 0);
+  const totalShares = Number(artwork.shares_count || 0);
+  const totalViews = Number(artwork.views_count || 0);
+  const followerTotal = artistStats && Number.isFinite(Number(artistStats.followersCount)) ? Number(artistStats.followersCount) : 0;
+  const hasMoreComments = typeof commentsHasMore !== 'undefined' ? commentsHasMore : false;
+  const nextCommentsPage = typeof commentsNextPage !== 'undefined' ? commentsNextPage : 2;
+  const commentPageSize = typeof commentsPageSize !== 'undefined' ? commentsPageSize : 8;
+  const galleryImages = artwork.images && artwork.images.length
+    ? artwork.images
+    : [{ id: 0, image_url: artwork.image_url, thumbnail_url: artwork.thumbnail_url || artwork.image_url }];
+  const galleryCount = galleryImages.length;
+  const hasMultipleImages = galleryCount > 1;
+  const galleryCover = galleryImages[0];
 %>
 
-<div class="artwork-detail-page">
+<div class="artwork-detail-page" data-artwork-detail data-artwork-id="<%= artwork.id %>">
 
   <a class="ad-back-link" href="/explore">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
@@ -28,17 +46,44 @@
           Original Artwork
         </span>
 
-        <button class="ad-artwork-open" type="button" data-artwork-open data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= artwork.image_url %>" data-artwork-thumb="<%= artwork.thumbnail_url || artwork.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artistName %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artworkDateLabel %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="Open <%= artwork.title %> in the immersive viewer">
-          <%
-            const detailSrc = imageTools.transformUrl(artwork.image_url, 1200);
-            const detailSrcset = imageTools.srcset(artwork.image_url, [640, 960, 1200, 1600], 82);
-          %>
-          <img src="<%= detailSrc %>"<% if (detailSrcset) { %> srcset="<%= detailSrcset %>" sizes="(max-width: 900px) 92vw, 720px"<% } %> alt="<%= artwork.title %>" loading="eager" fetchpriority="high" decoding="async" data-i18n-skip />
-          <span class="ad-zoom-hint" aria-hidden="true">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v4M15 5h4v4M9 19H5v-4M15 19h4v-4" /></svg>
-            Immersive view
-          </span>
-        </button>
+        <div class="ad-gallery" data-gallery data-gallery-count="<%= galleryCount %>">
+          <div class="ad-gallery-stage">
+            <button class="ad-artwork-open" type="button" data-artwork-fullscreen data-artwork-view data-artwork-id="<%= artwork.id %>" data-artwork-full="<%= galleryCover.image_url %>" data-artwork-thumb="<%= galleryCover.thumbnail_url || galleryCover.image_url %>" data-artwork-title="<%= artwork.title %>" data-artwork-description="<%= artwork.description || '' %>" data-artwork-category="<%= artwork.category_name || '' %>" data-artwork-tags="<%= artwork.tags || '' %>" data-artwork-effect="<%= artwork.visual_effect || 'auto' %>" data-artwork-artist="<%= artistName %>" data-artwork-artist-url="/profile/<%= artwork.username %>" data-artwork-date="<%= artworkDateLabel %>" data-artwork-liked="<%= artwork.is_liked ? 'true' : 'false' %>" data-artwork-saved="<%= artwork.is_bookmarked ? 'true' : 'false' %>" data-artwork-likes="<%= artwork.likes_count || 0 %>" aria-label="Open <%= artwork.title %> fullscreen">
+              <%
+                const detailSrc = imageTools.transformUrl(galleryCover.image_url, 1200);
+                const detailSrcset = imageTools.srcset(galleryCover.image_url, [640, 960, 1200, 1600], 82);
+              %>
+              <img src="<%= detailSrc %>"<% if (detailSrcset) { %> srcset="<%= detailSrcset %>" sizes="(max-width: 900px) 92vw, 720px"<% } %> alt="<%= artwork.title %>" loading="eager" fetchpriority="high" decoding="async" data-i18n-skip data-gallery-main data-gallery-index="0" />
+              <span class="ad-zoom-hint" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M9 5H5v4M15 5h4v4M9 19H5v-4M15 19h4v-4" /></svg>
+                <span data-zoom-label>Fullscreen view</span>
+              </span>
+            </button>
+
+            <% if (hasMultipleImages) { %>
+              <button type="button" class="ad-gallery-nav ad-gallery-prev" data-gallery-prev aria-label="Previous image">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+              </button>
+              <button type="button" class="ad-gallery-nav ad-gallery-next" data-gallery-next aria-label="Next image">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+              </button>
+              <span class="ad-gallery-counter" data-gallery-counter aria-live="polite">1 / <%= galleryCount %></span>
+            <% } %>
+          </div>
+
+          <% if (hasMultipleImages) { %>
+            <div class="ad-gallery-thumbs" data-gallery-thumbs aria-label="Artwork pages">
+              <% galleryImages.forEach((image, index) => { %>
+                <button type="button" class="ad-gallery-thumb<%= index === 0 ? ' is-active' : '' %>" data-gallery-thumb data-gallery-index="<%= index %>" data-gallery-full="<%= image.image_url %>" data-gallery-thumb-url="<%= image.thumbnail_url || image.image_url %>"<% if (image.id) { %> data-gallery-id="<%= image.id %>"<% } %> aria-label="View image <%= index + 1 %> of <%= galleryCount %>" aria-current="<%= index === 0 ? 'true' : 'false' %>">
+                  <%
+                    const thumbSrc = image.thumbnail_url || imageTools.transformUrl(image.image_url, 320);
+                  %>
+                  <img src="<%= thumbSrc %>" alt="" loading="<%= index < 3 ? 'eager' : 'lazy' %>" decoding="async" data-i18n-skip />
+                </button>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
 
         <% if (isOwner) { %>
           <button type="button" class="ad-showcase-pin<%= artworkPinned ? ' is-pinned' : '' %>" data-pin-toggle data-pin-label-long data-artwork-id="<%= artwork.id %>" data-pinned="<%= artworkPinned ? 'true' : 'false' %>" aria-pressed="<%= artworkPinned ? 'true' : 'false' %>" aria-label="<%= artworkPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>" title="<%= artworkPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
@@ -60,35 +105,58 @@
         <% } %>
       </div>
 
-      <p class="ad-frame-caption" aria-hidden="true">
-        <span class="ad-caption-no">№ <%= artwork.id %></span> — sketched on <%= artworkDateLabel %>
-      </p>
+      <div class="ad-showcase-foot">
+        <p class="ad-frame-caption" aria-hidden="true">
+          <span class="ad-caption-no">№ <%= artwork.id %></span> — sketched on <%= artworkDateLabel %><% if (hasMultipleImages) { %> · <%= galleryCount %> pages<% } %>
+        </p>
+        <a class="ad-comment-jump" href="#ad-comments">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 21l1.7-4.7A8.4 8.4 0 0 1 3.5 12 8.5 8.5 0 0 1 12 3.5 8.5 8.5 0 0 1 21 12Z" /></svg>
+          <span data-comments-count><%= totalComments %></span> <span data-comments-label><%= totalComments === 1 ? 'comment' : 'comments' %></span>
+        </a>
+      </div>
     </section>
 
     <div class="ad-panel">
 
       <article class="ad-info-card ad-reveal" aria-label="Artwork information">
-        <span class="ad-category">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18h12M8 15l8.5-8.5a1.9 1.9 0 0 1 2.7 2.7L10.7 17.7 7 18.5 8 15Z" /></svg>
-          <%= categoryLabel %>
-        </span>
+        <div class="ad-info-topline">
+          <span class="ad-category">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18h12M8 15l8.5-8.5a1.9 1.9 0 0 1 2.7 2.7L10.7 17.7 7 18.5 8 15Z" /></svg>
+            <%= categoryLabel %>
+          </span>
+          <span class="ad-visibility-chip ad-visibility-<%= visibilityLabel %>">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 3.5a13 13 0 0 1 0 17M3.5 12h17" /></svg>
+            <%= visibilityLabel %>
+          </span>
+        </div>
 
         <h1 class="ad-title" data-i18n-skip><%= artwork.title %></h1>
 
-        <p class="ad-byline">
-          By <a class="ad-byline-link" href="/profile/<%= artwork.username %>" data-i18n-skip><%= artistName %></a>
-          <span class="ad-byline-dot" aria-hidden="true">·</span>
-          <time datetime="<%= Number.isNaN(artworkDate.getTime()) ? '' : artworkDate.toISOString() %>"><%= artworkDateLabel %></time>
-        </p>
+        <div class="ad-byline ad-byline-creator">
+          <a class="ad-byline-avatar" href="/profile/<%= artwork.username %>" aria-label="View <%= artistName %>'s profile" data-i18n-skip>
+            <img src="<%= artwork.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= artistName %>" loading="lazy" decoding="async" />
+          </a>
+          <div class="ad-byline-copy">
+            <a class="ad-byline-link" href="/profile/<%= artwork.username %>" data-i18n-skip><%= artistName %></a>
+            <span class="ad-byline-meta">
+              <span data-i18n-skip>@<%= artwork.username %></span>
+              <span class="ad-byline-dot" aria-hidden="true">·</span>
+              <time datetime="<%= Number.isNaN(artworkDate.getTime()) ? '' : artworkDate.toISOString() %>"><%= artworkDateLabel %></time>
+            </span>
+          </div>
+        </div>
 
-        <p class="ad-description"<%- artwork.description && artwork.description.trim() ? ' data-i18n-skip' : '' %>><%= artwork.description && artwork.description.trim() ? artwork.description : 'The artist left this piece without words — let the lines speak for themselves.' %></p>
+        <div class="ad-description-wrap">
+          <p class="ad-description<%= descriptionIsLong ? ' is-clamped' : '' %>" data-description data-i18n-skip><%= descriptionText || 'The artist left this piece without words — let the lines speak for themselves.' %></p>
+          <% if (descriptionIsLong) { %>
+            <button type="button" class="ad-description-toggle" data-description-toggle aria-expanded="false">Read more</button>
+          <% } %>
+        </div>
 
-        <% const tagList = artwork.tags ? artwork.tags.split(' ') : []; %>
-        <% const visibleTags = tagList.map((tag) => tag.trim()).filter((tag) => tag && !/^effect:/i.test(tag)); %>
         <% if (visibleTags.length) { %>
           <div class="ad-tags" aria-label="Tags" data-i18n-skip>
             <% visibleTags.forEach((tag) => { %>
-              <span class="ad-tag"><%= tag %></span>
+              <a class="ad-tag" href="/explore?q=<%= encodeURIComponent(tag) %>">#<%= tag %></a>
             <% }) %>
           </div>
         <% } %>
@@ -107,26 +175,36 @@
           </p>
         <% } %>
 
-        <div class="ad-toolbar" role="group" aria-label="Artwork actions">
-          <form method="POST" action="/art/<%= artwork.id %>/like" class="ad-toolbar-form">
-            <button type="submit" class="ad-tool ad-tool-like <%= artwork.is_liked ? 'active' : '' %>" aria-pressed="<%= artwork.is_liked ? 'true' : 'false' %>" aria-label="<%= artwork.is_liked ? 'Unlike' : 'Like' %> this artwork">
+        <div class="ad-reaction-bar" role="group" aria-label="Artwork reactions">
+          <form method="POST" action="/art/<%= artwork.id %>/like" class="ad-reaction-form">
+            <button type="submit" class="ad-reaction ad-reaction-like<%= artwork.is_liked ? ' active' : '' %>" aria-pressed="<%= artwork.is_liked ? 'true' : 'false' %>" aria-label="<%= artwork.is_liked ? 'Unlike' : 'Like' %> this artwork">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z" /></svg>
-              <span class="ad-tool-label" data-action-label><%= artwork.is_liked ? 'Unlike' : 'Like' %></span>
+              <span class="ad-reaction-label" data-action-label><%= artwork.is_liked ? 'Unlike' : 'Like' %></span>
+              <span class="ad-reaction-count" data-detail-likes-count><%= artwork.likes_count || 0 %></span>
             </button>
           </form>
 
-          <form method="POST" action="/art/<%= artwork.id %>/bookmark" class="ad-toolbar-form">
-            <button type="submit" class="ad-tool ad-tool-save <%= artwork.is_bookmarked ? 'active' : '' %>" aria-pressed="<%= artwork.is_bookmarked ? 'true' : 'false' %>" aria-label="<%= artwork.is_bookmarked ? 'Remove from saved artwork' : 'Save this artwork' %>">
+          <a class="ad-reaction" href="#ad-comments">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 21l1.7-4.7A8.4 8.4 0 0 1 3.5 12 8.5 8.5 0 0 1 12 3.5 8.5 8.5 0 0 1 21 12Z" /></svg>
+            <span class="ad-reaction-label">Comment</span>
+            <span class="ad-reaction-count" data-comments-count><%= totalComments %></span>
+          </a>
+
+          <form method="POST" action="/art/<%= artwork.id %>/bookmark" class="ad-reaction-form">
+            <button type="submit" class="ad-reaction ad-reaction-save<%= artwork.is_bookmarked ? ' active' : '' %>" aria-pressed="<%= artwork.is_bookmarked ? 'true' : 'false' %>" aria-label="<%= artwork.is_bookmarked ? 'Remove from saved artwork' : 'Save this artwork' %>">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4V4Z" /></svg>
-              <span class="ad-tool-label" data-action-label><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></span>
+              <span class="ad-reaction-label" data-action-label><%= artwork.is_bookmarked ? 'Saved' : 'Save' %></span>
             </button>
           </form>
 
-          <button type="button" class="ad-tool ad-tool-share" data-share-artwork data-share-title="<%= artwork.title %>" data-share-text="<%= artwork.title %> by <%= artistName %> on ArtSpace" data-share-url="<%= shareUrl %>" aria-label="Share this artwork">
+          <button type="button" class="ad-reaction ad-reaction-share" data-share-artwork data-share-title="<%= artwork.title %>" data-share-text="<%= artwork.title %> by <%= artistName %> on ArtSpace" data-share-url="<%= shareUrl %>" data-share-id="<%= artwork.id %>" data-share-image="<%= artwork.thumbnail_url || artwork.image_url %>" data-share-artist="<%= artistName %>" data-share-category="<%= categoryLabel %>" aria-label="Share this artwork">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.4" /><circle cx="17.5" cy="5.5" r="2.4" /><circle cx="17.5" cy="18.5" r="2.4" /><path d="M8.3 10.9l7-4.2M8.3 13.1l7 4.2" /></svg>
-            <span class="ad-tool-label" data-share-label>Share</span>
+            <span class="ad-reaction-label" data-share-label>Share</span>
+            <span class="ad-reaction-count" data-shares-count><%= totalShares %></span>
           </button>
+        </div>
 
+        <div class="ad-toolbar ad-toolbar-secondary" role="group" aria-label="More artwork actions">
           <% if (isOwner) { %>
             <button type="button" class="ad-tool ad-tool-pin<%= artworkPinned ? ' active is-pinned' : '' %>" data-pin-toggle data-artwork-id="<%= artwork.id %>" data-pinned="<%= artworkPinned ? 'true' : 'false' %>" aria-pressed="<%= artworkPinned ? 'true' : 'false' %>" aria-label="<%= artworkPinned ? 'Unpin from the homepage' : 'Pin to the homepage' %>" title="<%= artworkPinned ? 'Unpin from homepage' : 'Pin to homepage' %>">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-.8 4.6 3 3.1v2.1H6.8v-2.1l3-3.1L9 4Z" /><path d="M12 14v6" /></svg>
@@ -143,13 +221,10 @@
               </button>
             </form>
           <% } else if (isAuthenticated) { %>
-            <form method="POST" action="/art/<%= artwork.id %>/report" class="ad-toolbar-form" onsubmit="return confirm('Report this artwork for review?');">
-              <input type="hidden" name="reason" value="Reported for review from the artwork page." />
-              <button type="submit" class="ad-tool ad-tool-ghost" aria-label="Report this artwork">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M6 5c2.5-1.3 4.5-1 7 .8 2.4 1.7 4.3 1.9 5.6.8l-1.4 5 1.4 5c-1.3 1-3.2.8-5.6-.9-2.5-1.8-4.5-2-7-.8" /></svg>
-                <span class="ad-tool-label">Report</span>
-              </button>
-            </form>
+            <button type="button" class="ad-tool ad-tool-ghost" data-report-open aria-label="Report this artwork">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M6 5c2.5-1.3 4.5-1 7 .8 2.4 1.7 4.3 1.9 5.6.8l-1.4 5 1.4 5c-1.3 1-3.2.8-5.6-.9-2.5-1.8-4.5-2-7-.8" /></svg>
+              <span class="ad-tool-label">Report</span>
+            </button>
           <% } %>
 
           <a href="/explore" class="ad-tool ad-tool-ghost ad-tool-back" aria-label="Back to Explore">
@@ -167,18 +242,18 @@
         </div>
         <div class="info-item ad-stat-note">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 21l1.7-4.7A8.4 8.4 0 0 1 3.5 12 8.5 8.5 0 0 1 12 3.5 8.5 8.5 0 0 1 21 12Z" /></svg>
-          <strong><%= artwork.comments_count || 0 %></strong>
+          <strong data-comments-count><%= totalComments %></strong>
           <span>Comments</span>
         </div>
         <div class="info-item ad-stat-note">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 3.5a13 13 0 0 1 0 17M3.5 12h17" /></svg>
-          <strong class="ad-stat-text"><%= artwork.visibility || 'public' %></strong>
-          <span>Visibility</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.4" /><circle cx="17.5" cy="5.5" r="2.4" /><circle cx="17.5" cy="18.5" r="2.4" /><path d="M8.3 10.9l7-4.2M8.3 13.1l7 4.2" /></svg>
+          <strong data-shares-count><%= totalShares %></strong>
+          <span>Shares</span>
         </div>
         <div class="info-item ad-stat-note">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.4" /></svg>
-          <strong class="ad-stat-text"><%= categoryLabel %></strong>
-          <span>Category</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.8" /></svg>
+          <strong data-views-count><%= totalViews %></strong>
+          <span>Views</span>
         </div>
       </div>
 
@@ -197,13 +272,17 @@
           <svg class="ad-artist-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 5.4L20 9.6l-4.3 3.9 1.3 5.6L12 16.2 7 19.1l1.3-5.6L4 9.6l5.8-1.2L12 3Z" /></svg>
         </div>
 
+        <div class="ad-artist-stats">
+          <span><strong data-followers-count><%= followerTotal %></strong> <span data-followers-label><%= followerTotal === 1 ? 'follower' : 'followers' %></span></span>
+        </div>
+
         <% if (isAuthenticated && currentUser.id !== artwork.user_id) { %>
-          <form method="POST" action="/follow/<%= artwork.user_id %>" class="ad-follow-form">
+          <form method="POST" action="/follow/<%= artwork.user_id %>" class="ad-follow-form" data-follow-form data-user-id="<%= artwork.user_id %>">
             <button type="submit" class="ad-follow-btn <%= artistStats.isFollowing ? 'is-following' : '' %>" aria-pressed="<%= artistStats.isFollowing ? 'true' : 'false' %>">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <% if (artistStats.isFollowing) { %><path d="M5 12.5l4.5 4.5L19 7.5" /><% } else { %><path d="M12 5v14M5 12h14" /><% } %>
               </svg>
-              <span><%= artistStats.isFollowing ? 'Following artist' : 'Follow artist' %></span>
+              <span data-follow-label><%= artistStats.isFollowing ? 'Following artist' : 'Follow artist' %></span>
             </button>
           </form>
         <% } %>
@@ -212,32 +291,44 @@
     </div>
   </div>
 
-  <section class="ad-section ad-comments ad-reveal" aria-labelledby="ad-comments-heading">
+  <section class="ad-section ad-comments ad-reveal" id="ad-comments" aria-labelledby="ad-comments-heading">
     <div class="ad-section-head">
       <div>
+        <span class="ad-section-kicker">The conversation</span>
         <h2 id="ad-comments-heading">Thoughts &amp; Conversations</h2>
         <p>Every artwork has a story. Share what you feel.</p>
       </div>
-      <span class="ad-count-pill"><%= comments.length %> <%= comments.length === 1 ? 'comment' : 'comments' %></span>
+      <span class="ad-count-pill">
+        <span data-comments-count><%= totalComments %></span> <span data-comments-label><%= totalComments === 1 ? 'comment' : 'comments' %></span>
+      </span>
     </div>
 
-    <div class="comment-list ad-comment-list">
-      <% if (comments.length) { %>
+    <% if (isAuthenticated) { %>
+      <form class="ad-comment-form ad-comment-composer" method="POST" action="/art/<%= artwork.id %>/comment" data-comment-form>
+        <img class="ad-composer-avatar" src="<%= currentUser.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="" loading="lazy" />
+        <div class="ad-composer-field">
+          <label class="ad-comment-label" for="ad-comment-body">Leave a thoughtful note</label>
+          <textarea id="ad-comment-body" name="body" placeholder="What does this piece make you feel?" maxlength="2000" required data-comment-input></textarea>
+          <div class="ad-composer-foot">
+            <span class="ad-comment-char" data-comment-char>0 / 2000</span>
+            <button type="submit" class="ad-post-btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 3l-4.5 18-3.6-7.9L3 11.5Z" /><path d="M12.9 13.1 21 3" /></svg>
+              <span>Post comment</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    <% } else { %>
+      <div class="empty-state ad-login-note"><a href="/login">Log in</a> to join the conversation.</div>
+    <% } %>
+
+    <div class="comment-list ad-comment-list" data-comment-list data-page-size="<%= commentPageSize %>">
+      <% if (comments && comments.length) { %>
         <% comments.forEach((comment) => { %>
-          <% const commentDate = new Date(comment.created_at); const commentDateLabel = Number.isNaN(commentDate.getTime()) ? '' : commentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); %>
-          <article class="comment-item ad-comment">
-            <img class="ad-comment-avatar" src="<%= comment.avatar || '/images/default-avatar.svg' %>" data-fallback-src="/images/default-avatar.svg" alt="<%= comment.display_name || comment.username %>" loading="lazy" data-i18n-skip />
-            <div class="comment-body">
-              <div class="ad-comment-head">
-                <strong data-i18n-skip><%= comment.display_name || comment.username %></strong>
-                <% if (commentDateLabel) { %><time class="ad-comment-date" datetime="<%= commentDate.toISOString() %>"><%= commentDateLabel %></time><% } %>
-              </div>
-              <p data-i18n-skip><%= comment.body %></p>
-            </div>
-          </article>
+          <%- include('../partials/artwork-comment', { comment, artwork, currentUser: (typeof currentUser !== 'undefined' ? currentUser : null), isAuthenticated, depth: 0 }) %>
         <% }) %>
       <% } else { %>
-        <div class="empty-state ad-comments-empty">
+        <div class="empty-state ad-comments-empty" data-comments-empty>
           <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M20 58l5-17 24-24 11 11-24 24-16 6Z" /><path d="M44 22l11 11" /><path d="M14 66c8-2 16-2 24 0" /></svg>
           <p class="ad-comments-empty-title">No thoughts yet.</p>
           <p>Be the first to leave a pencil-soft note for the artist.</p>
@@ -245,19 +336,13 @@
       <% } %>
     </div>
 
-    <% if (isAuthenticated) { %>
-      <form class="comment-form ad-comment-form" method="POST" action="/art/<%= artwork.id %>/comment">
-        <label class="ad-comment-label" for="ad-comment-body">Leave a thoughtful note</label>
-        <textarea id="ad-comment-body" name="body" placeholder="What does this piece make you feel?" maxlength="2000" required></textarea>
-        <div class="submit-row ad-comment-submit">
-          <button type="submit" class="ad-post-btn">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 3l-4.5 18-3.6-7.9L3 11.5Z" /><path d="M12.9 13.1 21 3" /></svg>
-            <span>Post comment</span>
-          </button>
-        </div>
-      </form>
-    <% } else { %>
-      <div class="empty-state ad-login-note"><a href="/login">Log in</a> to join the conversation.</div>
+    <% if (hasMoreComments) { %>
+      <div class="ad-comment-more-wrap">
+        <button type="button" class="ad-comments-more" data-comments-more data-next-page="<%= nextCommentsPage %>">
+          <span>Load more comments</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15m-5-5 5 5 5-5" /></svg>
+        </button>
+      </div>
     <% } %>
   </section>
 
@@ -266,7 +351,8 @@
   <section class="ad-section ad-related ad-reveal" aria-labelledby="ad-related-heading">
     <div class="ad-section-head">
       <div>
-        <h2 id="ad-related-heading">More Stories in Art</h2>
+        <span class="ad-section-kicker">Keep wandering</span>
+        <h2 id="ad-related-heading">More Artworks You May Like</h2>
         <p>Discover more creative works from the community.</p>
       </div>
       <a class="ad-section-link" href="/explore">View the full gallery
@@ -286,5 +372,144 @@
   </section>
 
 </div>
+
+<dialog class="ad-share-dialog" data-share-dialog aria-labelledby="ad-share-title">
+  <div class="ad-share-card">
+    <header class="ad-share-head">
+      <div>
+        <span class="ad-share-kicker">Pass the page along</span>
+        <h2 id="ad-share-title">Share this artwork</h2>
+      </div>
+      <button type="button" class="ad-share-close" data-share-close aria-label="Close share dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+      </button>
+    </header>
+
+    <div class="ad-share-preview">
+      <img data-share-preview-image src="/images/default-artwork.svg" alt="" loading="lazy" />
+      <div class="ad-share-preview-copy">
+        <span data-share-preview-category>Artwork</span>
+        <strong data-share-preview-title>Artwork title</strong>
+        <small data-share-preview-artist>by ArtSpace artist</small>
+      </div>
+    </div>
+
+    <div class="ad-share-grid" data-share-platforms>
+      <button type="button" class="ad-share-platform" data-share-platform="telegram">
+        <span class="ad-share-icon is-telegram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.8 4.3 2.9 11.6c-.9.4-.9 1.6.1 1.8l4.7 1 1.8 5.6c.2.7 1.1.9 1.6.3l2.5-2.9 4.8 3.5c.6.4 1.5.1 1.6-.6l3.1-14.7c.2-.8-.6-1.5-1.3-1.3Z" /><path d="m8.4 14.2 9-5.6-6.8 7.3" /></svg></span>
+        <span>Telegram</span>
+      </button>
+      <button type="button" class="ad-share-platform" data-share-platform="facebook">
+        <span class="ad-share-icon is-facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8.5V7c0-.8.4-1.2 1.3-1.2H17V3h-2.4c-2.4 0-3.6 1.3-3.6 3.6v1.9H9V12h2v9h3v-9h2.4l.5-3.5H14Z" /></svg></span>
+        <span>Facebook</span>
+      </button>
+      <button type="button" class="ad-share-platform" data-share-platform="messenger">
+        <span class="ad-share-icon is-messenger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5C6.4 2.5 2 6.6 2 11.9c0 3 1.4 5.7 3.7 7.5V22l3.2-1.8c1 .3 2 .4 3.1.4 5.6 0 10-4.1 10-9.4S17.6 2.5 12 2.5Z" /><path d="m6.4 14.8 4.6-4.9 2.7 2.4 4.5-2.4-4.6 4.9-2.7-2.4-4.5 2.4Z" /></svg></span>
+        <span>Messenger</span>
+      </button>
+      <button type="button" class="ad-share-platform" data-share-platform="whatsapp">
+        <span class="ad-share-icon is-whatsapp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2a8.7 8.7 0 0 0-7.4 13.2L3.3 21l4.8-1.3A8.7 8.7 0 1 0 12 3.2Z" /><path d="M8.6 7.8c.2-.4.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.3 0 .5-.2.7l-.5.6c-.2.2-.2.4-.1.6.5 1 1.6 2.2 2.8 2.7.2.1.4.1.6-.1l.6-.6c.2-.2.4-.3.7-.2l1.6.8c.3.1.4.3.4.6 0 .9-.7 1.7-1.5 1.9-.7.2-1.6.1-2.8-.5a10.3 10.3 0 0 1-3.9-3.8c-.6-1-.7-1.9-.5-2.6.2-.6.4-1 .4-1Z" /></svg></span>
+        <span>WhatsApp</span>
+      </button>
+      <button type="button" class="ad-share-platform" data-share-platform="x">
+        <span class="ad-share-icon is-x"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.5h4.6l4.3 6 5-6H21l-6.5 7.6L21.5 20.5H17l-4.7-6.6-5.5 6.6H3.5l7-8.2L4 3.5Z" /></svg></span>
+        <span>X</span>
+      </button>
+      <button type="button" class="ad-share-platform" data-share-platform="linkedin">
+        <span class="ad-share-icon is-linkedin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 8.5A2 2 0 1 0 5.4 4.5a2 2 0 0 0 0 4ZM3.8 10h3.2v10H3.8V10Zm5.1 0H12v1.4c.5-.9 1.7-1.7 3.4-1.7 2.7 0 4.1 1.7 4.1 4.7V20h-3.2v-5.2c0-1.5-.5-2.4-1.8-2.4-1.1 0-1.7.7-2 1.4-.1.2-.1.6-.1.9V20H8.9V10Z" /></svg></span>
+        <span>LinkedIn</span>
+      </button>
+      <button type="button" class="ad-share-platform" data-share-platform="email">
+        <span class="ad-share-icon is-email"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="m4 7 8 6 8-6" /></svg></span>
+        <span>Email</span>
+      </button>
+      <button type="button" class="ad-share-platform ad-share-platform--copy" data-share-copy>
+        <span class="ad-share-icon is-copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2" /></svg></span>
+        <span data-share-copy-label>Copy link</span>
+      </button>
+    </div>
+
+    <div class="ad-share-link-row">
+      <input type="text" readonly data-share-url-input aria-label="Artwork share link" />
+      <button type="button" class="ad-share-native" data-share-native>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" /></svg>
+        <span>Share with device</span>
+      </button>
+    </div>
+
+    <p class="ad-share-note" data-share-note role="status" aria-live="polite"></p>
+  </div>
+</dialog>
+
+<dialog class="ad-report-dialog" data-report-dialog aria-labelledby="ad-report-title">
+  <form class="ad-report-card" data-report-form method="POST" action="/art/<%= artwork.id %>/report">
+    <header class="ad-report-head">
+      <span class="ad-share-kicker">The moderation desk</span>
+      <h2 id="ad-report-title">Report this artwork</h2>
+      <p>Tell us what feels wrong. Reports are private and reviewed by the ArtSpace team.</p>
+    </header>
+
+    <fieldset class="ad-report-reasons">
+      <legend>What is the issue?</legend>
+      <label><input type="radio" name="report_reason" value="Inappropriate content" required /> <span>Inappropriate content</span></label>
+      <label><input type="radio" name="report_reason" value="Copyright violation" /> <span>Copyright violation</span></label>
+      <label><input type="radio" name="report_reason" value="Spam or misleading" /> <span>Spam or misleading</span></label>
+      <label><input type="radio" name="report_reason" value="Harassment or hate" /> <span>Harassment or hate</span></label>
+      <label><input type="radio" name="report_reason" value="Other" /> <span>Other</span></label>
+    </fieldset>
+
+    <label class="ad-report-details">
+      <span>Anything else we should know? <small>Optional</small></span>
+      <textarea name="report_details" rows="3" maxlength="400" placeholder="Add context for the moderation team…"></textarea>
+    </label>
+
+    <input type="hidden" name="reason" value="" />
+
+    <div class="ad-report-actions">
+      <button type="button" class="ad-comment-cancel" data-report-cancel>Cancel</button>
+      <button type="submit" class="ad-report-submit">Send report</button>
+    </div>
+    <p class="ad-report-note" data-report-note role="status" aria-live="polite"></p>
+  </form>
+</dialog>
+
+<dialog class="ad-confirm-dialog" data-comment-confirm aria-labelledby="ad-confirm-title">
+  <div class="ad-confirm-card">
+    <span class="ad-confirm-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13" /><path d="M10 11v6M14 11v6" /></svg>
+    </span>
+    <h2 id="ad-confirm-title">Delete this comment?</h2>
+    <p data-confirm-text>This note and its replies will be removed from the conversation.</p>
+    <div class="ad-confirm-actions">
+      <button type="button" class="ad-comment-cancel" data-confirm-cancel>Keep it</button>
+      <button type="button" class="ad-confirm-delete" data-confirm-ok>Delete comment</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="ad-lightbox" data-lightbox aria-label="Artwork fullscreen view">
+  <div class="ad-lightbox-shell">
+    <button type="button" class="ad-lightbox-close" data-lightbox-close aria-label="Close fullscreen view">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+    </button>
+
+    <% if (hasMultipleImages) { %>
+      <button type="button" class="ad-lightbox-nav ad-lightbox-prev" data-lightbox-prev aria-label="Previous image">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+      </button>
+    <% } %>
+
+    <figure class="ad-lightbox-stage">
+      <img class="ad-lightbox-image" data-lightbox-image alt="<%= artwork.title %>" decoding="async" data-i18n-skip />
+    </figure>
+
+    <% if (hasMultipleImages) { %>
+      <button type="button" class="ad-lightbox-nav ad-lightbox-next" data-lightbox-next aria-label="Next image">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      </button>
+      <span class="ad-lightbox-counter" data-lightbox-counter aria-live="polite">1 / <%= galleryCount %></span>
+    <% } %>
+  </div>
+</dialog>
 
 <%- include('../partials/footer') %>

@@ -30,7 +30,7 @@
     <div class="ae-hero-copy">
       <span class="ae-kicker">The studio <i>/</i> pencil &amp; paper</span>
       <h1>Refine this <span>page</span></h1>
-      <p>Adjust the title, notes, and placement of your artwork. The drawing stays exactly as it is.</p>
+      <p>Adjust the title, notes, pages, and placement of your artwork. Arrange multiple pages into one artwork.</p>
     </div>
     <svg class="ae-hero-doodle" viewBox="0 0 190 150" aria-hidden="true">
       <path d="M30 119c20-29 42-57 68-82M97 49c8-8 17-11 24-9 8 3 8 13 1 22-9 13-24 17-36 21" />
@@ -42,7 +42,7 @@
 
   <div class="ae-layout">
     <section class="ae-form-card">
-      <form action="/art/<%= artwork.id %>/edit" method="POST" data-artwork-edit-form data-artwork-id="<%= artwork.id %>">
+      <form action="/art/<%= artwork.id %>/edit" method="POST" enctype="multipart/form-data" data-artwork-edit-form data-artwork-id="<%= artwork.id %>">
         <% if (typeof error !== 'undefined' && error) { %>
           <div class="ae-alert" role="alert">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 3.5 19h17L12 4Z" /><path d="M12 9v4M12 16.5h.01" /></svg>
@@ -82,9 +82,42 @@
 
         <div class="ae-rule" aria-hidden="true"></div>
 
-        <div class="ae-section">
+        <div class="ae-section" data-ae-images>
           <div class="ae-section-head">
             <span class="ae-step">02</span>
+            <div>
+              <p class="ae-section-kicker">The pages</p>
+              <h2>Artwork pages</h2>
+            </div>
+            <svg class="ae-section-doodle" viewBox="0 0 54 54" aria-hidden="true">
+              <path d="M12 10h30v34H12zM12 18h30M20 26h16M20 33h12" />
+            </svg>
+          </div>
+
+          <p class="ae-hint">Drag the tiles or use the arrows to arrange your pages. The first page is the cover shown in the gallery.</p>
+
+          <div class="ae-images-grid" data-ae-images-grid></div>
+
+          <p class="ae-images-error" data-ae-images-error hidden role="alert"></p>
+
+          <div class="ae-images-add">
+            <button type="button" class="ae-images-add-btn" data-ae-images-add-trigger>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              <span>Add pages</span>
+            </button>
+            <span class="ae-images-count" data-ae-images-count></span>
+          </div>
+
+          <input class="ae-images-input" type="file" id="ae-new-images" name="images" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple data-ae-images-input />
+        </div>
+
+        <script type="application/json" data-ae-initial-images><%- JSON.stringify(artwork.images || []) %></script>
+
+        <div class="ae-rule" aria-hidden="true"></div>
+
+        <div class="ae-section">
+          <div class="ae-section-head">
+            <span class="ae-step">03</span>
             <div>
               <p class="ae-section-kicker">Its place</p>
               <h2>Category &amp; tags</h2>

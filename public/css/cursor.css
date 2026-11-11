@@ -121,6 +121,15 @@ body.pencil-on .art-viewer * {
   cursor: auto !important;
 }
 
+body.pencil-on .ad-lightbox,
+body.pencil-on .ad-lightbox * {
+  cursor: auto !important;
+}
+
+body.pencil-on .ad-lightbox .ad-lightbox-image { cursor: zoom-out !important; }
+body.pencil-on .ad-lightbox-close,
+body.pencil-on .ad-lightbox-nav { cursor: pointer !important; }
+
 body.pencil-on .art-viewer-image { cursor: zoom-in !important; }
 body.pencil-on .art-viewer-image.is-zoomed { cursor: zoom-out !important; }
 body.pencil-on .art-viewer-image.is-panning { cursor: grabbing !important; }

@@ -1,10 +1,11 @@
 <%- include('../partials/header') %>
 
 <%
-  const typeLabels = { like: 'Like', comment: 'Comment', follow: 'Follow' };
+  const typeLabels = { like: 'Like', comment: 'Comment', comment_like: 'Comment like', follow: 'Follow' };
   const typeActions = {
     like: 'liked your artwork',
     comment: 'commented on your artwork',
+    comment_like: 'liked your comment',
     follow: 'started following you'
   };
 %>
@@ -51,7 +52,7 @@
                 <span class="notification-artwork" data-i18n-skip>“<%= item.artwork_title %>”</span>
               <% } %>
 
-              <% if (item.type === 'comment' && item.message) { %>
+              <% if ((item.type === 'comment' || item.type === 'comment_like') && item.message) { %>
                 <span class="notification-comment" data-i18n-skip>“<%= item.message %>”</span>
               <% } %>
 

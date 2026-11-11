@@ -968,9 +968,63 @@
     "Original image": "រូបភាពដើម",
     "Protected account": "គណនីការពារ",
     "Studio statistics": "ស្ថិតិស្ទូឌីយោ",
-    "Admin sections": "ផ្នែកៗនៃផ្ទាំងគ្រប់គ្រង"
+    "Admin sections": "ផ្នែកៗនៃផ្ទាំងគ្រប់គ្រង",
+    "Blank pages await": "ទំព័រទំនះកំពុងរង់ចាំ",
+    "Drop your drawings on the desk": "ទម្លាក់គំនូររបស់អ្នកលើតុ",
+    "You can add up to 6 pages. The first one becomes the cover.": "អ្នកអាចបន្ថែមបានរហូតដល់ 6 ទំព័រ។ ទំព័រដំបូងនឹងក្លាយជាគម្រប។",
+    "up to 8 MB each": "រហូតដល់ 8 MB ក្នុងមួយគ្រាប់",
+    "Add more pages": "បន្ថែមទំព័របន្ថែមទៀត",
+    "Place your pages here": "ដាក់ទំព័ររបស់អ្នកនៅទីនេះ",
+    "The pages": "ទំព័រនានា",
+    "Artwork pages": "ទំព័រស្នាដៃ",
+    "Drag the tiles or use the arrows to arrange your pages. The first page is the cover shown in the gallery.": "អូសក្រឡាឬប្រើព្រួញដើម្បីរៀបចំទំព័ររបស់អ្នក។ ទំព័រដំបូងគឺជាគម្របដែលបង្ហាញក្នុងវិចិត្រសាល។",
+    "Add pages": "បន្ថែមទំព័រ",
+    "Adjust the title, notes, pages, and placement of your artwork. Arrange multiple pages into one artwork.": "កែសម្រួលចំណងជើង កំណត់សម្គាល់ ទំព័រ និងទីតាំងរបស់ស្នាដៃ។ រៀបចំទំព័រច្រើនទៅជាស្នាដៃមួយ។",
+    "Set as cover page": "កំណត់ជាទំព័រគម្រប",
+    "This is the cover page": "នេះជាទំព័រគម្រប",
+    "Edit this page": "កែសម្រួលទំព័រនេះ",
+    "Move up": "លើកឡើង",
+    "Move down": "ហុចចុះ",
+    "Remove this page": "ដកទំព័រនេះចេញ",
+    "Remove this saved page": "ដកទំព័រដែលបានរក្សាទុកនេះចេញ",
+    "Remove this new page": "ដកទំព័រថ្មីនេះចេញ",
+    "Saved page": "ទំព័រដែលបានរក្សាទុក",
+    "Already in your artwork": "ស្ថិតក្នុងស្នាដៃរបស់អ្នករួចហើយ",
+    "You can add up to 6 images per artwork.": "អ្នកអាចបន្ថែមរូបភាពបានរហូតដល់ 6 ក្នុងមួយស្នាដៃ។",
+    "That image is already in your artwork.": "រូបភាពនោះស្ថិតក្នុងស្នាដៃរបស់អ្នករួចហើយ។",
+    "An artwork needs at least one image. Keep a page or add new ones.": "ស្នាដៃត្រូវការរូបភាពយ៉ាងតិចមួយ។ រក្សាទំព័រមួយឬបន្ថែមទំព័រថ្មី។",
+    "We could not read the new page order. Please refresh and try again.": "យើងអានលំដាប់ទំព័រថ្មីមិនបានទេ។ សូមផ្ទុកឡើងវិញហើយសាកម្តងទៀត។",
+    "Previous image": "រូបភាពមុន",
+    "Next image": "រូបភាពបន្ទាប់",
+    "Fullscreen view": "ទិដ្ឋភាពពេញអេក្រង់",
+    "Close fullscreen view": "បិទទិដ្ឋភាពពេញអេក្រង់",
+    "Artwork fullscreen view": "ទិដ្ឋភាពពេញអេក្រង់នៃស្នាដៃ"
   },
   "patterns": [
+    {
+      "en": "^Open (.+) fullscreen$",
+      "km": "បើក $1 ពេញអេក្រង់"
+    },
+    {
+      "en": "^View image ([0-9]+) of ([0-9]+)$",
+      "km": "មើលរូបភាព $1 ក្នុងចំណោម $2"
+    },
+    {
+      "en": "^Artwork page ([0-9]+)$",
+      "km": "ទំព័រស្នាដៃ $1"
+    },
+    {
+      "en": "^Page ([0-9]+) preview$",
+      "km": "មើលជាមុនទំព័រ $1"
+    },
+    {
+      "en": "^([0-9]+) pages? of ([0-9]+)$",
+      "km": "$1 ក្នុងចំណោម $2 ទំព័រ"
+    },
+    {
+      "en": "^([0-9]+) / ([0-9]+)$",
+      "km": "$1 / $2"
+    },
     {
       "en": "^([0-9]+) works?$",
       "km": "$1 ស្នាដៃ"

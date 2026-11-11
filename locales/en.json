@@ -960,9 +960,63 @@
     "Original image": "Original image",
     "Protected account": "Protected account",
     "Studio statistics": "Studio statistics",
-    "Admin sections": "Admin sections"
+    "Admin sections": "Admin sections",
+    "Blank pages await": "Blank pages await",
+    "Drop your drawings on the desk": "Drop your drawings on the desk",
+    "You can add up to 6 pages. The first one becomes the cover.": "You can add up to 6 pages. The first one becomes the cover.",
+    "up to 8 MB each": "up to 8 MB each",
+    "Add more pages": "Add more pages",
+    "Place your pages here": "Place your pages here",
+    "The pages": "The pages",
+    "Artwork pages": "Artwork pages",
+    "Drag the tiles or use the arrows to arrange your pages. The first page is the cover shown in the gallery.": "Drag the tiles or use the arrows to arrange your pages. The first page is the cover shown in the gallery.",
+    "Add pages": "Add pages",
+    "Adjust the title, notes, pages, and placement of your artwork. Arrange multiple pages into one artwork.": "Adjust the title, notes, pages, and placement of your artwork. Arrange multiple pages into one artwork.",
+    "Set as cover page": "Set as cover page",
+    "This is the cover page": "This is the cover page",
+    "Edit this page": "Edit this page",
+    "Move up": "Move up",
+    "Move down": "Move down",
+    "Remove this page": "Remove this page",
+    "Remove this saved page": "Remove this saved page",
+    "Remove this new page": "Remove this new page",
+    "Saved page": "Saved page",
+    "Already in your artwork": "Already in your artwork",
+    "You can add up to 6 images per artwork.": "You can add up to 6 images per artwork.",
+    "That image is already in your artwork.": "That image is already in your artwork.",
+    "An artwork needs at least one image. Keep a page or add new ones.": "An artwork needs at least one image. Keep a page or add new ones.",
+    "We could not read the new page order. Please refresh and try again.": "We could not read the new page order. Please refresh and try again.",
+    "Previous image": "Previous image",
+    "Next image": "Next image",
+    "Fullscreen view": "Fullscreen view",
+    "Close fullscreen view": "Close fullscreen view",
+    "Artwork fullscreen view": "Artwork fullscreen view"
   },
   "patterns": [
+    {
+      "en": "^Open (.+) fullscreen$",
+      "km": "Open $1 fullscreen"
+    },
+    {
+      "en": "^View image ([0-9]+) of ([0-9]+)$",
+      "km": "View image $1 of $2"
+    },
+    {
+      "en": "^Artwork page ([0-9]+)$",
+      "km": "Artwork page $1"
+    },
+    {
+      "en": "^Page ([0-9]+) preview$",
+      "km": "Page $1 preview"
+    },
+    {
+      "en": "^([0-9]+) pages? of ([0-9]+)$",
+      "km": "$1 of $2 pages"
+    },
+    {
+      "en": "^([0-9]+) / ([0-9]+)$",
+      "km": "$1 / $2"
+    },
     {
       "en": "^([0-9]+) works?$",
       "km": "^([0-9]+) works?$"

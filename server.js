@@ -172,6 +172,63 @@ function handleArtworkUpload(req, res, next) {
   });
 }
 
+function handleArtworkEditUpload(req, res, next) {
+  artworkUpload(req, res, (error) => {
+    if (!error) {
+      next();
+      return;
+    }
+
+    const message = getUploadErrorMessage(error);
+    cleanupUploadedFiles(req.files);
+
+    if (requestWantsJson(req)) {
+      res.status(400).json({ ok: false, error: message, field: 'images' });
+      return;
+    }
+
+    res.redirect(`/art/${encodeURIComponent(req.params.id)}/edit?error=${encodeURIComponent(message)}`);
+  });
+}
+
+async function withTransaction(work) {
+  const pool = await getPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await work(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      console.error('Could not roll back transaction:', rollbackError);
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+async function fetchArtworkImages(artworkId) {
+  const rows = await db.execute(
+    `SELECT id, artwork_id, image_url, thumbnail_url, sort_order
+       FROM artwork_images
+      WHERE artwork_id = ?
+      ORDER BY sort_order ASC, id ASC`,
+    [artworkId]
+  );
+
+  return (rows || []).map((row) => ({
+    id: Number(row.id),
+    artwork_id: Number(row.artwork_id),
+    image_url: row.image_url,
+    thumbnail_url: row.thumbnail_url || row.image_url,
+    sort_order: Number(row.sort_order || 0)
+  }));
+}
+
 async function storeArtworkLocally(buffer, originalName) {
   const baseName = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
   const imageName = `${baseName}.webp`;
@@ -471,6 +528,8 @@ const ASSET_VERSION = (() => {
     'public/css/home-notebook.css',
     'public/css/notifications.css',
     'public/css/mobile-bottom-nav.css',
+    'public/css/artwork-detail.css',
+    'public/css/multi-image.css',
     'public/css/ads.css',
     'public/js/ads.js',
     'public/js/book-slider.js',
@@ -528,6 +587,113 @@ async function isFollowingUser(followerId, followingId) {
     [follower, following]
   );
   return Boolean(rows && rows.length);
+}
+
+const COMMENT_PAGE_SIZE = 8;
+
+const COMMENT_SELECT = `SELECT cm.id, cm.parent_id, cm.body, cm.created_at, cm.updated_at,
+       u.id AS user_id, u.username,
+       COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+       u.avatar,
+       DATE_FORMAT(cm.created_at, '%b %d, %Y') AS created_at_label,
+       (cm.updated_at > cm.created_at) AS is_edited,
+       (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = cm.id) AS likes_count,
+       EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = cm.id AND cl.user_id = ?) AS is_liked
+  FROM comments cm
+  INNER JOIN users u ON u.id = cm.user_id`;
+
+function decorateCommentRows(rows) {
+  return (rows || []).map((row) => ({
+    ...row,
+    id: Number(row.id),
+    parent_id: row.parent_id ? Number(row.parent_id) : null,
+    user_id: Number(row.user_id),
+    likes_count: Number(row.likes_count || 0),
+    is_liked: Boolean(Number(row.is_liked)),
+    is_edited: Boolean(Number(row.is_edited)),
+    replies: []
+  }));
+}
+
+function buildCommentTree(topRows, replyRows) {
+  const allRows = [...(topRows || []), ...(replyRows || [])];
+  const nodes = decorateCommentRows(allRows);
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const roots = (topRows || [])
+    .map((row) => byId.get(Number(row.id)))
+    .filter(Boolean);
+
+  (replyRows || []).forEach((row) => {
+    const node = byId.get(Number(row.id));
+    if (!node || !node.parent_id) return;
+    const parent = byId.get(node.parent_id);
+    if (parent) parent.replies.push(node);
+  });
+
+  return roots;
+}
+
+async function fetchArtworkComments(artworkId, viewerId, page = 1) {
+  const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const offset = (safePage - 1) * COMMENT_PAGE_SIZE;
+
+  const [topRows, replyRows, topCountRows, totalCountRows] = await Promise.all([
+    db.execute(
+      `${COMMENT_SELECT}
+        WHERE cm.artwork_id = ? AND cm.parent_id IS NULL
+        ORDER BY cm.created_at DESC, cm.id DESC
+        LIMIT ${COMMENT_PAGE_SIZE} OFFSET ${offset}`,
+      [viewerId, artworkId]
+    ),
+    db.execute(
+      `${COMMENT_SELECT}
+        WHERE cm.artwork_id = ? AND cm.parent_id IS NOT NULL
+        ORDER BY cm.created_at ASC, cm.id ASC`,
+      [viewerId, artworkId]
+    ),
+    db.execute(
+      'SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ? AND parent_id IS NULL',
+      [artworkId]
+    ),
+    db.execute('SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ?', [artworkId])
+  ]);
+
+  const topTotal = Number((topCountRows && topCountRows[0] && topCountRows[0].count) || 0);
+  const total = Number((totalCountRows && totalCountRows[0] && totalCountRows[0].count) || 0);
+
+  return {
+    comments: buildCommentTree(topRows, replyRows),
+    page: safePage,
+    pageSize: COMMENT_PAGE_SIZE,
+    topTotal,
+    total,
+    hasMore: safePage * COMMENT_PAGE_SIZE < topTotal
+  };
+}
+
+async function fetchCommentForRender(commentId, viewerId) {
+  const rows = await db.execute(
+    `${COMMENT_SELECT} WHERE cm.id = ? LIMIT 1`,
+    [viewerId, commentId]
+  );
+  const [comment] = decorateCommentRows(rows);
+  return comment || null;
+}
+
+function renderViewPartial(app, view, locals) {
+  return new Promise((resolve, reject) => {
+    app.render(view, locals, (error, html) => {
+      if (error) reject(error);
+      else resolve(html);
+    });
+  });
+}
+
+function artworkViewerKey(req) {
+  const viewerId = req.session && req.session.user && req.session.user.id;
+  if (viewerId) return `u:${Number(viewerId)}`;
+  const fingerprint = `${req.ip || ''}|${req.get('user-agent') || ''}`;
+  return `g:${crypto.createHash('sha256').update(fingerprint).digest('hex').slice(0, 32)}`;
 }
 
 async function createNotification({ userId, actorId, type, artworkId = null, message = null }) {
@@ -651,6 +817,15 @@ function requireAuthJson(req, res, next) {
   res.redirect('/login');
 }
 
+function requireAuthAction(req, res, next) {
+  if (req.session && req.session.user) return next();
+  if (requestWantsJson(req)) {
+    res.status(401).json({ ok: false, error: 'Please log in to continue.' });
+    return;
+  }
+  res.redirect('/login');
+}
+
 function requireAdmin(req, res, next) {
   if (!req.session || !req.session.user) return res.redirect('/login');
   if (req.session.user.role !== 'admin') {
@@ -756,6 +931,8 @@ const CSS_BUNDLE_FILES = [
   'home-notebook.css',
   'notifications.css',
   'mobile-bottom-nav.css',
+  'artwork-detail.css',
+  'multi-image.css',
   'ads.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
@@ -874,6 +1051,24 @@ app.use(async (req, res, next) => {
   }
 
   next();
+});
+
+// Same-origin guard for state-changing requests (CSRF defense in depth,
+// alongside the SameSite=Lax session cookie).
+app.use((req, res, next) => {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  const origin = req.get('Origin');
+  if (!origin) return next();
+  try {
+    if (new URL(origin).host === req.get('host')) return next();
+  } catch (error) {
+    /* fall through to rejection */
+  }
+  if (requestWantsJson(req)) {
+    res.status(403).json({ ok: false, error: 'This request could not be verified. Please refresh and try again.' });
+    return;
+  }
+  respondArtworkActionError(req, res, 403, 'This request could not be verified. Please refresh and try again.');
 });
 
 // Locale, shared translator helpers and the Khmer phrase dictionary for JS UI.
@@ -1238,9 +1433,7 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
     const categoryId = /^\d+$/.test(categoryValue) ? Number.parseInt(categoryValue, 10) : NaN;
     const visibility = req.body.visibility === 'private' ? 'private' : 'public';
     const saveAsDraft = req.body.save_as_draft === 'on' || req.body.save_as_draft === '1';
-    const file = Array.isArray(req.files) ? req.files[0] : null;
-
-    cleanupUploadedFiles((req.files || []).slice(1));
+    const files = Array.isArray(req.files) ? req.files : [];
 
     if (!title) {
       await respondError(400, 'Give your artwork a title before publishing.', 'title');
@@ -1252,7 +1445,7 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
       return;
     }
 
-    if (!file) {
+    if (files.length === 0) {
       await respondError(400, 'Add an image of your artwork before publishing.', 'images');
       return;
     }
@@ -1267,13 +1460,16 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
       return;
     }
 
-    const processed = await uploadArtworkToImageKit([file], req.session.user.id);
-    const artworkImage = processed[0];
+    const processed = await uploadArtworkToImageKit(files, req.session.user.id);
 
-    if (!artworkImage || !artworkImage.image_url) {
+    if (!processed.length || processed.some((image) => !image || !image.image_url)) {
       await respondError(502, 'We could not save that image. Please try again.', 'images');
       return;
     }
+
+    const coverIndexRaw = Number.parseInt(String(req.body.cover_index || ''), 10);
+    let coverIndex = Number.isFinite(coverIndexRaw) ? coverIndexRaw : 0;
+    if (coverIndex < 0 || coverIndex >= processed.length) coverIndex = 0;
 
     const isPublished = saveAsDraft ? 0 : 1;
     const createdOn = String(req.body.created_at || '').trim();
@@ -1286,26 +1482,55 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
       }
     }
 
-    const result = await db.execute(
-      `INSERT INTO artworks
-         (user_id, category_id, title, description, tags, image_url, thumbnail_url,
-          visibility, is_published, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', COALESCE(?, NOW()), NOW())`,
-      [
-        req.session.user.id,
-        categoryId,
-        title,
-        description || null,
-        tags || null,
-        artworkImage.image_url,
-        artworkImage.thumbnail_url || artworkImage.image_url,
-        visibility,
-        isPublished,
-        createdAt
-      ]
-    );
+    const coverImage = processed[coverIndex];
 
-    const artworkId = result.insertId;
+    const { artworkId } = await withTransaction(async (connection) => {
+      const [insertResult] = await connection.execute(
+        `INSERT INTO artworks
+           (user_id, category_id, title, description, tags, image_url, thumbnail_url,
+            visibility, is_published, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', COALESCE(?, NOW()), NOW())`,
+        [
+          req.session.user.id,
+          categoryId,
+          title,
+          description || null,
+          tags || null,
+          coverImage.image_url,
+          coverImage.thumbnail_url || coverImage.image_url,
+          visibility,
+          isPublished,
+          createdAt
+        ]
+      );
+
+      const newArtworkId = insertResult.insertId;
+      const imageValues = processed.map((image, index) => [
+        newArtworkId,
+        image.image_url,
+        image.thumbnail_url || image.image_url,
+        index
+      ]);
+      await connection.query(
+        'INSERT INTO artwork_images (artwork_id, image_url, thumbnail_url, sort_order) VALUES ?',
+        [imageValues]
+      );
+
+      const [coverRows] = await connection.execute(
+        'SELECT id FROM artwork_images WHERE artwork_id = ? AND sort_order = ? LIMIT 1',
+        [newArtworkId, coverIndex]
+      );
+      const coverImageId = (coverRows && coverRows[0] && coverRows[0].id) || null;
+      if (coverImageId) {
+        await connection.execute(
+          'UPDATE artworks SET cover_image_id = ? WHERE id = ?',
+          [coverImageId, newArtworkId]
+        );
+      }
+
+      return { artworkId: newArtworkId };
+    });
+
     const artworkUrl = visibility === 'private' || saveAsDraft
       ? '/dashboard'
       : `/art/${artworkId}`;
@@ -1316,7 +1541,8 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
         id: artworkId,
         isDraft: saveAsDraft,
         isPrivate: visibility === 'private',
-        artworkImageUrl: artworkImage.image_url,
+        artworkImageUrl: coverImage.image_url,
+        imagesCount: processed.length,
         artworkUrl,
         artworkEditUrl: '/dashboard'
       });
@@ -1750,57 +1976,26 @@ app.get('/art/:id', async (req, res, next) => {
       });
     }
 
-    const [rows, relatedRows, commentRows] = await Promise.all([
-      db.execute(
-        `SELECT a.id, a.user_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-                a.created_at, a.visibility,
-                u.username,
-                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-                u.avatar, u.bio,
-                c.name AS category_name,
-                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
-                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
-                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
-                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
-                0 AS views, 'auto' AS visual_effect
-           FROM artworks a
-           INNER JOIN users u ON u.id = a.user_id
-           LEFT JOIN categories c ON c.id = a.category_id
-          WHERE a.id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
-          LIMIT 1`,
-        [viewerId, viewerId, artworkId]
-      ),
-      db.execute(
-        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
-                u.username,
-                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-                u.avatar,
-                c.name AS category_name,
-                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
-                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
-                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
-                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
-                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
-                0 AS views, 'auto' AS visual_effect
-           FROM artworks a
-           INNER JOIN users u ON u.id = a.user_id
-           LEFT JOIN categories c ON c.id = a.category_id
-          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active' AND a.id <> ?
-          ORDER BY a.created_at DESC
-          LIMIT 4`,
-        [viewerId, viewerId, artworkId]
-      ),
-      db.execute(
-        `SELECT cm.id, cm.body, cm.created_at, u.username,
-                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-                u.avatar
-           FROM comments cm
-           INNER JOIN users u ON u.id = cm.user_id
-          WHERE cm.artwork_id = ?
-          ORDER BY cm.created_at DESC, cm.id DESC`,
-        [artworkId]
-      )
-    ]);
+    const rows = await db.execute(
+      `SELECT a.id, a.user_id, a.category_id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+              a.created_at, a.visibility, a.cover_image_id,
+              u.username,
+              COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+              u.avatar, u.bio,
+              c.name AS category_name,
+              (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+              (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+              (SELECT COUNT(*) FROM artwork_shares s WHERE s.artwork_id = a.id) AS shares_count,
+              EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+              EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+              'auto' AS visual_effect
+         FROM artworks a
+         INNER JOIN users u ON u.id = a.user_id
+         LEFT JOIN categories c ON c.id = a.category_id
+        WHERE a.id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+        LIMIT 1`,
+      [viewerId, viewerId, artworkId]
+    );
     const artwork = (rows && rows[0]) || null;
 
     if (!artwork) {
@@ -1813,18 +2008,87 @@ app.get('/art/:id', async (req, res, next) => {
       });
     }
 
-    const [pinnedIds, following] = await Promise.all([
+    const viewerKey = artworkViewerKey(req);
+    const viewTask = db.execute(
+      `INSERT INTO artwork_views (artwork_id, viewer_key, user_id) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE last_viewed_at = NOW(), user_id = VALUES(user_id)`,
+      [artworkId, viewerKey, viewerId || null]
+    ).catch((error) => {
+      console.error('Could not record artwork view:', error && (error.code || error.message));
+    });
+
+    const [relatedRows, commentData, pinnedIds, following, followerCountRows, viewsCount, galleryRows] = await Promise.all([
+      db.execute(
+        `SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.tags,
+                u.username,
+                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
+                u.avatar,
+                c.name AS category_name,
+                a.created_at, DATE_FORMAT(a.created_at, '%b %d, %Y') AS created_at_label,
+                (SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS likes_count,
+                (SELECT COUNT(*) FROM comments cm WHERE cm.artwork_id = a.id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = ?) AS is_liked,
+                EXISTS(SELECT 1 FROM bookmarks b WHERE b.artwork_id = a.id AND b.user_id = ?) AS is_bookmarked,
+                'auto' AS visual_effect
+           FROM artworks a
+           INNER JOIN users u ON u.id = a.user_id
+           LEFT JOIN categories c ON c.id = a.category_id
+          WHERE a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active' AND a.id <> ?
+          ORDER BY CASE WHEN a.category_id = ? THEN 0 ELSE 1 END, a.created_at DESC
+          LIMIT 8`,
+        [viewerId, viewerId, artworkId, artwork.category_id || 0]
+      ),
+      fetchArtworkComments(artworkId, viewerId, 1),
       getPinnedArtworkIds(viewerId),
-      isFollowingUser(viewerId, artwork.user_id)
+      isFollowingUser(viewerId, artwork.user_id),
+      db.execute('SELECT COUNT(*) AS count FROM follows WHERE following_id = ?', [artwork.user_id]),
+      (async () => {
+        await viewTask;
+        try {
+          const viewRows = await db.execute(
+            'SELECT COUNT(*) AS count FROM artwork_views WHERE artwork_id = ?',
+            [artworkId]
+          );
+          return Number((viewRows && viewRows[0] && viewRows[0].count) || 0);
+        } catch (error) {
+          return 0;
+        }
+      })(),
+      fetchArtworkImages(artworkId).catch(() => [])
     ]);
+
+    let artworkImages = galleryRows && galleryRows.length
+      ? galleryRows
+      : (artwork.image_url ? [{
+          id: 0,
+          image_url: artwork.image_url,
+          thumbnail_url: artwork.thumbnail_url || artwork.image_url,
+          sort_order: 0
+        }] : []);
+    artwork.images = artworkImages;
+    artwork.cover_image_id = artwork.cover_image_id !== null && artwork.cover_image_id !== undefined
+      ? Number(artwork.cover_image_id)
+      : (artworkImages[0] ? artworkImages[0].id : null);
+
+    artwork.views_count = viewsCount;
+    artwork.shares_count = Number(artwork.shares_count || 0);
+    artwork.comments_count = commentData.total;
+    const followersCount = Number((followerCountRows && followerCountRows[0] && followerCountRows[0].count) || 0);
+
     res.locals.adsAllowed = true;
 
     res.render('pages/artwork', {
       pageTitle: `ArtSpace | ${artwork.title}`,
       artwork,
-      comments: commentRows || [],
+      comments: commentData.comments,
+      commentsPage: commentData.page,
+      commentsPageSize: commentData.pageSize,
+      commentsTotal: commentData.total,
+      commentsTopTotal: commentData.topTotal,
+      commentsHasMore: commentData.hasMore,
+      commentsNextPage: commentData.page + 1,
       related: relatedRows || [],
-      artistStats: { isFollowing: following },
+      artistStats: { isFollowing: following, followersCount },
       pinnedIds,
       reportStatus: typeof req.query.report === 'string' ? req.query.report : null
     });
@@ -1844,10 +2108,38 @@ function localUploadPath(url) {
   return absolute.startsWith(root) ? absolute : null;
 }
 
-async function deleteArtworkMedia(artwork) {
-  const urls = [artwork.image_url, artwork.thumbnail_url].filter(Boolean);
+async function ensureArtworkGalleryRows(artwork) {
+  let images = await fetchArtworkImages(artwork.id);
 
-  for (const url of urls) {
+  if (!images.length && artwork.image_url) {
+    await withTransaction(async (connection) => {
+      await connection.execute(
+        `INSERT INTO artwork_images (artwork_id, image_url, thumbnail_url, sort_order)
+         SELECT ?, ?, ?, 0
+          WHERE NOT EXISTS (SELECT 1 FROM artwork_images WHERE artwork_id = ?)`,
+        [artwork.id, artwork.image_url, artwork.thumbnail_url || artwork.image_url, artwork.id]
+      );
+      const [coverRows] = await connection.execute(
+        'SELECT id FROM artwork_images WHERE artwork_id = ? AND sort_order = 0 LIMIT 1',
+        [artwork.id]
+      );
+      if (coverRows && coverRows[0]) {
+        await connection.execute(
+          'UPDATE artworks SET cover_image_id = ? WHERE id = ?',
+          [coverRows[0].id, artwork.id]
+        );
+      }
+    });
+    images = await fetchArtworkImages(artwork.id);
+  }
+
+  return images;
+}
+
+async function removeArtworkMediaUrls(urls, userId) {
+  const uniqueUrls = [...new Set((urls || []).filter(Boolean))];
+
+  for (const url of uniqueUrls) {
     const localPath = localUploadPath(url);
     if (!localPath) continue;
     try {
@@ -1863,7 +2155,7 @@ async function deleteArtworkMedia(artwork) {
   if (!ik || !endpoint) return;
 
   const remoteNames = new Set(
-    urls
+    uniqueUrls
       .filter((url) => url.startsWith(endpoint))
       .map((url) => {
         try {
@@ -1878,7 +2170,7 @@ async function deleteArtworkMedia(artwork) {
   if (remoteNames.size === 0) return;
 
   try {
-    const files = await ik.listFiles({ path: `/artspace/${artwork.user_id}`, limit: 1000 });
+    const files = await ik.listFiles({ path: `/artspace/${userId}`, limit: 1000 });
     for (const file of files) {
       if (remoteNames.has(file.name)) {
         await ik.deleteFile(file.fileId);
@@ -1887,6 +2179,17 @@ async function deleteArtworkMedia(artwork) {
   } catch (err) {
     console.error('Could not remove ImageKit artwork files:', err);
   }
+}
+
+async function deleteArtworkMedia(artwork, galleryImages) {
+  const rows = Array.isArray(galleryImages) ? galleryImages : [];
+  const urls = [
+    artwork.image_url,
+    artwork.thumbnail_url,
+    ...rows.flatMap((row) => [row.image_url, row.thumbnail_url])
+  ];
+
+  await removeArtworkMediaUrls(urls, artwork.user_id);
 }
 
 // 7b. Artwork Like and Bookmark Actions
@@ -2013,7 +2316,7 @@ app.post('/art/:id/bookmark', requireAuth, async (req, res, next) => {
   }
 });
 
-app.post('/art/:id/comment', requireAuth, async (req, res, next) => {
+app.post('/art/:id/comment', requireAuthAction, async (req, res, next) => {
   try {
     const artworkId = parseInt(req.params.id, 10);
     if (!Number.isFinite(artworkId)) {
@@ -2021,7 +2324,7 @@ app.post('/art/:id/comment', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const body = String(req.body.body || '').trim();
+    const body = String(req.body.body || '').replace(/\r\n/g, '\n').trim();
     if (!body || body.length > 2000) {
       const message = !body
         ? 'Please write a comment before posting.'
@@ -2047,40 +2350,95 @@ app.post('/art/:id/comment', requireAuth, async (req, res, next) => {
     }
 
     const userId = Number(req.session.user.id);
+    let parentId = null;
+    let parentComment = null;
+
+    if (req.body.parent_id !== undefined && req.body.parent_id !== null && String(req.body.parent_id).trim() !== '') {
+      parentId = Number.parseInt(req.body.parent_id, 10);
+      if (!Number.isFinite(parentId) || parentId <= 0) {
+        res.status(400).json({ ok: false, error: 'That comment thread could not be found.' });
+        return;
+      }
+
+      const parentRows = await db.execute(
+        'SELECT id, user_id FROM comments WHERE id = ? AND artwork_id = ? LIMIT 1',
+        [parentId, artworkId]
+      );
+      parentComment = (parentRows && parentRows[0]) || null;
+      if (!parentComment) {
+        res.status(404).json({ ok: false, error: 'That comment thread could not be found.' });
+        return;
+      }
+    }
+
+    const [recentRows, duplicateRows] = await Promise.all([
+      db.execute(
+        'SELECT id FROM comments WHERE user_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 3 SECOND) LIMIT 1',
+        [userId]
+      ),
+      db.execute(
+        `SELECT id FROM comments
+          WHERE user_id = ? AND artwork_id = ? AND body = ?
+            AND created_at > DATE_SUB(NOW(), INTERVAL 30 SECOND)
+          LIMIT 1`,
+        [userId, artworkId, body]
+      )
+    ]);
+
+    if (recentRows && recentRows.length) {
+      res.status(429).json({ ok: false, error: 'Give the ink a moment to dry. Please wait a few seconds before posting again.' });
+      return;
+    }
+
+    if (duplicateRows && duplicateRows.length) {
+      res.status(409).json({ ok: false, error: 'You just posted that same note. Try adding something new.' });
+      return;
+    }
+
     const result = await db.execute(
-      'INSERT INTO comments (user_id, artwork_id, body) VALUES (?, ?, ?)',
-      [userId, artworkId, body]
+      'INSERT INTO comments (user_id, artwork_id, parent_id, body) VALUES (?, ?, ?, ?)',
+      [userId, artworkId, parentId, body]
     );
 
+    const notificationTarget = parentComment ? Number(parentComment.user_id) : Number(artworks[0].user_id);
     await createNotification({
-      userId: Number(artworks[0].user_id),
+      userId: notificationTarget,
       actorId: userId,
       type: 'comment',
       artworkId,
       message: body.slice(0, 240)
     });
 
-    const [commentRows, countRows] = await Promise.all([
-      db.execute(
-        `SELECT cm.id, cm.body, cm.created_at, u.username,
-                COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
-                u.avatar
-           FROM comments cm
-           INNER JOIN users u ON u.id = cm.user_id
-          WHERE cm.id = ?
-          LIMIT 1`,
-        [result.insertId]
-      ),
+    const [comment, countRows] = await Promise.all([
+      fetchCommentForRender(result.insertId, userId),
       db.execute('SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ?', [artworkId])
     ]);
 
     const commentsCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
+    const topCountRows = await db.execute(
+      'SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ? AND parent_id IS NULL',
+      [artworkId]
+    );
+    const commentsTopCount = Number((topCountRows && topCountRows[0] && topCountRows[0].count) || 0);
 
     if (requestWantsJson(req)) {
+      const commentHtml = comment
+        ? await renderViewPartial(req.app, 'partials/artwork-comment', {
+          comment,
+          artwork: artworks[0],
+          currentUser: req.session.user,
+          isAuthenticated: true,
+          depth: 0
+        })
+        : '';
+
       res.status(201).json({
         ok: true,
-        comment: (commentRows && commentRows[0]) || null,
-        comments_count: commentsCount
+        comment,
+        comment_html: commentHtml,
+        parent_id: parentId,
+        comments_count: commentsCount,
+        comments_top_count: commentsTopCount
       });
       return;
     }
@@ -2090,6 +2448,304 @@ app.post('/art/:id/comment', requireAuth, async (req, res, next) => {
     console.error('Artwork comment failed:', err);
     if (requestWantsJson(req)) {
       res.status(500).json({ ok: false, error: 'We could not post that comment. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
+app.get('/art/:id/comments', async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      res.status(404).json({ ok: false, error: 'The artwork you requested could not be found.' });
+      return;
+    }
+
+    const artworks = await db.execute(
+      "SELECT id, user_id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      [artworkId]
+    );
+
+    if (!artworks || artworks.length === 0) {
+      res.status(404).json({ ok: false, error: 'The artwork you requested could not be found.' });
+      return;
+    }
+
+    const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
+    const data = await fetchArtworkComments(artworkId, viewerId, req.query.page);
+    const currentUser = (req.session && req.session.user) || null;
+    const htmlParts = await Promise.all(data.comments.map((comment) => renderViewPartial(
+      req.app,
+      'partials/artwork-comment',
+      {
+        comment,
+        artwork: artworks[0],
+        currentUser,
+        isAuthenticated: Boolean(currentUser),
+        depth: 0
+      }
+    )));
+
+    res.json({
+      ok: true,
+      html: htmlParts.join(''),
+      page: data.page,
+      has_more: data.hasMore,
+      next_page: data.page + 1,
+      comments_count: data.total,
+      comments_top_count: data.topTotal
+    });
+  } catch (err) {
+    console.error('Artwork comments load failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not load more comments. Please try again.' });
+  }
+});
+
+app.post('/comments/:id/like', requireAuthAction, async (req, res, next) => {
+  try {
+    const commentId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(commentId)) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT cm.id, cm.user_id, cm.artwork_id, a.user_id AS artwork_owner_id
+         FROM comments cm
+         INNER JOIN artworks a ON a.id = cm.artwork_id
+        WHERE cm.id = ? AND a.visibility = 'public' AND a.is_published = 1 AND a.status = 'active'
+        LIMIT 1`,
+      [commentId]
+    );
+    const comment = (rows && rows[0]) || null;
+
+    if (!comment) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const userId = Number(req.session.user.id);
+    const removed = await db.execute(
+      'DELETE FROM comment_likes WHERE user_id = ? AND comment_id = ?',
+      [userId, commentId]
+    );
+
+    let liked = false;
+    if (!removed || removed.affectedRows === 0) {
+      await db.execute(
+        'INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)',
+        [userId, commentId]
+      );
+      liked = true;
+    }
+
+    await removeNotification({
+      userId: Number(comment.user_id),
+      actorId: userId,
+      type: 'comment_like',
+      artworkId: Number(comment.artwork_id)
+    });
+
+    if (liked) {
+      await createNotification({
+        userId: Number(comment.user_id),
+        actorId: userId,
+        type: 'comment_like',
+        artworkId: Number(comment.artwork_id)
+      });
+    }
+
+    const countRows = await db.execute(
+      'SELECT COUNT(*) AS count FROM comment_likes WHERE comment_id = ?',
+      [commentId]
+    );
+    const likesCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, liked, likes_count: likesCount, comment_id: commentId });
+      return;
+    }
+
+    res.redirect(`/art/${comment.artwork_id}#ad-comments`);
+  } catch (err) {
+    console.error('Comment like toggle failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not update that comment like. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
+app.post('/comments/:id/edit', requireAuthAction, async (req, res, next) => {
+  try {
+    const commentId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(commentId)) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const body = String(req.body.body || '').replace(/\r\n/g, '\n').trim();
+    if (!body || body.length > 2000) {
+      res.status(400).json({
+        ok: false,
+        error: !body ? 'Please write a comment before saving.' : 'Comments must be 2,000 characters or fewer.'
+      });
+      return;
+    }
+
+    const rows = await db.execute(
+      'SELECT id, user_id, artwork_id FROM comments WHERE id = ? LIMIT 1',
+      [commentId]
+    );
+    const comment = (rows && rows[0]) || null;
+
+    if (!comment) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    if (Number(comment.user_id) !== Number(req.session.user.id)) {
+      res.status(403).json({ ok: false, error: 'You can only edit your own comments.' });
+      return;
+    }
+
+    await db.execute(
+      'UPDATE comments SET body = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      [body, commentId, req.session.user.id]
+    );
+
+    res.json({ ok: true, body, edited: true, comment_id: commentId });
+  } catch (err) {
+    console.error('Comment edit failed:', err);
+    res.status(500).json({ ok: false, error: 'We could not save that edit. Please try again.' });
+  }
+});
+
+app.post('/comments/:id/delete', requireAuthAction, async (req, res, next) => {
+  try {
+    const commentId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(commentId)) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const rows = await db.execute(
+      `SELECT cm.id, cm.user_id, cm.artwork_id, a.user_id AS artwork_owner_id
+         FROM comments cm
+         INNER JOIN artworks a ON a.id = cm.artwork_id
+        WHERE cm.id = ?
+        LIMIT 1`,
+      [commentId]
+    );
+    const comment = (rows && rows[0]) || null;
+
+    if (!comment) {
+      res.status(404).json({ ok: false, error: 'That comment could not be found.' });
+      return;
+    }
+
+    const userId = Number(req.session.user.id);
+    const isCommentOwner = Number(comment.user_id) === userId;
+    const isArtworkOwner = Number(comment.artwork_owner_id) === userId;
+    const isAdmin = req.session.user.role === 'admin';
+
+    if (!isCommentOwner && !isArtworkOwner && !isAdmin) {
+      res.status(403).json({ ok: false, error: 'You do not have permission to delete this comment.' });
+      return;
+    }
+
+    const deletedIds = [commentId];
+    let frontier = [commentId];
+
+    for (let depth = 0; depth < 10 && frontier.length; depth += 1) {
+      const placeholders = frontier.map(() => '?').join(',');
+      const children = await db.execute(
+        `SELECT id FROM comments WHERE parent_id IN (${placeholders})`,
+        frontier
+      );
+      frontier = (children || []).map((row) => Number(row.id));
+      deletedIds.push(...frontier);
+    }
+
+    const placeholders = deletedIds.map(() => '?').join(',');
+    await db.execute(`DELETE FROM comments WHERE id IN (${placeholders})`, deletedIds);
+
+    const [countRows, topCountRows] = await Promise.all([
+      db.execute('SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ?', [comment.artwork_id]),
+      db.execute(
+        'SELECT COUNT(*) AS count FROM comments WHERE artwork_id = ? AND parent_id IS NULL',
+        [comment.artwork_id]
+      )
+    ]);
+
+    if (requestWantsJson(req)) {
+      res.json({
+        ok: true,
+        deleted_ids: deletedIds,
+        comments_count: Number((countRows && countRows[0] && countRows[0].count) || 0),
+        comments_top_count: Number((topCountRows && topCountRows[0] && topCountRows[0].count) || 0)
+      });
+      return;
+    }
+
+    res.redirect(`/art/${comment.artwork_id}#ad-comments`);
+  } catch (err) {
+    console.error('Comment delete failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not delete that comment. Please try again.' });
+      return;
+    }
+    next(err);
+  }
+});
+
+app.post('/art/:id/share', async (req, res, next) => {
+  try {
+    const artworkId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId)) {
+      res.status(404).json({ ok: false, error: 'The artwork you requested could not be found.' });
+      return;
+    }
+
+    const artworks = await db.execute(
+      "SELECT id FROM artworks WHERE id = ? AND visibility = 'public' AND is_published = 1 AND status = 'active' LIMIT 1",
+      [artworkId]
+    );
+
+    if (!artworks || artworks.length === 0) {
+      res.status(404).json({ ok: false, error: 'The artwork you requested could not be found.' });
+      return;
+    }
+
+    const allowedPlatforms = new Set(['copy', 'telegram', 'facebook', 'messenger', 'whatsapp', 'x', 'linkedin', 'email', 'native', 'other']);
+    const platform = allowedPlatforms.has(String(req.body.platform || '').toLowerCase())
+      ? String(req.body.platform).toLowerCase()
+      : 'other';
+    const userId = (req.session && req.session.user && req.session.user.id) || null;
+
+    await db.execute(
+      'INSERT INTO artwork_shares (artwork_id, user_id, platform) VALUES (?, ?, ?)',
+      [artworkId, userId, platform]
+    );
+
+    const countRows = await db.execute(
+      'SELECT COUNT(*) AS count FROM artwork_shares WHERE artwork_id = ?',
+      [artworkId]
+    );
+    const sharesCount = Number((countRows && countRows[0] && countRows[0].count) || 0);
+
+    if (requestWantsJson(req)) {
+      res.json({ ok: true, shares_count: sharesCount, platform });
+      return;
+    }
+
+    res.redirect(getSafeActionRedirect(req, `/art/${artworkId}`));
+  } catch (err) {
+    console.error('Artwork share tracking failed:', err);
+    if (requestWantsJson(req)) {
+      res.status(500).json({ ok: false, error: 'We could not record that share. Please try again.' });
       return;
     }
     next(err);
@@ -2149,8 +2805,14 @@ app.post('/follow/:id', requireAuth, async (req, res, next) => {
       });
     }
 
+    const followerCountRows = await db.execute(
+      'SELECT COUNT(*) AS count FROM follows WHERE following_id = ?',
+      [targetUserId]
+    );
+    const followersCount = Number((followerCountRows && followerCountRows[0] && followerCountRows[0].count) || 0);
+
     if (requestWantsJson(req)) {
-      res.json({ ok: true, following });
+      res.json({ ok: true, following, followers_count: followersCount });
       return;
     }
 
@@ -2312,6 +2974,8 @@ app.post('/art/:id/delete', requireAuth, async (req, res, next) => {
       return;
     }
 
+    const galleryImages = await fetchArtworkImages(artworkId).catch(() => []);
+
     await db.execute('DELETE FROM notifications WHERE artwork_id = ?', [artworkId]);
     const deleted = await db.execute('DELETE FROM artworks WHERE id = ? AND user_id = ?', [
       artworkId,
@@ -2323,7 +2987,7 @@ app.post('/art/:id/delete', requireAuth, async (req, res, next) => {
       return;
     }
 
-    await deleteArtworkMedia(artwork);
+    await deleteArtworkMedia(artwork, galleryImages);
 
     const redirectUrl = `/profile/${encodeURIComponent(req.session.user.username)}?tab=artworks&deleted=1`;
 
@@ -2506,7 +3170,7 @@ app.get('/notifications', requireAuth, async (req, res, next) => {
       is_unread: !Number(row.is_read),
       actor_name: row.actor_name || 'Someone',
       link: row.artwork_id
-        ? `/art/${row.artwork_id}`
+        ? `/art/${row.artwork_id}${row.type === 'comment' || row.type === 'comment_like' ? '#ad-comments' : ''}`
         : (row.actor_username ? `/profile/${encodeURIComponent(row.actor_username)}` : '/explore')
     }));
     const unreadCount = notifications.filter((item) => item.is_unread).length;
@@ -2668,9 +3332,11 @@ app.post('/admin/artworks/:id/delete', requireAdmin, async (req, res, next) => {
       return;
     }
 
+    const galleryImages = await fetchArtworkImages(artworkId).catch(() => []);
+
     await db.execute('DELETE FROM notifications WHERE artwork_id = ?', [artworkId]);
     await db.execute('DELETE FROM artworks WHERE id = ?', [artworkId]);
-    await deleteArtworkMedia(artwork);
+    await deleteArtworkMedia(artwork, galleryImages);
 
     res.redirect('/admin?tab=artworks&notice=artwork-deleted#artworks');
   } catch (err) {
@@ -2757,26 +3423,35 @@ app.get('/art/:id/edit', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const categories = await db.execute(
-      'SELECT id, name, slug FROM categories ORDER BY sort_order ASC'
-    );
+    const [categories, artworkImages] = await Promise.all([
+      db.execute('SELECT id, name, slug FROM categories ORDER BY sort_order ASC'),
+      ensureArtworkGalleryRows(artwork).catch(() => [])
+    ]);
     artwork.visible_tags = String(artwork.tags || '')
       .split(/\s+/)
       .filter((tag) => tag && !/^effect:/i.test(tag))
       .join(' ');
+    artwork.images = artworkImages.length
+      ? artworkImages
+      : (artwork.image_url ? [{
+          id: 0,
+          image_url: artwork.image_url,
+          thumbnail_url: artwork.thumbnail_url || artwork.image_url,
+          sort_order: 0
+        }] : []);
 
     res.render('pages/artwork-edit', {
       pageTitle: 'ArtSpace | Edit artwork',
       artwork,
       categories: categories || [],
-      error: null
+      error: typeof req.query.error === 'string' && req.query.error ? req.query.error : null
     });
   } catch (err) {
     next(err);
   }
 });
 
-app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
+app.post('/art/:id/edit', requireAuth, handleArtworkEditUpload, async (req, res, next) => {
   try {
     const artworkId = parseInt(req.params.id, 10);
     if (!Number.isFinite(artworkId)) {
@@ -2785,7 +3460,7 @@ app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
     }
 
     const rows = await db.execute(
-      `SELECT id, user_id, category_id, title, description, tags, image_url, thumbnail_url,
+      `SELECT id, user_id, category_id, title, description, tags, image_url, thumbnail_url, cover_image_id,
               visibility, is_published, status
          FROM artworks
         WHERE id = ?
@@ -2813,16 +3488,23 @@ app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
       .split(/\s+/)
       .filter((tag) => tag && /^effect:/i.test(tag));
     const tags = [visibleTags, ...effectTags].filter(Boolean).join(' ').slice(0, 500);
+    const newFiles = Array.isArray(req.files) ? req.files : [];
+
+    const cleanupNewFiles = () => {
+      cleanupUploadedFiles(newFiles);
+    };
 
     const renderError = async (message) => {
+      cleanupNewFiles();
       if (requestWantsJson(req)) {
         res.status(400).json({ ok: false, error: message });
         return;
       }
 
-      const categories = await db.execute(
-        'SELECT id, name, slug FROM categories ORDER BY sort_order ASC'
-      );
+      const [categories, currentImages] = await Promise.all([
+        db.execute('SELECT id, name, slug FROM categories ORDER BY sort_order ASC'),
+        fetchArtworkImages(artworkId).catch(() => [])
+      ]);
       res.status(400).render('pages/artwork-edit', {
         pageTitle: 'ArtSpace | Edit artwork',
         artwork: {
@@ -2830,7 +3512,8 @@ app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
           title,
           description,
           category_id: Number.isFinite(categoryId) ? categoryId : artwork.category_id,
-          visible_tags: visibleTags
+          visible_tags: visibleTags,
+          images: currentImages
         },
         categories: categories || [],
         error: message
@@ -2857,19 +3540,202 @@ app.post('/art/:id/edit', requireAuth, async (req, res, next) => {
       return;
     }
 
-    await db.execute(
-      `UPDATE artworks
-          SET title = ?, description = ?, category_id = ?, tags = ?, updated_at = NOW()
-        WHERE id = ? AND user_id = ?`,
-      [title, description || null, categoryId, tags || null, artworkId, req.session.user.id]
-    );
+    const existingImages = await ensureArtworkGalleryRows(artwork);
+    const existingById = new Map(existingImages.map((image) => [image.id, image]));
 
-    if (requestWantsJson(req)) {
-      res.json({ ok: true, id: artworkId, artworkUrl: `/art/${artworkId}` });
+    // Parse the desired final order: array of existing ids or "new:<fileIndex>" tokens.
+    let orderTokens = null;
+    const orderRaw = String(req.body.image_order || '').trim();
+    if (orderRaw) {
+      try {
+        const parsed = JSON.parse(orderRaw);
+        if (Array.isArray(parsed)) {
+          orderTokens = parsed.map((token) => String(token).trim()).filter(Boolean);
+        }
+      } catch (parseError) {
+        orderTokens = null;
+      }
+      if (!orderTokens) {
+        await renderError('We could not read the new page order. Please refresh and try again.');
+        return;
+      }
+    }
+
+    // Legacy fallback (non-JS submissions): keep current order, append new files.
+    const planned = orderTokens
+      ? orderTokens
+          .map((token) => {
+            if (/^\d+$/.test(token)) {
+              const id = Number.parseInt(token, 10);
+              return existingById.has(id) ? { kind: 'existing', id } : null;
+            }
+            const newMatch = token.match(/^new:(\d+)$/);
+            if (newMatch) {
+              const fileIndex = Number.parseInt(newMatch[1], 10);
+              return fileIndex >= 0 && fileIndex < newFiles.length
+                ? { kind: 'new', fileIndex }
+                : null;
+            }
+            return null;
+          })
+          .filter(Boolean)
+      : [
+          ...existingImages.map((image) => ({ kind: 'existing', id: image.id })),
+          ...newFiles.map((file, index) => ({ kind: 'new', fileIndex: index }))
+        ];
+
+    const keepIds = new Set(planned.filter((item) => item.kind === 'existing').map((item) => item.id));
+    const removedRows = existingImages.filter((image) => !keepIds.has(image.id));
+
+    if (planned.length === 0) {
+      await renderError('An artwork needs at least one image. Keep a page or add new ones.');
       return;
     }
 
-    res.redirect(`/art/${artworkId}`);
+    // Resolve the requested cover: an existing id or "new:<fileIndex>".
+    const coverRaw = String(req.body.cover_image_id || '').trim();
+    let coverToken = null;
+    if (/^\d+$/.test(coverRaw) && existingById.has(Number.parseInt(coverRaw, 10)) && keepIds.has(Number.parseInt(coverRaw, 10))) {
+      coverToken = { kind: 'existing', id: Number.parseInt(coverRaw, 10) };
+    } else {
+      const coverNewMatch = coverRaw.match(/^new:(\d+)$/);
+      if (coverNewMatch) {
+        const fileIndex = Number.parseInt(coverNewMatch[1], 10);
+        if (fileIndex >= 0 && fileIndex < newFiles.length) {
+          coverToken = { kind: 'new', fileIndex };
+        }
+      }
+    }
+
+    if (!coverToken && orderTokens) {
+      coverToken = planned[0];
+    }
+
+    let processedNew = null;
+
+    try {
+      processedNew = newFiles.length
+        ? await uploadArtworkToImageKit(newFiles, req.session.user.id)
+        : [];
+
+      if (processedNew.some((image) => !image || !image.image_url)) {
+        throw Object.assign(new Error('We could not save the new images. Please try again.'), { handled: true });
+      }
+
+      const outcome = await withTransaction(async (connection) => {
+        const finalImages = [];
+        let position = 0;
+        let coverRow = null;
+        const insertedNew = [];
+
+        if (removedRows.length) {
+          await connection.execute(
+            `DELETE FROM artwork_images WHERE artwork_id = ? AND id IN (${removedRows.map(() => '?').join(',')})`,
+            [artworkId, ...removedRows.map((row) => row.id)]
+          );
+        }
+
+        for (const item of planned) {
+          if (item.kind === 'existing') {
+            const row = existingById.get(item.id);
+            await connection.execute(
+              'UPDATE artwork_images SET sort_order = ? WHERE id = ? AND artwork_id = ?',
+              [position, item.id, artworkId]
+            );
+            finalImages.push({ id: item.id, image_url: row.image_url, thumbnail_url: row.thumbnail_url || row.image_url });
+          } else {
+            const image = processedNew[item.fileIndex];
+            const [insertResult] = await connection.execute(
+              'INSERT INTO artwork_images (artwork_id, image_url, thumbnail_url, sort_order) VALUES (?, ?, ?, ?)',
+              [artworkId, image.image_url, image.thumbnail_url || image.image_url, position]
+            );
+            const inserted = {
+              id: Number(insertResult.insertId),
+              image_url: image.image_url,
+              thumbnail_url: image.thumbnail_url || image.image_url
+            };
+            insertedNew.push(inserted);
+            finalImages.push(inserted);
+          }
+
+          if (coverToken
+            && ((item.kind === 'existing' && coverToken.kind === 'existing' && coverToken.id === item.id)
+              || (item.kind === 'new' && coverToken.kind === 'new' && coverToken.fileIndex === item.fileIndex))) {
+            coverRow = finalImages[finalImages.length - 1];
+          }
+
+          position += 1;
+        }
+
+        if (!coverRow) {
+          const previousCover = existingImages.find((image) => image.id === Number(artwork.cover_image_id));
+          if (previousCover && keepIds.has(previousCover.id)) {
+            coverRow = finalImages.find((image) => image.id === previousCover.id) || null;
+          }
+          if (!coverRow) {
+            coverRow = finalImages[0];
+          }
+        }
+
+        await connection.execute(
+          `UPDATE artworks
+              SET title = ?, description = ?, category_id = ?, tags = ?,
+                  image_url = ?, thumbnail_url = ?, cover_image_id = ?, updated_at = NOW()
+            WHERE id = ? AND user_id = ?`,
+          [
+            title,
+            description || null,
+            categoryId,
+            tags || null,
+            coverRow.image_url,
+            coverRow.thumbnail_url || coverRow.image_url,
+            coverRow.id,
+            artworkId,
+            req.session.user.id
+          ]
+        );
+
+        return { finalImages, coverRow, insertedNew };
+      });
+
+      cleanupNewFiles();
+
+      // Remove media for deleted gallery rows only after a successful commit.
+      if (removedRows.length) {
+        await removeArtworkMediaUrls(
+          removedRows.flatMap((row) => [row.image_url, row.thumbnail_url]),
+          req.session.user.id
+        );
+      }
+
+      if (requestWantsJson(req)) {
+        res.json({
+          ok: true,
+          id: artworkId,
+          artworkUrl: `/art/${artworkId}`,
+          imagesCount: outcome.finalImages.length,
+          coverImageId: outcome.coverRow.id
+        });
+        return;
+      }
+
+      res.redirect(`/art/${artworkId}`);
+    } catch (processingError) {
+      // Roll back orphaned uploads: if the transaction failed, remove newly stored media.
+      if (processedNew && processedNew.length) {
+        await removeArtworkMediaUrls(
+          processedNew.flatMap((image) => [image.image_url, image.thumbnail_url]),
+          req.session.user.id
+        ).catch(() => {});
+      }
+
+      if (processingError && processingError.handled) {
+        await renderError(processingError.message);
+        return;
+      }
+
+      throw processingError;
+    }
   } catch (err) {
     console.error('Artwork edit failed:', err);
     if (requestWantsJson(req)) {

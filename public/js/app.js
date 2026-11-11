@@ -85,7 +85,7 @@ const updateLikeButton = (button, liked) => {
   button.classList.toggle('active', liked);
   setActionLabel(button, liked ? 'Unlike' : 'Like');
   button.setAttribute('aria-pressed', String(Boolean(liked)));
-  if (button.classList.contains('ad-tool')) {
+  if (button.classList.contains('ad-tool') || button.classList.contains('ad-reaction')) {
     button.setAttribute('aria-label', liked ? 'Unlike this artwork' : 'Like this artwork');
   } else if (button.classList.contains('pf-art-action')) {
     button.setAttribute('aria-label', liked ? 'Unlike this artwork' : 'Like this artwork');
@@ -105,7 +105,7 @@ const updateSavedButton = (button, saved) => {
   button.classList.toggle('active', saved);
   setActionLabel(button, saved ? 'Saved' : 'Save');
   button.setAttribute('aria-pressed', String(saved));
-  if (button.classList.contains('ad-tool')) {
+  if (button.classList.contains('ad-tool') || button.classList.contains('ad-reaction')) {
     button.setAttribute('aria-label', saved ? 'Remove from saved artwork' : 'Save this artwork');
   } else if (button.classList.contains('pf-art-action')) {
     button.setAttribute('aria-label', saved ? 'Remove from saved artwork' : 'Save this artwork');
@@ -114,16 +114,41 @@ const updateSavedButton = (button, saved) => {
 };
 
 const updateLikeCounter = (card, likesCount) => {
-  const likeCounter = card?.querySelector('[data-portfolio-likes]') || card?.querySelector('[data-nb-like-count]') || card?.querySelector('.metric-inline span') || document.querySelector('[data-detail-likes-count]') || document.querySelector('[data-viewer-like-count]');
-  if (!likeCounter) return;
-  const value = Number.parseInt(likeCounter.textContent.replace(/[^\d]/g, ''), 10) || 0;
-  const nextCount = Math.max(0, likesCount ?? value);
-  const isPlainCounter = likeCounter.hasAttribute('data-portfolio-likes')
-    || likeCounter.hasAttribute('data-nb-like-count')
-    || likeCounter.hasAttribute('data-viewer-like-count')
-    || likeCounter.hasAttribute('data-detail-likes-count');
-  likeCounter.textContent = isPlainCounter ? String(nextCount) : `❤ ${nextCount}`;
-  if (card?.hasAttribute('data-portfolio-card')) card.dataset.likes = String(nextCount);
+  const counters = new Set();
+  if (card) {
+    card.querySelectorAll('[data-portfolio-likes], [data-nb-like-count], .metric-inline span:first-child').forEach((counter) => counters.add(counter));
+  }
+  document.querySelectorAll('[data-detail-likes-count], [data-viewer-like-count]').forEach((counter) => counters.add(counter));
+  if (!counters.size) return;
+
+  counters.forEach((likeCounter) => {
+    const value = Number.parseInt(likeCounter.textContent.replace(/[^\d]/g, ''), 10) || 0;
+    const nextCount = Math.max(0, likesCount ?? value);
+    const isPlainCounter = likeCounter.hasAttribute('data-portfolio-likes')
+      || likeCounter.hasAttribute('data-nb-like-count')
+      || likeCounter.hasAttribute('data-viewer-like-count')
+      || likeCounter.hasAttribute('data-detail-likes-count');
+    likeCounter.textContent = isPlainCounter ? String(nextCount) : `❤ ${nextCount}`;
+  });
+  if (card?.hasAttribute('data-portfolio-card') && Number.isFinite(Number(likesCount))) {
+    card.dataset.likes = String(Math.max(0, Number(likesCount)));
+  }
+};
+
+const burstLikeHearts = (button) => {
+  if (!button || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const heart = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.2-4.6-9.4-9.4A5.4 5.4 0 0 1 12 6.6a5.4 5.4 0 0 1 9.4 4A13.6 13.6 0 0 1 12 20Z"/></svg>';
+  for (let index = 0; index < 6; index += 1) {
+    const span = document.createElement('span');
+    span.className = 'ad-heart-burst';
+    span.innerHTML = heart;
+    span.style.setProperty('--drift', `${(Math.random() * 46 - 23).toFixed(1)}px`);
+    span.style.setProperty('--rise', `${(46 + Math.random() * 34).toFixed(1)}px`);
+    span.style.setProperty('--spin', `${(Math.random() * 40 - 20).toFixed(1)}deg`);
+    span.style.animationDelay = `${index * 35}ms`;
+    button.appendChild(span);
+    window.setTimeout(() => span.remove(), 1200 + index * 40);
+  }
 };
 
 const bindQuickActions = () => {
@@ -132,6 +157,8 @@ const bindQuickActions = () => {
     form.dataset.quickBound = 'true';
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (form.dataset.busy === 'true') return;
+      form.dataset.busy = 'true';
       const button = form.querySelector('button');
       const card = form.closest('.art-card, [data-portfolio-card], [data-nb-artwork]');
 
@@ -149,10 +176,13 @@ const bindQuickActions = () => {
         const data = await response.json();
         updateLikeButton(button, data.liked);
         updateLikeCounter(card, data.likes_count);
+        if (data.liked) burstLikeHearts(button);
         const artworkId = form.action.match(/\/art\/(\d+)\/like$/)?.[1];
         if (artworkId) document.dispatchEvent(new CustomEvent('artwork:like-changed', { detail: { id: artworkId, liked: data.liked, likes: data.likes_count } }));
       } catch (error) {
         form.submit();
+      } finally {
+        form.dataset.busy = 'false';
       }
     });
   });
@@ -162,6 +192,8 @@ const bindQuickActions = () => {
     form.dataset.quickBound = 'true';
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (form.dataset.busy === 'true') return;
+      form.dataset.busy = 'true';
       const button = form.querySelector('button');
 
       try {
@@ -177,10 +209,19 @@ const bindQuickActions = () => {
 
         const data = await response.json();
         updateSavedButton(button, data.bookmarked);
+        if (button && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          button.classList.remove('save-pop');
+          void button.offsetWidth;
+          button.classList.add('save-pop');
+          button.addEventListener('animationend', () => button.classList.remove('save-pop'), { once: true });
+        }
+        showPinToast(data.bookmarked ? 'Saved to your collection.' : 'Removed from saved artwork.', 'success');
         const artworkId = form.action.match(/\/art\/(\d+)\/bookmark$/)?.[1];
         if (artworkId) document.dispatchEvent(new CustomEvent('artwork:bookmark-changed', { detail: { id: artworkId, saved: data.bookmarked } }));
       } catch (error) {
         form.submit();
+      } finally {
+        form.dataset.busy = 'false';
       }
     });
   });
@@ -366,7 +407,45 @@ const bindArtworkEditForm = () => {
   const successLabel = page.dataset.aeSuccessLabel || 'Saved. Returning to artwork…';
   const savedLabel = page.dataset.aeSavedLabel || 'Saved';
   const errorLabel = page.dataset.aeErrorLabel || 'We could not save your changes. Please try again.';
-  const serialize = () => JSON.stringify([...new FormData(form).entries()]);
+
+  const imagesGrid = page.querySelector('[data-ae-images-grid]');
+  const imagesInput = page.querySelector('[data-ae-images-input]');
+  const imagesAddTrigger = page.querySelector('[data-ae-images-add-trigger]');
+  const imagesCount = page.querySelector('[data-ae-images-count]');
+  const imagesError = page.querySelector('[data-ae-images-error]');
+  const maxFileSize = 8 * 1024 * 1024;
+  const maxPages = 6;
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  const allowedExtension = /\.(jpe?g|png|webp)$/i;
+  let pages = [];
+  let coverKey = '';
+  let pageUid = 0;
+  let imagesDirty = false;
+  let dragPageKey = null;
+
+  const initialImagesNode = page.querySelector('[data-ae-initial-images]');
+  if (initialImagesNode) {
+    try {
+      const initial = JSON.parse(initialImagesNode.textContent || '[]');
+      if (Array.isArray(initial)) {
+        pages = initial
+          .filter((image) => image && image.image_url)
+          .map((image) => ({
+            kind: 'existing',
+            id: Number(image.id) || 0,
+            imageUrl: image.image_url,
+            thumbUrl: image.thumbnail_url || image.image_url
+          }));
+      }
+    } catch (error) {
+      pages = [];
+    }
+  }
+  coverKey = pages.length ? `existing:${pages[0].id}` : '';
+
+  const serialize = () => JSON.stringify([...new FormData(form).entries()].map(([key, value]) => (
+    value instanceof File ? `file:${value.name}:${value.size}` : [key, value]
+  )));
   const initial = serialize();
   let dirty = false;
   let isSubmitting = false;
@@ -379,9 +458,321 @@ const bindArtworkEditForm = () => {
     status.classList.toggle('is-success', type === 'success');
   };
 
-  const syncDirty = () => {
-    dirty = serialize() !== initial;
+  const showImagesError = (message) => {
+    if (!imagesError) return;
+    imagesError.textContent = message;
+    imagesError.hidden = !message;
   };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const syncDirty = () => {
+    dirty = serialize() !== initial || imagesDirty;
+  };
+
+  const markImagesDirty = () => {
+    imagesDirty = true;
+    syncDirty();
+  };
+
+  const updateImagesCount = () => {
+    if (!imagesCount) return;
+    const count = pages.length;
+    imagesCount.textContent = `${count} ${count === 1 ? 'page' : 'pages'} of 6`;
+  };
+
+  const updateCoverPreview = () => {
+    const previewImage = page.querySelector('.ae-preview-frame img');
+    if (!previewImage) return;
+    const cover = pages.find((entry) => coverKey === (entry.kind === 'existing' ? `existing:${entry.id}` : `new:${entry.uid}`));
+    if (cover && previewImage.src !== cover.thumbUrl) {
+      previewImage.src = cover.thumbUrl;
+    }
+  };
+
+  const renderPages = () => {
+    updateImagesCount();
+    updateCoverPreview();
+    if (!imagesGrid) return;
+
+    if (pages.length === 0) {
+      imagesGrid.replaceChildren();
+      return;
+    }
+
+    const tiles = pages.map((entry, index) => {
+      const tile = document.createElement('div');
+      tile.className = 'studio-media-tile';
+      tile.draggable = true;
+      tile.dataset.pageKey = entry.kind === 'existing' ? `existing:${entry.id}` : `new:${entry.uid}`;
+      if (tile.dataset.pageKey === coverKey) tile.classList.add('is-cover');
+
+      const thumb = document.createElement('div');
+      thumb.className = 'studio-media-thumb';
+
+      const image = document.createElement('img');
+      image.src = entry.kind === 'existing' ? entry.thumbUrl : entry.previewUrl;
+      image.alt = `Artwork page ${index + 1}`;
+      image.decoding = 'async';
+      image.draggable = false;
+
+      const order = document.createElement('span');
+      order.className = 'studio-media-order';
+      order.textContent = String(index + 1);
+
+      const coverBadge = document.createElement('span');
+      coverBadge.className = 'studio-media-cover-badge';
+      coverBadge.textContent = 'Cover';
+
+      thumb.append(image, order, coverBadge);
+
+      const meta = document.createElement('div');
+      meta.className = 'studio-media-meta';
+
+      const name = document.createElement('strong');
+      name.textContent = entry.kind === 'existing' ? `Saved page · № ${entry.id}` : entry.file.name;
+
+      const size = document.createElement('em');
+      size.textContent = entry.kind === 'existing' ? 'Already in your artwork' : formatFileSize(entry.file.size);
+
+      meta.append(name, size);
+
+      const actions = document.createElement('div');
+      actions.className = 'studio-media-actions';
+
+      const iconButtons = [
+        { action: 'cover', title: tile.dataset.pageKey === coverKey ? 'This is the cover page' : 'Set as cover page', icon: 'M12 2l2.9 6.3 6.9.6-5.2 4.6 1.5 6.8L12 16.9 5.9 20.3l1.5-6.8L2.2 8.9l6.9-.6Z', disabled: tile.dataset.pageKey === coverKey },
+        { action: 'up', title: 'Move up', icon: 'm6 14 6-6 6 6', disabled: index === 0 },
+        { action: 'down', title: 'Move down', icon: 'm6 10 6 6 6-6', disabled: index === pages.length - 1 },
+        { action: 'remove', title: entry.kind === 'existing' ? 'Remove this saved page' : 'Remove this new page', icon: 'M5 7h14M9 7V5c0-1 .6-1.5 1.5-1.5h3C14.4 3.5 15 4 15 5v2M7 7l1 13h8l1-13M10 10v7M14 10v7', danger: true }
+      ];
+
+      if (entry.kind === 'new') {
+        iconButtons.splice(1, 0, { action: 'edit', title: 'Edit this page', icon: 'M4 20l1.2-4.2L14.5 6.5a2.12 2.12 0 0 1 3 3L8.2 18.8 4 20Z' });
+      }
+
+      iconButtons.forEach((config) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `studio-media-btn${config.danger ? ' is-danger' : ''}`;
+        button.dataset.pageAction = config.action;
+        button.title = config.title;
+        button.setAttribute('aria-label', config.title);
+        if (config.disabled) button.disabled = true;
+        button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${config.icon}" /></svg>`;
+        actions.append(button);
+      });
+
+      tile.append(thumb, meta, actions);
+      return tile;
+    });
+
+    imagesGrid.replaceChildren(...tiles);
+  };
+
+  const revokePagePreview = (entry) => {
+    if (entry.previewUrl) {
+      URL.revokeObjectURL(entry.previewUrl);
+      entry.previewUrl = '';
+    }
+  };
+
+  const findPageIndex = (key) => pages.findIndex((entry) => (
+    entry.kind === 'existing' ? `existing:${entry.id}` : `new:${entry.uid}`
+  ) === key);
+
+  const setCoverPage = (key) => {
+    if (findPageIndex(key) === -1) return;
+    coverKey = key;
+    markImagesDirty();
+    showImagesError('');
+    renderPages();
+  };
+
+  const removePage = (key) => {
+    const index = findPageIndex(key);
+    if (index === -1) return;
+    revokePagePreview(pages[index]);
+    pages.splice(index, 1);
+    if (coverKey === key) {
+      coverKey = pages.length
+        ? (pages[0].kind === 'existing' ? `existing:${pages[0].id}` : `new:${pages[0].uid}`)
+        : '';
+    }
+    markImagesDirty();
+    showImagesError('');
+    renderPages();
+  };
+
+  const movePage = (key, direction) => {
+    const index = findPageIndex(key);
+    if (index === -1) return;
+    const target = index + direction;
+    if (target < 0 || target >= pages.length) return;
+    const [moved] = pages.splice(index, 1);
+    pages.splice(target, 0, moved);
+    markImagesDirty();
+    renderPages();
+  };
+
+  const openPageEditor = async (file) => {
+    try {
+      const editor = await loadImageEditorModule();
+      return await editor.open({ file, mode: 'artwork', maxBytes: maxFileSize });
+    } catch (error) {
+      showImagesError(error.userMessage || 'The artwork studio could not open on this device. Your original image will be used.');
+      return file;
+    }
+  };
+
+  const editNewPage = async (key) => {
+    const index = findPageIndex(key);
+    if (index === -1 || pages[index].kind !== 'new') return;
+    const entry = pages[index];
+    const edited = await openPageEditor(entry.sourceFile || entry.file);
+    if (!edited || findPageIndex(key) !== index) return;
+    revokePagePreview(entry);
+    entry.file = edited;
+    entry.previewUrl = URL.createObjectURL(edited);
+    markImagesDirty();
+    renderPages();
+  };
+
+  const addPages = (fileList) => {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+
+    let rejected = '';
+
+    for (const file of incoming) {
+      if (pages.length >= maxPages) {
+        rejected = 'You can add up to 6 images per artwork.';
+        break;
+      }
+
+      const validType = allowedTypes.has(file.type) || allowedExtension.test(file.name);
+      if (!validType) {
+        rejected = rejected || 'That file is not a JPG, PNG, or WEBP image. Choose one of those formats.';
+        continue;
+      }
+      if (file.size > maxFileSize) {
+        rejected = rejected || 'That image is larger than 8 MB. Please choose a smaller file.';
+        continue;
+      }
+      if (file.size === 0) {
+        rejected = rejected || 'That image appears to be empty. Please choose another file.';
+        continue;
+      }
+
+      const duplicate = pages.some((entry) => (
+        entry.kind === 'new' && entry.sourceFile.name === file.name && entry.sourceFile.size === file.size
+      ));
+      if (duplicate) {
+        rejected = rejected || 'That image is already in your artwork.';
+        continue;
+      }
+
+      pages.push({
+        kind: 'new',
+        uid: ++pageUid,
+        file,
+        sourceFile: file,
+        previewUrl: URL.createObjectURL(file)
+      });
+    }
+
+    if (rejected) showImagesError(rejected);
+    if (pages.length && !coverKey) {
+      coverKey = pages[0].kind === 'existing' ? `existing:${pages[0].id}` : `new:${pages[0].uid}`;
+    }
+    imagesInput.value = '';
+    markImagesDirty();
+    renderPages();
+  };
+
+  if (imagesInput) {
+    imagesInput.addEventListener('change', () => addPages(imagesInput.files));
+  }
+
+  imagesAddTrigger?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    imagesInput?.click();
+  });
+
+  if (imagesGrid) {
+    imagesGrid.addEventListener('click', async (event) => {
+      const button = event.target instanceof Element ? event.target.closest('[data-page-action]') : null;
+      if (!button) return;
+      const tile = button.closest('[data-page-key]');
+      if (!tile) return;
+
+      const key = tile.dataset.pageKey;
+      const action = button.dataset.pageAction;
+
+      if (action === 'cover') setCoverPage(key);
+      else if (action === 'up') movePage(key, -1);
+      else if (action === 'down') movePage(key, 1);
+      else if (action === 'remove') removePage(key);
+      else if (action === 'edit') await editNewPage(key);
+    });
+
+    imagesGrid.addEventListener('dragstart', (event) => {
+      const tile = event.target instanceof Element ? event.target.closest('[data-page-key]') : null;
+      if (!tile) return;
+      dragPageKey = tile.dataset.pageKey;
+      tile.classList.add('is-dragging');
+      try {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', dragPageKey);
+      } catch (error) {
+        /* older browsers */
+      }
+    });
+
+    imagesGrid.addEventListener('dragover', (event) => {
+      if (dragPageKey === null) return;
+      event.preventDefault();
+      try {
+        event.dataTransfer.dropEffect = 'move';
+      } catch (error) {
+        /* older browsers */
+      }
+      const tile = event.target instanceof Element ? event.target.closest('[data-page-key]') : null;
+      imagesGrid.querySelectorAll('.is-drop-target').forEach((node) => node.classList.remove('is-drop-target'));
+      if (tile && tile.dataset.pageKey !== dragPageKey) tile.classList.add('is-drop-target');
+    });
+
+    imagesGrid.addEventListener('drop', (event) => {
+      if (dragPageKey === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const tile = event.target instanceof Element ? event.target.closest('[data-page-key]') : null;
+      const fromIndex = findPageIndex(dragPageKey);
+      const targetIndex = tile ? findPageIndex(tile.dataset.pageKey) : -1;
+      dragPageKey = null;
+      if (fromIndex === -1 || targetIndex === -1) {
+        renderPages();
+        return;
+      }
+      const [moved] = pages.splice(fromIndex, 1);
+      let insertIndex = targetIndex;
+      if (fromIndex < targetIndex) insertIndex -= 1;
+      pages.splice(insertIndex, 0, moved);
+      markImagesDirty();
+      renderPages();
+    });
+
+    imagesGrid.addEventListener('dragend', () => {
+      dragPageKey = null;
+      imagesGrid.querySelectorAll('.is-dragging, .is-drop-target').forEach((node) => node.classList.remove('is-dragging', 'is-drop-target'));
+    });
+  }
+
+  renderPages();
 
   const handleInput = () => syncDirty();
 
@@ -415,9 +806,16 @@ const bindArtworkEditForm = () => {
       return;
     }
 
+    if (pages.length === 0) {
+      event.preventDefault();
+      setStatus('An artwork needs at least one image. Keep a page or add new ones.', 'error');
+      return;
+    }
+
     event.preventDefault();
     isSubmitting = true;
     dirty = false;
+    imagesDirty = false;
     form.setAttribute('aria-busy', 'true');
     if (saveButton) saveButton.disabled = true;
     if (saveButton) saveButton.classList.add('is-loading');
@@ -425,9 +823,22 @@ const bindArtworkEditForm = () => {
     setStatus(savingLabel);
 
     try {
+      const formData = new FormData(form);
+      formData.delete('images');
+
+      const newFiles = [];
+      const tokens = pages.map((entry) => {
+        if (entry.kind === 'existing') return String(entry.id);
+        newFiles.push(entry.file);
+        return `new:${newFiles.length - 1}`;
+      });
+      newFiles.forEach((file) => formData.append('images', file, file.name));
+      formData.set('image_order', JSON.stringify(tokens));
+      formData.set('cover_image_id', coverKey.startsWith('new:') ? coverKey : coverKey.replace(/^existing:/, ''));
+
       const response = await fetch(form.action, {
         method: 'POST',
-        body: new URLSearchParams(new FormData(form)),
+        body: formData,
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
           Accept: 'application/json'
@@ -475,6 +886,7 @@ const bindArtworkEditForm = () => {
     document.removeEventListener('artwork-delete:start', handleDeleteStart);
     document.removeEventListener('artwork-delete:failed', handleDeleteFailed);
     window.removeEventListener('beforeunload', beforeUnload);
+    pages.forEach(revokePagePreview);
   });
 };
 
@@ -710,54 +1122,770 @@ const bindCommentForms = () => {
   });
 };
 
+// ---------- Artwork share dialog ----------
+
+const getShareDialog = () => document.querySelector('[data-share-dialog]');
+
+let shareDialogContext = null;
+
+const updateShareCounters = (count) => {
+  if (!Number.isFinite(Number(count))) return;
+  document.querySelectorAll('[data-shares-count]').forEach((counter) => {
+    counter.textContent = String(Math.max(0, Number(count)));
+  });
+};
+
+const trackArtworkShare = async (platform) => {
+  const context = shareDialogContext;
+  if (!context || !context.id) return;
+  try {
+    const response = await fetch(`/art/${encodeURIComponent(context.id)}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ platform })
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data?.ok) updateShareCounters(data.shares_count);
+  } catch (error) {
+    /* share tracking is best-effort */
+  }
+};
+
+const copyArtworkLink = async (text) => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    /* fall through to the legacy copy path */
+  }
+  try {
+    const field = document.createElement('textarea');
+    field.value = text;
+    field.setAttribute('readonly', '');
+    field.style.position = 'fixed';
+    field.style.opacity = '0';
+    document.body.appendChild(field);
+    field.select();
+    const copied = document.execCommand('copy');
+    field.remove();
+    return copied;
+  } catch (error) {
+    return false;
+  }
+};
+
+const setShareNote = (dialog, message, tone = '') => {
+  const note = dialog?.querySelector('[data-share-note]');
+  if (!note) return;
+  note.textContent = message || '';
+  note.classList.remove('is-success', 'is-error');
+  if (tone) note.classList.add(`is-${tone}`);
+};
+
+const buildShareLinks = (context) => {
+  const url = encodeURIComponent(context.url);
+  const text = encodeURIComponent(context.text);
+  return {
+    telegram: `https://t.me/share/url?url=${url}&text=${text}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(`${context.text} ${context.url}`)}`,
+    x: `https://twitter.com/intent/tweet?url=${url}&text=${text}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+    email: `mailto:?subject=${encodeURIComponent(context.title || 'ArtSpace artwork')}&body=${encodeURIComponent(`${context.text}\n\n${context.url}`)}`
+  };
+};
+
+const isMobileShareDevice = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+
+const openShareDialog = (context) => {
+  const dialog = getShareDialog();
+  if (!dialog) return false;
+
+  shareDialogContext = context;
+
+  const previewImage = dialog.querySelector('[data-share-preview-image]');
+  const previewTitle = dialog.querySelector('[data-share-preview-title]');
+  const previewArtist = dialog.querySelector('[data-share-preview-artist]');
+  const previewCategory = dialog.querySelector('[data-share-preview-category]');
+  const urlInput = dialog.querySelector('[data-share-url-input]');
+  const nativeButton = dialog.querySelector('[data-share-native]');
+  const copyButton = dialog.querySelector('[data-share-copy]');
+  const copyLabel = dialog.querySelector('[data-share-copy-label]');
+
+  if (previewImage) {
+    if (context.image) previewImage.src = new URL(context.image, window.location.origin).href;
+    else previewImage.src = '/images/default-artwork.svg';
+    previewImage.onerror = () => { previewImage.src = '/images/default-artwork.svg'; };
+  }
+  if (previewTitle) previewTitle.textContent = context.title || 'Artwork on ArtSpace';
+  if (previewArtist) previewArtist.textContent = context.artist ? `by ${context.artist}` : 'ArtSpace community';
+  if (previewCategory) previewCategory.textContent = context.category || 'Artwork';
+  if (urlInput) urlInput.value = context.url || '';
+  if (nativeButton) nativeButton.hidden = typeof navigator.share !== 'function';
+  if (copyButton) copyButton.classList.remove('is-copied');
+  if (copyLabel) copyLabel.textContent = 'Copy link';
+  setShareNote(dialog, '');
+
+  dialog.showModal();
+  dialog.querySelector('[data-share-close]')?.focus({ preventScroll: true });
+  return true;
+};
+
+const bindShareDialog = () => {
+  const dialog = getShareDialog();
+  if (!dialog || dialog.dataset.shareDialogBound === 'true') return;
+  dialog.dataset.shareDialogBound = 'true';
+
+  dialog.querySelector('[data-share-close]')?.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+
+  dialog.querySelectorAll('[data-share-platform]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const context = shareDialogContext;
+      if (!context) return;
+      const platform = button.dataset.sharePlatform;
+
+      if (platform === 'messenger') {
+        if (isMobileShareDevice()) {
+          setShareNote(dialog, 'Opening Messenger…');
+          window.location.href = `fb-messenger://share/?link=${encodeURIComponent(context.url)}`;
+          trackArtworkShare('messenger');
+        } else {
+          setShareNote(dialog, 'Messenger sharing works from a phone. On desktop, copy the link or use “Share with device”.');
+        }
+        return;
+      }
+
+      const link = buildShareLinks(context)[platform];
+      if (!link) return;
+      setShareNote(dialog, `Opening ${button.textContent.trim() || platform}…`);
+      window.open(link, '_blank', 'noopener,noreferrer');
+      trackArtworkShare(platform);
+      window.setTimeout(() => { if (dialog.open) dialog.close(); }, 450);
+    });
+  });
+
+  const copyButton = dialog.querySelector('[data-share-copy]');
+  const copyLabel = dialog.querySelector('[data-share-copy-label]');
+  copyButton?.addEventListener('click', async () => {
+    const context = shareDialogContext;
+    if (!context || copyButton.dataset.busy === 'true') return;
+    copyButton.dataset.busy = 'true';
+    const copied = await copyArtworkLink(context.url || '');
+    if (copied) {
+      if (copyLabel) copyLabel.textContent = 'Copied!';
+      copyButton.classList.add('is-copied');
+      setShareNote(dialog, 'Link copied!', 'success');
+      trackArtworkShare('copy');
+      window.setTimeout(() => {
+        if (copyButton.isConnected) {
+          copyButton.classList.remove('is-copied');
+          if (copyLabel) copyLabel.textContent = 'Copy link';
+        }
+      }, 1800);
+    } else {
+      setShareNote(dialog, 'Could not copy automatically. Select the link and copy it manually.', 'error');
+    }
+    copyButton.dataset.busy = 'false';
+  });
+
+  dialog.querySelector('[data-share-native]')?.addEventListener('click', async () => {
+    const context = shareDialogContext;
+    if (!context || typeof navigator.share !== 'function') return;
+    try {
+      await navigator.share({ title: context.title, text: context.text, url: context.url });
+      setShareNote(dialog, 'Shared. Thanks for passing it along!', 'success');
+      trackArtworkShare('native');
+    } catch (error) {
+      if (error?.name !== 'AbortError') setShareNote(dialog, 'Sharing was cancelled or is unavailable here.');
+    }
+  });
+};
+
 const bindShareButtons = () => {
   document.querySelectorAll('[data-share-artwork]').forEach((button) => {
     if (button.dataset.shareBound === 'true') return;
     button.dataset.shareBound = 'true';
 
-    button.addEventListener('click', async () => {
-      const label = button.querySelector('[data-share-label]') || button.querySelector('[data-action-label]');
-      const originalText = label ? label.textContent : 'Share';
-      const shareUrl = new URL(button.dataset.shareUrl || window.location.pathname, window.location.origin).toString();
-      const shareData = {
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const context = {
+        id: button.dataset.shareId || '',
         title: button.dataset.shareTitle || 'ArtSpace artwork',
         text: button.dataset.shareText || 'Artwork on ArtSpace',
-        url: shareUrl
+        url: new URL(button.dataset.shareUrl || window.location.pathname, window.location.origin).toString(),
+        image: button.dataset.shareImage || '',
+        artist: button.dataset.shareArtist || '',
+        category: button.dataset.shareCategory || ''
       };
 
-      const flashLabel = (text) => {
-        if (!label) return;
-        label.textContent = text;
-        window.clearTimeout(button._shareTimer);
-        button._shareTimer = window.setTimeout(() => { if (button.isConnected) label.textContent = originalText; }, 1800);
-      };
+      if (openShareDialog(context)) return;
 
+      // Fallback for pages without the share dialog markup.
       try {
         if (navigator.share) {
-          await navigator.share(shareData);
+          await navigator.share({ title: context.title, text: context.text, url: context.url });
           return;
         }
-        await navigator.clipboard.writeText(shareData.url);
-        flashLabel('Copied!');
+        if (await copyArtworkLink(context.url)) {
+          const label = button.querySelector('[data-share-label]');
+          if (label) {
+            const original = label.textContent;
+            label.textContent = 'Copied!';
+            window.setTimeout(() => { if (label.isConnected) label.textContent = original; }, 1600);
+          }
+        }
       } catch (error) {
-        if (error?.name === 'AbortError') return;
-        try {
-          const field = document.createElement('textarea');
-          field.value = shareData.url;
-          field.setAttribute('readonly', '');
-          field.style.position = 'fixed';
-          field.style.opacity = '0';
-          document.body.appendChild(field);
-          field.select();
-          document.execCommand('copy');
-          document.body.removeChild(field);
-          flashLabel('Copied!');
-        } catch {
-          flashLabel('Share unavailable');
+        if (error?.name !== 'AbortError') {
+          const label = button.querySelector('[data-share-label]');
+          if (label) label.textContent = 'Share unavailable';
         }
       }
     });
   });
+};
+
+const bindFollowForms = () => {
+  document.querySelectorAll('[data-follow-form]').forEach((form) => {
+    if (form.dataset.followBound === 'true') return;
+    form.dataset.followBound = 'true';
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (form.dataset.busy === 'true') return;
+      form.dataset.busy = 'true';
+      const button = form.querySelector('button');
+      const label = button?.querySelector('[data-follow-label]');
+      const icon = button?.querySelector('svg');
+      if (button) button.disabled = true;
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+          credentials: 'same-origin',
+          body: new URLSearchParams(new FormData(form))
+        });
+        const data = await response.json();
+        if (!response.ok || !data?.ok) throw new Error(data?.error || 'We could not update that follow. Please try again.');
+
+        const following = Boolean(data.following);
+        if (button) {
+          button.classList.toggle('is-following', following);
+          button.setAttribute('aria-pressed', String(following));
+        }
+        if (label) label.textContent = following ? 'Following artist' : 'Follow artist';
+        if (icon) icon.innerHTML = following ? '<path d="M5 12.5l4.5 4.5L19 7.5" />' : '<path d="M12 5v14M5 12h14" />';
+
+        const followersCount = Number(data.followers_count);
+        if (Number.isFinite(followersCount)) {
+          document.querySelectorAll('[data-followers-count]').forEach((counter) => {
+            counter.textContent = String(followersCount);
+          });
+          document.querySelectorAll('[data-followers-label]').forEach((counter) => {
+            counter.textContent = followersCount === 1 ? 'follower' : 'followers';
+          });
+        }
+        showPinToast(following ? 'You are now following this artist.' : 'Unfollowed the artist.', 'success');
+      } catch (error) {
+        showPinToast(error.message || 'We could not update that follow. Please try again.', 'error');
+      } finally {
+        if (button) button.disabled = false;
+        form.dataset.busy = 'false';
+      }
+    });
+  });
+};
+
+const bindReportDialog = () => {
+  const dialog = document.querySelector('[data-report-dialog]');
+  if (!dialog || dialog.dataset.reportBound === 'true') return;
+  dialog.dataset.reportBound = 'true';
+
+  const form = dialog.querySelector('[data-report-form]');
+  const note = dialog.querySelector('[data-report-note]');
+  const cancelButton = dialog.querySelector('[data-report-cancel]');
+  const submitButton = form?.querySelector('button[type="submit"]');
+
+  const setNote = (message, tone = '') => {
+    if (!note) return;
+    note.textContent = message || '';
+    note.classList.remove('is-success', 'is-error');
+    if (tone) note.classList.add(`is-${tone}`);
+  };
+
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  cancelButton?.addEventListener('click', () => dialog.close());
+
+  document.querySelectorAll('[data-report-open]').forEach((button) => {
+    if (button.dataset.reportOpenBound === 'true') return;
+    button.dataset.reportOpenBound = 'true';
+    button.addEventListener('click', () => {
+      form?.reset();
+      setNote('');
+      dialog.showModal();
+      form?.querySelector('input[name="report_reason"]')?.focus();
+    });
+  });
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (form.dataset.busy === 'true') return;
+
+    const reasonInput = form.querySelector('input[name="report_reason"]:checked');
+    if (!reasonInput) {
+      setNote('Choose a reason so the moderation desk knows what to check.', 'error');
+      return;
+    }
+
+    const details = String(form.querySelector('[name="report_details"]')?.value || '').trim().slice(0, 400);
+    const reason = details ? `${reasonInput.value} — ${details}` : reasonInput.value;
+    const hiddenReason = form.querySelector('input[name="reason"]');
+    if (hiddenReason) hiddenReason.value = reason;
+
+    form.dataset.busy = 'true';
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ reason })
+      });
+      if (response.status === 401) {
+        window.location.assign('/login');
+        return;
+      }
+      const data = await response.json();
+      if (!response.ok || !data?.ok) throw new Error(data?.error || 'We could not send that report. Please try again.');
+      setNote('Thank you — this artwork has been sent to the moderation desk.', 'success');
+      showPinToast('Report sent to the moderation desk.', 'success');
+      window.setTimeout(() => { if (dialog.open) dialog.close(); }, 1100);
+    } catch (error) {
+      setNote(error.message || 'We could not send that report. Please try again.', 'error');
+    } finally {
+      form.dataset.busy = 'false';
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+};
+
+const bindArtworkDescription = () => {
+  const page = document.querySelector('[data-artwork-detail]');
+  const description = page?.querySelector('[data-description]');
+  const toggle = page?.querySelector('[data-description-toggle]');
+  if (!description || !toggle || toggle.dataset.descriptionBound === 'true') return;
+  toggle.dataset.descriptionBound = 'true';
+
+  toggle.addEventListener('click', () => {
+    const collapsed = description.classList.toggle('is-clamped');
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.textContent = collapsed ? 'Read more' : 'Show less';
+  });
+};
+
+// ---------- Artwork detail comment system ----------
+
+let artworkCommentsBound = false;
+let commentPendingDelete = '';
+
+const getArtworkDetailRoot = () => document.querySelector('[data-artwork-detail]');
+
+const updateCommentCounters = (count) => {
+  const total = Number(count);
+  if (!Number.isFinite(total)) return;
+  document.querySelectorAll('[data-comments-count]').forEach((counter) => {
+    counter.textContent = String(Math.max(0, total));
+  });
+  document.querySelectorAll('[data-comments-label]').forEach((label) => {
+    label.textContent = Math.max(0, total) === 1 ? 'comment' : 'comments';
+  });
+};
+
+const enhanceCommentMedia = (root) => {
+  root?.querySelectorAll?.('img[data-fallback-src]').forEach((image) => {
+    bindArtworkImageFallback(image, image.closest('.ad-comment'));
+  });
+};
+
+const ensureCommentsEmptyState = (list) => {
+  if (!list || list.querySelector('.ad-comment') || list.querySelector('[data-comments-empty]')) return;
+  const empty = document.createElement('div');
+  empty.className = 'empty-state ad-comments-empty';
+  empty.setAttribute('data-comments-empty', '');
+  empty.innerHTML =
+    '<svg viewBox="0 0 80 80" aria-hidden="true"><path d="M20 58l5-17 24-24 11 11-24 24-16 6Z" /><path d="M44 22l11 11" /><path d="M14 66c8-2 16-2 24 0" /></svg>' +
+    '<p class="ad-comments-empty-title">No thoughts yet.</p>' +
+    '<p>The conversation has cleared. Start it again with a note.</p>';
+  list.appendChild(empty);
+};
+
+const insertCommentHtml = (html, parentId) => {
+  const list = document.querySelector('[data-comment-list]');
+  if (!list || !html) return null;
+
+  const holder = document.createElement('div');
+  holder.innerHTML = html.trim();
+  const article = holder.firstElementChild;
+  if (!(article instanceof HTMLElement)) return null;
+
+  if (parentId) {
+    const parent = list.querySelector(`.ad-comment[data-comment-id="${CSS.escape(String(parentId))}"]`);
+    if (!parent) return null;
+    let replies = parent.querySelector(':scope > .ad-comment-main > .ad-comment-replies');
+    if (!replies) {
+      replies = document.createElement('div');
+      replies.className = 'ad-comment-replies';
+      (parent.querySelector(':scope > .ad-comment-main') || parent).appendChild(replies);
+    }
+    replies.appendChild(article);
+  } else {
+    const emptyState = list.querySelector('[data-comments-empty]');
+    if (emptyState) emptyState.remove();
+    list.prepend(article);
+  }
+
+  enhanceCommentMedia(article);
+  return article;
+};
+
+const closeOpenCommentForms = (exceptForm) => {
+  document.querySelectorAll('[data-reply-form]:not([hidden]), [data-comment-edit-form]:not([hidden])').forEach((openForm) => {
+    if (openForm === exceptForm) return;
+    openForm.hidden = true;
+    if (openForm.matches('[data-reply-form]')) {
+      openForm.closest('.ad-comment')
+        ?.querySelector(':scope > .ad-comment-main > .ad-comment-actions [data-comment-reply-toggle]')
+        ?.setAttribute('aria-expanded', 'false');
+    }
+  });
+};
+
+const toggleCommentLike = async (button) => {
+  const commentId = button.dataset.commentId;
+  if (!commentId || button.dataset.busy === 'true') return;
+  button.dataset.busy = 'true';
+
+  try {
+    const response = await fetch(`/comments/${encodeURIComponent(commentId)}/like`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    });
+    if (response.status === 401) {
+      window.location.assign('/login');
+      return;
+    }
+    const data = await response.json();
+    if (!response.ok || !data?.ok) throw new Error(data?.error || 'We could not update that like. Please try again.');
+
+    const liked = Boolean(data.liked);
+    const count = Number(data.likes_count);
+    const selector = `[data-comment-like][data-comment-id="${CSS.escape(String(data.comment_id ?? commentId))}"]`;
+    document.querySelectorAll(selector).forEach((node) => {
+      node.classList.toggle('is-liked', liked);
+      node.setAttribute('aria-pressed', String(liked));
+      node.setAttribute('aria-label', liked ? 'Unlike this comment' : 'Like this comment');
+      const counter = node.querySelector('[data-comment-like-count]');
+      if (counter && Number.isFinite(count)) counter.textContent = String(Math.max(0, count));
+    });
+  } catch (error) {
+    showPinToast(error.message || 'We could not update that like. Please try again.', 'error');
+  } finally {
+    button.dataset.busy = 'false';
+  }
+};
+
+const handleCommentFormSubmit = async (event) => {
+  const form = event.target instanceof Element ? event.target.closest('[data-comment-form], [data-reply-form]') : null;
+  if (!form || form.dataset.busy === 'true') return;
+
+  const artworkId = getArtworkDetailRoot()?.dataset.artworkId;
+  if (!artworkId) return;
+
+  event.preventDefault();
+
+  const textarea = form.querySelector('textarea[name="body"]');
+  const body = (textarea?.value || '').trim();
+  if (!textarea || !body) {
+    textarea?.focus();
+    return;
+  }
+
+  const isReply = form.matches('[data-reply-form]');
+  const parentId = isReply ? String(form.dataset.commentId || '') : '';
+  const submitButton = form.querySelector('button[type="submit"]');
+
+  form.dataset.busy = 'true';
+  if (textarea) textarea.disabled = true;
+  if (submitButton) submitButton.disabled = true;
+
+  try {
+    const response = await fetch(`/art/${encodeURIComponent(artworkId)}/comment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ body, parent_id: parentId || undefined })
+    });
+    if (response.status === 401) {
+      window.location.assign('/login');
+      return;
+    }
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'Your comment could not be posted. Please try again.');
+    }
+
+    const inserted = insertCommentHtml(data.comment_html, parentId);
+    if (inserted) {
+      inserted.classList.add('is-new');
+      window.setTimeout(() => inserted.classList.remove('is-new'), 1700);
+      inserted.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+
+    updateCommentCounters(data.comments_count);
+    form.reset();
+    const charCounter = form.querySelector('[data-comment-char]');
+    if (charCounter) charCounter.textContent = `0 / ${textarea.getAttribute('maxlength') || '2000'}`;
+
+    if (isReply) form.hidden = true;
+    else textarea.focus();
+
+    showPinToast(isReply ? 'Reply posted.' : 'Your note was posted.', 'success');
+  } catch (error) {
+    showPinToast(error.message || 'Your comment could not be posted. Please try again.', 'error');
+  } finally {
+    form.dataset.busy = 'false';
+    if (textarea) textarea.disabled = false;
+    if (submitButton) submitButton.disabled = false;
+  }
+};
+
+const openCommentConfirm = (commentId) => {
+  const dialog = document.querySelector('[data-comment-confirm]');
+  if (!dialog) return;
+  commentPendingDelete = commentId;
+  dialog.showModal();
+  dialog.querySelector('[data-confirm-ok]')?.focus({ preventScroll: true });
+};
+
+const deleteComment = async (commentId) => {
+  const artworkId = getArtworkDetailRoot()?.dataset.artworkId;
+  if (!artworkId) return;
+
+  try {
+    const response = await fetch(`/comments/${encodeURIComponent(commentId)}/delete`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    });
+    if (response.status === 401) {
+      window.location.assign('/login');
+      return;
+    }
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'We could not delete that comment. Please try again.');
+    }
+
+    const deletedIds = new Set((Array.isArray(data.deleted_ids) ? data.deleted_ids : []).map(String));
+    deletedIds.add(String(commentId));
+    document.querySelectorAll('.ad-comment[data-comment-id]').forEach((article) => {
+      if (deletedIds.has(String(article.dataset.commentId))) article.remove();
+    });
+
+    ensureCommentsEmptyState(document.querySelector('[data-comment-list]'));
+    updateCommentCounters(data.comments_count);
+    showPinToast('Comment deleted.', 'success');
+  } catch (error) {
+    showPinToast(error.message || 'We could not delete that comment. Please try again.', 'error');
+  }
+};
+
+const loadMoreComments = async (button) => {
+  const artworkId = getArtworkDetailRoot()?.dataset.artworkId;
+  const nextPage = button.dataset.nextPage;
+  if (!artworkId || !nextPage || button.dataset.busy === 'true') return;
+
+  button.dataset.busy = 'true';
+  const label = button.querySelector('span');
+  const originalLabel = label?.textContent || '';
+  if (label) label.textContent = 'Loading…';
+
+  try {
+    const response = await fetch(`/art/${encodeURIComponent(artworkId)}/comments?page=${encodeURIComponent(nextPage)}`, {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    });
+    if (response.status === 401) {
+      window.location.assign('/login');
+      return;
+    }
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'We could not load more comments. Please try again.');
+    }
+
+    const list = document.querySelector('[data-comment-list]');
+    if (list && data.html) {
+      const emptyState = list.querySelector('[data-comments-empty]');
+      if (emptyState) emptyState.remove();
+      const holder = document.createElement('div');
+      holder.innerHTML = data.html;
+      while (holder.firstElementChild) {
+        const node = holder.firstElementChild;
+        list.appendChild(node);
+        enhanceCommentMedia(node);
+      }
+    }
+
+    updateCommentCounters(data.comments_count);
+
+    if (data.has_more && data.next_page) {
+      button.dataset.nextPage = String(data.next_page);
+    } else {
+      button.closest('.ad-comment-more-wrap')?.remove();
+    }
+  } catch (error) {
+    showPinToast(error.message || 'We could not load more comments. Please try again.', 'error');
+  } finally {
+    button.dataset.busy = 'false';
+    if (label && label.isConnected) label.textContent = originalLabel;
+  }
+};
+
+const handleCommentClick = (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+
+  const likeButton = target.closest('[data-comment-like]');
+  if (likeButton) {
+    event.preventDefault();
+    toggleCommentLike(likeButton);
+    return;
+  }
+
+  const replyToggle = target.closest('[data-comment-reply-toggle]');
+  if (replyToggle) {
+    event.preventDefault();
+    const article = replyToggle.closest('.ad-comment');
+    const form = article?.querySelector(':scope > .ad-comment-main > [data-reply-form]');
+    if (!form) return;
+    const willShow = form.hidden;
+    closeOpenCommentForms(form);
+    form.hidden = !willShow;
+    replyToggle.setAttribute('aria-expanded', String(willShow));
+    if (willShow) form.querySelector('textarea')?.focus();
+    return;
+  }
+
+  const editToggle = target.closest('[data-comment-edit-toggle]');
+  if (editToggle) {
+    event.preventDefault();
+    const article = editToggle.closest('.ad-comment');
+    const form = article?.querySelector(':scope > .ad-comment-main > .ad-comment-bubble > [data-comment-edit-form]');
+    if (!form) return;
+    const willShow = form.hidden;
+    closeOpenCommentForms(form);
+    form.hidden = !willShow;
+    if (willShow) {
+      const field = form.querySelector('textarea');
+      field?.focus();
+      field?.setSelectionRange(field.value.length, field.value.length);
+    }
+    return;
+  }
+
+  const editCancel = target.closest('[data-comment-edit-cancel]');
+  if (editCancel) {
+    event.preventDefault();
+    const form = editCancel.closest('[data-comment-edit-form]');
+    if (form) {
+      form.hidden = true;
+      const field = form.querySelector('textarea');
+      if (field) field.value = field.defaultValue;
+    }
+    return;
+  }
+
+  const replyCancel = target.closest('[data-reply-cancel]');
+  if (replyCancel) {
+    event.preventDefault();
+    const form = replyCancel.closest('[data-reply-form]');
+    if (form) {
+      form.hidden = true;
+      form.closest('.ad-comment')
+        ?.querySelector(':scope > .ad-comment-main > .ad-comment-actions [data-comment-reply-toggle]')
+        ?.setAttribute('aria-expanded', 'false');
+    }
+    return;
+  }
+
+  const deleteButton = target.closest('[data-comment-delete]');
+  if (deleteButton) {
+    event.preventDefault();
+    const article = deleteButton.closest('.ad-comment');
+    if (article?.dataset.commentId) openCommentConfirm(article.dataset.commentId);
+    return;
+  }
+
+  const moreButton = target.closest('[data-comments-more]');
+  if (moreButton) {
+    event.preventDefault();
+    loadMoreComments(moreButton);
+  }
+};
+
+const handleCommentInput = (event) => {
+  const textarea = event.target instanceof Element ? (event.target.closest('textarea[name="body"]') || (event.target.matches('textarea[name="body"]') ? event.target : null)) : null;
+  if (!textarea) return;
+  const form = textarea.closest('[data-comment-form], [data-reply-form]');
+  const counter = form?.querySelector('[data-comment-char]');
+  if (!counter) return;
+  counter.textContent = `${String(textarea.value.length)} / ${textarea.getAttribute('maxlength') || '2000'}`;
+};
+
+const bindCommentConfirmDialog = () => {
+  const dialog = document.querySelector('[data-comment-confirm]');
+  if (!dialog || dialog.dataset.confirmBound === 'true') return;
+  dialog.dataset.confirmBound = 'true';
+
+  dialog.querySelector('[data-confirm-cancel]')?.addEventListener('click', () => {
+    commentPendingDelete = '';
+    dialog.close();
+  });
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) {
+      commentPendingDelete = '';
+      dialog.close();
+    }
+  });
+  dialog.querySelector('[data-confirm-ok]')?.addEventListener('click', async () => {
+    const commentId = commentPendingDelete;
+    commentPendingDelete = '';
+    dialog.close();
+    if (commentId) await deleteComment(commentId);
+  });
+};
+
+const bindArtworkComments = () => {
+  if (artworkCommentsBound || !getArtworkDetailRoot()) return;
+  artworkCommentsBound = true;
+
+  document.addEventListener('submit', handleCommentFormSubmit);
+  document.addEventListener('click', handleCommentClick);
+  document.addEventListener('input', handleCommentInput);
+  bindCommentConfirmDialog();
+  enhanceCommentMedia(document);
 };
 
 const bindScrollReveal = () => {
@@ -1240,6 +2368,7 @@ const bindArtViewer = () => {
   const ownerActions = viewer.querySelector('[data-viewer-owner-actions]');
   const editLink = viewer.querySelector('[data-viewer-edit]');
   const deleteForm = viewer.querySelector('[data-viewer-delete-form]');
+  const downloadLink = viewer.querySelector('[data-viewer-download]');
   const currentUsername = document.querySelector('meta[name="current-username"]')?.getAttribute('content') || '';
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const effectNames = ['portrait', 'sketch', 'digital', 'nature', 'khmer', 'default'];
@@ -1571,6 +2700,7 @@ const bindArtViewer = () => {
     if (ownerActions) ownerActions.hidden = !isOwner;
     if (editLink) editLink.href = `${artwork.href}/edit`;
     if (deleteForm) deleteForm.action = `${artwork.href}/delete`;
+    if (downloadLink) downloadLink.href = artwork.fullImage;
     setViewerActionLabel(shareButton, shareLabel, 'Share');
     if (likeForm) likeForm.action = `${artwork.href}/like`;
     if (likeButton) {
@@ -1783,30 +2913,6 @@ const bindArtViewer = () => {
     }
   });
 
-  document.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const trigger = target?.closest('a[href^="/art/"], [data-artwork-open]');
-    if (!trigger) return;
-    if (trigger.closest('[data-no-viewer]')) return;
-
-    if (trigger instanceof HTMLAnchorElement && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || trigger.target === '_blank')) return;
-    const artworkElement = trigger.closest('[data-artwork-view]');
-    if (!artworkElement?.dataset.artworkId || !artworkElement.dataset.artworkFull) return;
-
-    const record = {
-      id: artworkElement.dataset.artworkId,
-      title: artworkElement.dataset.artworkTitle || 'Untitled artwork',
-      artist: artworkElement.dataset.artworkArtist || 'ArtSpace artist',
-      date: artworkElement.dataset.artworkDate || '',
-      fullImage: artworkElement.dataset.artworkFull,
-      href: `/art/${encodeURIComponent(artworkElement.dataset.artworkId)}`
-    };
-    const sourceImage = artworkElement.querySelector('img');
-    if (!sourceImage) return;
-    event.preventDefault();
-    openViewer(record, sourceImage, trigger);
-  });
-
   previousButton?.addEventListener('click', () => changeArtwork(-1));
   nextButton?.addEventListener('click', () => changeArtwork(1));
   closeButton?.addEventListener('click', closeViewer);
@@ -1847,24 +2953,21 @@ const bindArtViewer = () => {
   shareButton?.addEventListener('click', async () => {
     const artwork = artworkRecords[activeIndex];
     if (!artwork) return;
-    const shareData = { title: artwork.title, text: `${artwork.title} by ${artwork.artist}`, url: new URL(artwork.href, window.location.origin).href };
+    const shareContext = {
+      id: artwork.id,
+      title: artwork.title,
+      text: `${artwork.title} by ${artwork.artist}`,
+      url: new URL(artwork.href, window.location.origin).href,
+      image: artwork.thumbnail || artwork.fullImage,
+      artist: artwork.artist,
+      category: artwork.category
+    };
+    if (openShareDialog(shareContext)) return;
+
+    const shareData = { title: artwork.title, text: shareContext.text, url: shareContext.url };
     try {
       if (navigator.share) await navigator.share(shareData);
-      else {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(shareData.url);
-        } else {
-          const field = document.createElement('textarea');
-          field.value = shareData.url;
-          field.setAttribute('readonly', '');
-          field.style.position = 'fixed';
-          field.style.opacity = '0';
-          document.body.appendChild(field);
-          field.select();
-          const copied = document.execCommand('copy');
-          field.remove();
-          if (!copied) throw new Error('Clipboard unavailable');
-        }
+      else if (await copyArtworkLink(shareData.url)) {
         setViewerActionLabel(shareButton, shareLabel, 'Copied');
         window.clearTimeout(shareTimer);
         shareTimer = window.setTimeout(() => {
@@ -2226,14 +3329,9 @@ const initUploadPage = () => {
   const dropzone = uploadPage.querySelector('[data-upload-dropzone]');
   const fileInput = uploadPage.querySelector('#images');
   const emptyState = uploadPage.querySelector('[data-upload-empty]');
-  const preview = uploadPage.querySelector('[data-upload-preview]');
-  const previewImage = uploadPage.querySelector('[data-upload-preview-image]');
-  const replaceButton = uploadPage.querySelector('[data-upload-replace]');
-  const removeButton = uploadPage.querySelector('[data-upload-remove]');
-  const editImageButton = uploadPage.querySelector('[data-upload-edit]');
-  const fileInfo = uploadPage.querySelector('[data-upload-file]');
-  const fileName = uploadPage.querySelector('[data-upload-file-name]');
-  const fileSize = uploadPage.querySelector('[data-upload-file-size]');
+  const mediaGrid = uploadPage.querySelector('[data-media-grid]');
+  const addMore = uploadPage.querySelector('[data-add-more]');
+  const addMoreTrigger = uploadPage.querySelector('[data-add-more-trigger]');
   const fileError = uploadPage.querySelector('[data-upload-error]');
   const formError = uploadPage.querySelector('[data-upload-form-error]');
   const formErrorText = uploadPage.querySelector('[data-upload-form-error-text]');
@@ -2241,6 +3339,7 @@ const initUploadPage = () => {
   const titleInput = uploadPage.querySelector('#title');
   const descriptionInput = uploadPage.querySelector('#description');
   const categoryInput = uploadPage.querySelector('#category');
+  const coverIndexInput = uploadPage.querySelector('[data-cover-index]');
   const publishButton = uploadPage.querySelector('[data-upload-publish]');
   const publishLabel = uploadPage.querySelector('[data-upload-publish-label]');
   const draftButton = uploadPage.querySelector('[data-upload-draft]');
@@ -2258,16 +3357,17 @@ const initUploadPage = () => {
   const successNote = uploadPage.querySelector('[data-upload-success-note]');
   const successView = uploadPage.querySelector('[data-upload-success-view]');
   const maxFileSize = 8 * 1024 * 1024;
+  const maxFiles = 6;
   const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
   const allowedExtension = /\.(jpe?g|png|webp)$/i;
-  let selectedFile = null;
-  let selectedSourceFile = null;
-  let selectionToken = 0;
-  let previewUrl = '';
+  let items = [];
+  let coverUid = null;
+  let uidCounter = 0;
   let isUploading = false;
   let uploadMode = 'publish';
   let activeRequest = null;
   let dragDepth = 0;
+  let dragTileUid = null;
 
   if (!form || !dropzone || !fileInput || !publishButton || !draftButton) return;
 
@@ -2308,7 +3408,7 @@ const initUploadPage = () => {
 
   const getReadinessMessage = () => {
     const missing = [];
-    if (!selectedFile) missing.push('a drawing');
+    if (items.length === 0) missing.push('a drawing');
     if (!titleInput?.value.trim()) missing.push('a title');
     if (!categoryInput?.value) missing.push('a category');
     if (missing.length === 0) return 'Ready when you are. Publish this page to your collection.';
@@ -2318,7 +3418,7 @@ const initUploadPage = () => {
   };
 
   const updateReadiness = () => {
-    const ready = Boolean(selectedFile && titleInput?.value.trim() && categoryInput?.value);
+    const ready = items.length > 0 && Boolean(titleInput?.value.trim() && categoryInput?.value);
     publishButton.disabled = !ready || isUploading;
     draftButton.disabled = !ready || isUploading;
     if (readiness) {
@@ -2357,54 +3457,194 @@ const initUploadPage = () => {
     }
   };
 
-  const clearPreviewUrl = () => {
-    if (!previewUrl) return;
-    URL.revokeObjectURL(previewUrl);
-    previewUrl = '';
+  const revokeItemPreview = (item) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+      item.previewUrl = '';
+    }
   };
 
-  const clearSelectedFile = () => {
-    clearPreviewUrl();
-    selectedFile = null;
-    selectedSourceFile = null;
-    fileInput.value = '';
-    dropzone.classList.remove('has-file', 'is-dragging');
-    if (emptyState) emptyState.hidden = false;
-    if (preview) preview.hidden = true;
-    if (preview) preview.classList.remove('is-loaded');
-    if (previewImage) previewImage.removeAttribute('src');
-    if (fileInfo) fileInfo.hidden = true;
+  const setCover = (uid) => {
+    if (!items.some((item) => item.uid === uid)) return;
+    coverUid = uid;
+    renderMedia();
+  };
+
+  const removeItem = (uid) => {
+    const index = items.findIndex((item) => item.uid === uid);
+    if (index === -1) return;
+    revokeItemPreview(items[index]);
+    items.splice(index, 1);
+    if (coverUid === uid) {
+      coverUid = items.length ? items[0].uid : null;
+    }
     clearFileError();
+    renderMedia();
+  };
+
+  const moveItem = (uid, direction) => {
+    const index = items.findIndex((item) => item.uid === uid);
+    if (index === -1) return;
+    const target = index + direction;
+    if (target < 0 || target >= items.length) return;
+    const [moved] = items.splice(index, 1);
+    items.splice(target, 0, moved);
+    renderMedia();
+  };
+
+  const createMediaTile = (item, index) => {
+    const tile = document.createElement('div');
+    tile.className = 'studio-media-tile';
+    tile.draggable = true;
+    tile.dataset.tileUid = String(item.uid);
+    if (item.uid === coverUid) tile.classList.add('is-cover');
+
+    const thumb = document.createElement('div');
+    thumb.className = 'studio-media-thumb';
+
+    const image = document.createElement('img');
+    image.src = item.previewUrl;
+    image.alt = `Page ${index + 1} preview`;
+    image.decoding = 'async';
+    image.draggable = false;
+
+    const order = document.createElement('span');
+    order.className = 'studio-media-order';
+    order.textContent = String(index + 1);
+
+    const coverBadge = document.createElement('span');
+    coverBadge.className = 'studio-media-cover-badge';
+    coverBadge.textContent = 'Cover';
+
+    thumb.append(image, order, coverBadge);
+
+    const meta = document.createElement('div');
+    meta.className = 'studio-media-meta';
+
+    const name = document.createElement('strong');
+    name.textContent = item.file.name;
+
+    const size = document.createElement('em');
+    size.textContent = `${formatFileSize(item.file.size)} · ${(item.file.type || 'image').replace('image/', '').toUpperCase()}`;
+
+    meta.append(name, size);
+
+    const actions = document.createElement('div');
+    actions.className = 'studio-media-actions';
+
+    const iconButtons = [
+      { action: 'cover', title: item.uid === coverUid ? 'This is the cover page' : 'Set as cover page', icon: 'M12 2l2.9 6.3 6.9.6-5.2 4.6 1.5 6.8L12 16.9 5.9 20.3l1.5-6.8L2.2 8.9l6.9-.6Z', disabled: item.uid === coverUid },
+      { action: 'edit', title: 'Edit this page', icon: 'M4 20l1.2-4.2L14.5 6.5a2.12 2.12 0 0 1 3 3L8.2 18.8 4 20Z' },
+      { action: 'up', title: 'Move up', icon: 'm6 14 6-6 6 6', disabled: index === 0 },
+      { action: 'down', title: 'Move down', icon: 'm6 10 6 6 6-6', disabled: index === items.length - 1 },
+      { action: 'remove', title: 'Remove this page', icon: 'M5 7h14M9 7V5c0-1 .6-1.5 1.5-1.5h3C14.4 3.5 15 4 15 5v2M7 7l1 13h8l1-13M10 10v7M14 10v7', danger: true }
+    ];
+
+    iconButtons.forEach((config) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `studio-media-btn${config.danger ? ' is-danger' : ''}`;
+      button.dataset.tileAction = config.action;
+      button.title = config.title;
+      button.setAttribute('aria-label', config.title);
+      if (config.disabled) button.disabled = true;
+      button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${config.icon}" /></svg>`;
+      actions.append(button);
+    });
+
+    tile.append(thumb, meta, actions);
+    return tile;
+  };
+
+  const renderMedia = () => {
+    const hasItems = items.length > 0;
+    if (emptyState) emptyState.hidden = hasItems;
+    if (mediaGrid) {
+      mediaGrid.hidden = !hasItems;
+      if (hasItems) {
+        mediaGrid.replaceChildren(...items.map((item, index) => createMediaTile(item, index)));
+      } else {
+        mediaGrid.replaceChildren();
+      }
+    }
+    if (addMore) addMore.hidden = !hasItems;
+    dropzone.classList.toggle('has-file', hasItems);
+    if (coverIndexInput) {
+      const coverIndex = items.findIndex((item) => item.uid === coverUid);
+      coverIndexInput.value = String(coverIndex >= 0 ? coverIndex : 0);
+    }
     updateReadiness();
   };
 
-  const applyWorkingFile = (file) => {
+  const validateFile = (file) => {
+    if (!(allowedTypes.has(file.type) || allowedExtension.test(file.name))) {
+      return 'That file is not a JPG, PNG, or WEBP image. Choose one of those formats.';
+    }
+    if (file.size > maxFileSize) {
+      return 'That image is larger than 8 MB. Please choose a smaller file.';
+    }
+    if (file.size === 0) {
+      return 'That image appears to be empty. Please choose another file.';
+    }
+    return '';
+  };
+
+  const addFiles = (fileList) => {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length || isUploading) return;
+
+    let rejected = '';
+
+    for (const file of incoming) {
+      if (items.length >= maxFiles) {
+        rejected = 'You can add up to 6 images per artwork.';
+        break;
+      }
+
+      const message = validateFile(file);
+      if (message) {
+        rejected = rejected || message;
+        continue;
+      }
+
+      const duplicate = items.some((item) => (
+        item.sourceFile.name === file.name && item.sourceFile.size === file.size
+      ));
+      if (duplicate) {
+        rejected = rejected || 'That image is already in your artwork.';
+        continue;
+      }
+
+      items.push({
+        uid: ++uidCounter,
+        file,
+        sourceFile: file,
+        previewUrl: URL.createObjectURL(file),
+        edited: false
+      });
+    }
+
+    if (rejected) showFileError(rejected);
+    if (items.length && coverUid === null) coverUid = items[0].uid;
+    fileInput.value = '';
+    renderMedia();
+  };
+
+  const editTileFile = async (uid) => {
+    const item = items.find((candidate) => candidate.uid === uid);
+    if (!item) return;
+
     try {
-      const transfer = new DataTransfer();
-      transfer.items.add(file);
-      fileInput.files = transfer.files;
+      const edited = await openArtworkEditor(item.sourceFile || item.file);
+      if (!edited || !items.some((candidate) => candidate.uid === uid)) return;
+      revokeItemPreview(item);
+      item.file = edited;
+      item.edited = true;
+      item.previewUrl = URL.createObjectURL(edited);
+      renderMedia();
     } catch (error) {
-      fileInput.value = '';
+      showFileError(error.userMessage || 'The artwork studio could not open on this device. Your original image will be used.');
     }
-
-    clearPreviewUrl();
-    selectedFile = file;
-    previewUrl = URL.createObjectURL(file);
-    dropzone.classList.add('has-file');
-
-    if (previewImage) {
-      previewImage.onload = () => preview?.classList.add('is-loaded');
-      previewImage.src = previewUrl;
-      previewImage.alt = `Preview of ${file.name}`;
-    }
-
-    if (preview) preview.hidden = false;
-    if (emptyState) emptyState.hidden = true;
-    if (fileInfo) fileInfo.hidden = false;
-    if (fileName) fileName.textContent = file.name;
-    if (fileSize) fileSize.textContent = `${formatFileSize(file.size)} · ${file.type.replace('image/', '').toUpperCase()}`;
-
-    updateReadiness();
   };
 
   const openArtworkEditor = async (file) => {
@@ -2415,48 +3655,6 @@ const initUploadPage = () => {
       showFileError(error.userMessage || 'The artwork studio could not open on this device. Your original image will be used.');
       return file;
     }
-  };
-
-  const selectFile = async (file) => {
-    clearFileError();
-
-    if (!file) return;
-
-    const token = ++selectionToken;
-
-    const validType = allowedTypes.has(file.type) || allowedExtension.test(file.name);
-    if (!validType) {
-      fileInput.value = '';
-      showFileError('That file is not a JPG, PNG, or WEBP image. Choose one of those formats.');
-      updateReadiness();
-      return;
-    }
-
-    if (file.size > maxFileSize) {
-      fileInput.value = '';
-      showFileError('That image is larger than 8 MB. Please choose a smaller file.');
-      updateReadiness();
-      return;
-    }
-
-    if (file.size === 0) {
-      fileInput.value = '';
-      showFileError('That image appears to be empty. Please choose another file.');
-      updateReadiness();
-      return;
-    }
-
-    const edited = await openArtworkEditor(file);
-    if (token !== selectionToken) return;
-
-    if (!edited) {
-      fileInput.value = '';
-      updateReadiness();
-      return;
-    }
-
-    selectedSourceFile = file;
-    applyWorkingFile(edited);
   };
 
   const restoreActions = () => {
@@ -2538,7 +3736,7 @@ const initUploadPage = () => {
   const startUpload = (mode) => {
     if (isUploading) return;
 
-    if (!selectedFile) {
+    if (items.length === 0) {
       showFileError('Add an image of your artwork before publishing.');
       dropzone.focus();
       return;
@@ -2578,7 +3776,9 @@ const initUploadPage = () => {
 
     const formData = new FormData(form);
     formData.delete('images');
-    formData.append('images', selectedFile, selectedFile.name);
+    items.forEach((item) => formData.append('images', item.file, item.file.name));
+    const coverIndex = items.findIndex((item) => item.uid === coverUid);
+    formData.set('cover_index', String(coverIndex >= 0 ? coverIndex : 0));
     formData.delete('save_as_draft');
     if (uploadMode === 'draft') formData.append('save_as_draft', 'on');
 
@@ -2626,7 +3826,7 @@ const initUploadPage = () => {
   };
 
   fileInput.addEventListener('change', () => {
-    selectFile(fileInput.files?.[0]);
+    addFiles(fileInput.files);
   });
 
   dropzone.addEventListener('click', (event) => {
@@ -2647,6 +3847,7 @@ const initUploadPage = () => {
     dropzone.addEventListener(eventName, (event) => {
       event.preventDefault();
       if (isUploading) return;
+      if (event.dataTransfer && !Array.from(event.dataTransfer.types || []).includes('Files')) return;
       if (eventName === 'dragenter') dragDepth += 1;
       dropzone.classList.add('is-dragging');
     });
@@ -2662,28 +3863,89 @@ const initUploadPage = () => {
     event.preventDefault();
     dragDepth = 0;
     dropzone.classList.remove('is-dragging');
-    if (isUploading) return;
-    selectFile(event.dataTransfer?.files?.[0]);
+    if (dragTileUid !== null) {
+      dragTileUid = null;
+      return;
+    }
+    addFiles(event.dataTransfer?.files);
   });
 
-  replaceButton?.addEventListener('click', (event) => {
+  if (mediaGrid) {
+    mediaGrid.addEventListener('click', async (event) => {
+      if (isUploading) return;
+      const button = event.target instanceof Element ? event.target.closest('[data-tile-action]') : null;
+      if (!button) return;
+      const tile = button.closest('[data-tile-uid]');
+      if (!tile) return;
+
+      const uid = Number(tile.dataset.tileUid);
+      const action = button.dataset.tileAction;
+
+      if (action === 'cover') setCover(uid);
+      else if (action === 'up') moveItem(uid, -1);
+      else if (action === 'down') moveItem(uid, 1);
+      else if (action === 'remove') removeItem(uid);
+      else if (action === 'edit') await editTileFile(uid);
+    });
+
+    mediaGrid.addEventListener('dragstart', (event) => {
+      if (isUploading) {
+        event.preventDefault();
+        return;
+      }
+      const tile = event.target instanceof Element ? event.target.closest('[data-tile-uid]') : null;
+      if (!tile) return;
+      dragTileUid = Number(tile.dataset.tileUid);
+      tile.classList.add('is-dragging');
+      try {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(dragTileUid));
+      } catch (error) {
+        /* older browsers */
+      }
+    });
+
+    mediaGrid.addEventListener('dragover', (event) => {
+      if (dragTileUid === null) return;
+      event.preventDefault();
+      try {
+        event.dataTransfer.dropEffect = 'move';
+      } catch (error) {
+        /* older browsers */
+      }
+      const tile = event.target instanceof Element ? event.target.closest('[data-tile-uid]') : null;
+      mediaGrid.querySelectorAll('.is-drop-target').forEach((node) => node.classList.remove('is-drop-target'));
+      if (tile && Number(tile.dataset.tileUid) !== dragTileUid) tile.classList.add('is-drop-target');
+    });
+
+    mediaGrid.addEventListener('drop', (event) => {
+      if (dragTileUid === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const tile = event.target instanceof Element ? event.target.closest('[data-tile-uid]') : null;
+      const fromIndex = items.findIndex((item) => item.uid === dragTileUid);
+      const targetIndex = tile ? items.findIndex((item) => item.uid === Number(tile.dataset.tileUid)) : -1;
+      dragTileUid = null;
+      if (fromIndex === -1 || targetIndex === -1) {
+        renderMedia();
+        return;
+      }
+      const [moved] = items.splice(fromIndex, 1);
+      let insertIndex = targetIndex;
+      if (fromIndex < targetIndex) insertIndex -= 1;
+      items.splice(insertIndex, 0, moved);
+      renderMedia();
+    });
+
+    mediaGrid.addEventListener('dragend', () => {
+      dragTileUid = null;
+      mediaGrid.querySelectorAll('.is-dragging, .is-drop-target').forEach((node) => node.classList.remove('is-dragging', 'is-drop-target'));
+    });
+  }
+
+  addMoreTrigger?.addEventListener('click', (event) => {
     event.stopPropagation();
     if (!isUploading) fileInput.click();
-  });
-
-  editImageButton?.addEventListener('click', async (event) => {
-    event.stopPropagation();
-    if (!selectedFile || isUploading) return;
-
-    const token = ++selectionToken;
-    const edited = await openArtworkEditor(selectedSourceFile || selectedFile);
-    if (token !== selectionToken || !edited) return;
-    applyWorkingFile(edited);
-  });
-
-  removeButton?.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (!isUploading) clearSelectedFile();
   });
 
   dismissError?.addEventListener('click', clearFormError);
@@ -2708,13 +3970,13 @@ const initUploadPage = () => {
   registerPageCleanup(() => {
     window.removeEventListener('beforeunload', handleUploadBeforeUnload);
     if (activeRequest && typeof activeRequest.abort === 'function') activeRequest.abort();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    items.forEach(revokeItemPreview);
     window.__artspaceUploading = false;
   });
 
   if (fileError) fileError.hidden = true;
   if (progressPanel) progressPanel.hidden = true;
-  updateReadiness();
+  renderMedia();
 };
 
 const createJourneySound = () => {
@@ -3961,6 +5223,263 @@ document.addEventListener('artwork:bookmark-changed', (event) => {
   });
 });
 
+const bindArtworkDetailGallery = () => {
+  const gallery = document.querySelector('[data-gallery]');
+  if (!gallery) return;
+
+  const stage = gallery.querySelector('.ad-gallery-stage');
+  const openButton = gallery.querySelector('[data-artwork-fullscreen]');
+  const mainImage = gallery.querySelector('[data-gallery-main]');
+  const prevButton = gallery.querySelector('[data-gallery-prev]');
+  const nextButton = gallery.querySelector('[data-gallery-next]');
+  const counter = gallery.querySelector('[data-gallery-counter]');
+  const thumbs = Array.from(gallery.querySelectorAll('[data-gallery-thumb]'));
+  const total = Math.max(1, Number(gallery.dataset.galleryCount || thumbs.length || 1));
+
+  if (!stage || !openButton || !mainImage || total <= 1 || thumbs.length === 0) return;
+
+  let currentIndex = Math.max(0, Number(mainImage.dataset.galleryIndex || 0));
+  let transformEndpoint = '';
+  let suppressNextClick = false;
+  let pointerStartX = null;
+
+  const currentSrc = mainImage.getAttribute('src') || '';
+  if (currentSrc.includes('?tr=')) {
+    transformEndpoint = currentSrc.split('?tr=')[0];
+  } else if (currentSrc.includes('&tr=')) {
+    transformEndpoint = currentSrc.split('&tr=')[0];
+  }
+
+  const buildMainSrc = (fullUrl) => {
+    if (!transformEndpoint || !fullUrl.startsWith(transformEndpoint)) return fullUrl;
+    const separator = fullUrl.includes('?') ? '&' : '?';
+    return `${fullUrl}${separator}tr=w-1200,q-82,f-auto`;
+  };
+
+  const buildMainSrcset = (fullUrl) => {
+    if (!transformEndpoint || !fullUrl.startsWith(transformEndpoint)) return '';
+    const separator = fullUrl.includes('?') ? '&' : '?';
+    return [640, 960, 1200, 1600]
+      .map((width) => `${fullUrl}${separator}tr=w-${width},q-82,f-auto ${width}w`)
+      .join(', ');
+  };
+
+  const goTo = (index) => {
+    const nextIndex = ((index % total) + total) % total;
+    const thumb = thumbs[nextIndex];
+    if (!thumb) return;
+
+    const fullUrl = thumb.dataset.galleryFull || '';
+    if (!fullUrl) return;
+    const thumbUrl = thumb.dataset.galleryThumbUrl || fullUrl;
+
+    currentIndex = nextIndex;
+    mainImage.dataset.galleryIndex = String(currentIndex);
+    mainImage.src = buildMainSrc(fullUrl);
+    const srcset = buildMainSrcset(fullUrl);
+    if (srcset) mainImage.setAttribute('srcset', srcset);
+    else mainImage.removeAttribute('srcset');
+    mainImage.sizes = '(max-width: 900px) 92vw, 720px';
+    mainImage.alt = openButton.dataset.artworkTitle || mainImage.alt;
+
+    openButton.dataset.artworkFull = fullUrl;
+    openButton.dataset.artworkThumb = thumbUrl;
+
+    if (counter) counter.textContent = `${currentIndex + 1} / ${total}`;
+
+    thumbs.forEach((node, nodeIndex) => {
+      const isActive = nodeIndex === currentIndex;
+      node.classList.toggle('is-active', isActive);
+      node.setAttribute('aria-current', isActive ? 'true' : 'false');
+    });
+
+    thumbs[currentIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+
+    gallery.classList.add('is-switching');
+    window.setTimeout(() => gallery.classList.remove('is-switching'), 340);
+  };
+
+  thumbs.forEach((thumb, index) => {
+    thumb.addEventListener('click', () => {
+      if (index === currentIndex) return;
+      goTo(index);
+    });
+  });
+
+  prevButton?.addEventListener('click', () => goTo(currentIndex - 1));
+  nextButton?.addEventListener('click', () => goTo(currentIndex + 1));
+
+  gallery.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      goTo(currentIndex - 1);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      goTo(currentIndex + 1);
+    }
+  });
+
+  stage.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    pointerStartX = event.clientX;
+  });
+
+  stage.addEventListener('click', (event) => {
+    if (!suppressNextClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextClick = false;
+  }, true);
+
+  stage.addEventListener('pointerup', (event) => {
+    if (pointerStartX === null) return;
+    const delta = event.clientX - pointerStartX;
+    pointerStartX = null;
+    if (Math.abs(delta) < 40) return;
+    if (event.target instanceof Element && event.target.closest('[data-gallery-prev], [data-gallery-next]')) return;
+    suppressNextClick = true;
+    goTo(currentIndex + (delta < 0 ? 1 : -1));
+  });
+
+  stage.addEventListener('pointercancel', () => {
+    pointerStartX = null;
+  });
+};
+
+const bindArtworkLightbox = () => {
+  const lightbox = document.querySelector('[data-lightbox]');
+  const openButton = document.querySelector('[data-artwork-fullscreen]');
+  if (!lightbox || !openButton) return;
+
+  const image = lightbox.querySelector('[data-lightbox-image]');
+  const closeButton = lightbox.querySelector('[data-lightbox-close]');
+  const prevButton = lightbox.querySelector('[data-lightbox-prev]');
+  const nextButton = lightbox.querySelector('[data-lightbox-next]');
+  const counter = lightbox.querySelector('[data-lightbox-counter]');
+  if (!image) return;
+
+  const thumbs = Array.from(document.querySelectorAll('[data-gallery-thumb]'));
+  const mainImage = document.querySelector('[data-gallery-main]');
+  const sources = thumbs.length
+    ? thumbs.map((thumb) => thumb.dataset.galleryFull).filter(Boolean)
+    : [openButton.dataset.artworkFull].filter(Boolean);
+  if (!sources.length) return;
+
+  const total = sources.length;
+  let index = Math.max(0, Number(mainImage?.dataset.galleryIndex || 0)) % total;
+  let pointerX = null;
+  let transformEndpoint = '';
+
+  const currentSrc = mainImage?.getAttribute('src') || '';
+  if (currentSrc.includes('?tr=')) {
+    transformEndpoint = currentSrc.split('?tr=')[0];
+  } else if (currentSrc.includes('&tr=')) {
+    transformEndpoint = currentSrc.split('&tr=')[0];
+  }
+
+  const fullSrc = (url) => {
+    if (!transformEndpoint || !url.startsWith(transformEndpoint)) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}tr=w-1600,q-90,f-auto`;
+  };
+
+  const render = () => {
+    image.src = fullSrc(sources[index]);
+    image.alt = openButton.dataset.artworkTitle || image.alt || '';
+    if (counter) counter.textContent = `${index + 1} / ${total}`;
+  };
+
+  const step = (direction) => {
+    if (total < 2) return;
+    index = ((index + direction) % total + total) % total;
+    render();
+    const thumb = thumbs[index];
+    if (thumb) thumb.click();
+  };
+
+  const open = () => {
+    const startIndex = Math.max(0, Number(mainImage?.dataset.galleryIndex || 0)) % total;
+    index = startIndex;
+    render();
+    document.body.classList.add('ad-lightbox-open');
+    if (typeof lightbox.showModal === 'function') {
+      if (!lightbox.open) lightbox.showModal();
+    } else {
+      lightbox.setAttribute('open', '');
+    }
+    if (typeof lightbox.requestFullscreen === 'function') {
+      lightbox.requestFullscreen().catch(() => {});
+    }
+    closeButton?.focus({ preventScroll: true });
+  };
+
+  const close = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    if (typeof lightbox.close === 'function' && lightbox.open) lightbox.close();
+    else lightbox.removeAttribute('open');
+    document.body.classList.remove('ad-lightbox-open');
+    openButton.focus({ preventScroll: true });
+  };
+
+  openButton.addEventListener('click', open);
+  closeButton?.addEventListener('click', close);
+  prevButton?.addEventListener('click', () => step(-1));
+  nextButton?.addEventListener('click', () => step(1));
+
+  lightbox.addEventListener('click', (event) => {
+    if (event.target === lightbox) close();
+  });
+
+  lightbox.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    close();
+  });
+
+  lightbox.addEventListener('close', () => {
+    document.body.classList.remove('ad-lightbox-open');
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  });
+
+  lightbox.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      step(-1);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      step(1);
+    }
+  });
+
+  const stage = lightbox.querySelector('.ad-lightbox-stage');
+  let suppressCloseClick = false;
+
+  stage?.addEventListener('click', (event) => {
+    if (suppressCloseClick) {
+      suppressCloseClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    close();
+  });
+
+  stage?.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    pointerX = event.clientX;
+  });
+  stage?.addEventListener('pointerup', (event) => {
+    if (pointerX === null) return;
+    const delta = event.clientX - pointerX;
+    pointerX = null;
+    if (Math.abs(delta) < 40) return;
+    suppressCloseClick = true;
+    step(delta < 0 ? 1 : -1);
+  });
+  stage?.addEventListener('pointercancel', () => {
+    pointerX = null;
+  });
+};
+
 const initPage = () => {
   bindQuickActions();
   bindPortfolioCollection();
@@ -3970,6 +5489,13 @@ const initPage = () => {
   bindProfileFlash();
   bindCommentForms();
   bindShareButtons();
+  bindShareDialog();
+  bindFollowForms();
+  bindReportDialog();
+  bindArtworkDescription();
+  bindArtworkComments();
+  bindArtworkDetailGallery();
+  bindArtworkLightbox();
   bindScrollReveal();
 
   const heroArtwork = document.querySelector('[data-home-feature-image]');
