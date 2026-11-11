@@ -1470,3 +1470,159 @@ a.ad-tag:hover {
     transition: none !important;
   }
 }
+
+/* ---------- Related artworks (minimal) ---------- */
+.ad-related {
+  margin-top: clamp(32px, 4vw, 48px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.ad-related-head {
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin-bottom: 18px;
+  padding-top: 18px;
+  padding-bottom: 14px;
+  border-top: 1px solid var(--ad-line-soft);
+  border-bottom: 0;
+}
+
+.ad-related-titleblock {
+  min-width: 0;
+}
+
+.ad-related-kicker {
+  display: block;
+  margin-bottom: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-family: 'Inter', 'Noto Sans Khmer', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.ad-related-head h2 {
+  font-family: 'Playfair Display', 'Kantumruy Pro', serif;
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.ad-related-head p {
+  margin: 4px 0 0;
+  max-width: 40ch;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.ad-related-cta {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-family: 'Inter', 'Noto Sans Khmer', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  transition: color 0.18s ease;
+}
+
+.ad-related-cta:hover {
+  color: var(--text);
+  transform: none;
+  background: none;
+  box-shadow: none;
+}
+
+.ad-related .masonry-grid,
+.ad-related .ad-related-grid {
+  margin-top: 0;
+}
+
+.ad-related-empty {
+  padding: 18px 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 780px) {
+  .ad-related-head {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}
+
+@media (max-width: 640px) {
+  .ad-related {
+    margin-top: 28px;
+  }
+
+  .ad-related-head {
+    align-items: flex-start;
+    gap: 8px 12px;
+    margin-bottom: 14px;
+    padding-top: 14px;
+    padding-bottom: 10px;
+  }
+
+  .ad-related-kicker {
+    margin-bottom: 2px;
+    font-size: 0.64rem;
+    letter-spacing: 0.07em;
+  }
+
+  .ad-related-head h2 {
+    font-size: 1.18rem;
+  }
+
+  .ad-related-head p {
+    margin-top: 2px;
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  .ad-related-cta {
+    align-self: flex-start;
+    margin-top: 2px;
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .ad-related-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .ad-related-head p {
+    display: none;
+  }
+
+  .ad-related-cta {
+    margin-top: 0;
+  }
+}

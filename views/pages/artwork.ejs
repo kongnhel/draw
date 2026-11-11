@@ -381,15 +381,13 @@
   <%- include('../partials/ad-unit', { slot: adsenseSlots.artwork, className: 'ad-unit--artwork' }) %>
 
   <section class="ad-section ad-related ad-reveal" aria-labelledby="ad-related-heading">
-    <div class="ad-section-head">
-      <div>
-        <span class="ad-section-kicker">Keep wandering</span>
-        <h2 id="ad-related-heading">More Artworks You May Like</h2>
-        <p>Discover more creative works from the community.</p>
+    <div class="ad-section-head ad-related-head">
+      <div class="ad-related-titleblock">
+        <span class="ad-section-kicker ad-related-kicker">Keep wandering</span>
+        <h2 id="ad-related-heading">More artworks you may like</h2>
+        <p>More from the community to explore.</p>
       </div>
-      <a class="ad-section-link" href="/explore">View the full gallery
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-      </a>
+      <a class="ad-section-link ad-related-cta" href="/explore">View all</a>
     </div>
 
     <% if (related.length) { %>
