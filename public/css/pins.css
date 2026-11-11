@@ -732,6 +732,45 @@
   }
 }
 
+@media (max-width: 640px) {
+  .studio-explore-pin {
+    top: 11px;
+    left: 11px;
+    justify-content: center;
+    gap: 0;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .studio-explore-pin::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+  }
+
+  .studio-explore-pin svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .studio-explore-pin [data-pin-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pinned-card {
     opacity: 1 !important;
