@@ -21,6 +21,7 @@
     explore: mbnPath.startsWith('/explore') || mbnPath.startsWith('/search'),
     community: mbnPath.startsWith('/community'),
     upload: mbnPath.startsWith('/upload'),
+    messages: mbnPath.startsWith('/messages'),
     saved: mbnOwnSaved,
     admin: mbnPath.startsWith('/admin'),
     profile: mbnOnProfile && !mbnOwnSaved
@@ -74,6 +75,19 @@
       <svg viewBox="0 0 24 24"><path d="m4 20 2.4-7L16 3.4l4.6 4.6L11 17.6 4 20Z" /><path d="m14 6 4 4M6.4 17.6l4 4" /></svg>
     </span>
     <span class="mbn-label">Upload</span>
+  </a>
+
+  <a
+    href="<%= isAuthenticated ? '/messages' : '/login' %>"
+    class="mbn-item<%= mbnActive.messages ? ' is-active' : '' %>"
+    data-mbn-key="messages"
+    <%- mbnActive.messages ? 'aria-current="page"' : '' %>
+  >
+    <span class="mbn-icon-wrap" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M4.2 6.8c0-1.2 1-2.2 2.2-2.2h11.2c1.2 0 2.2 1 2.2 2.2v7.9c0 1.2-1 2.2-2.2 2.2H9.6l-4 3.6c-.5.4-1.2.1-1.2-.5L4.2 6.8Z" /><path d="M8.4 10.6h7.2M8.4 13.4h4.4" /></svg>
+    </span>
+    <span class="mbn-label">Messages</span>
+    <span class="nav-badge mbn-badge" data-messages-badge<%= isAuthenticated && typeof unreadMessages !== 'undefined' && unreadMessages > 0 ? '' : ' hidden' %> aria-hidden="true"><%= isAuthenticated && typeof unreadMessages !== 'undefined' ? (unreadMessages > 9 ? '9+' : unreadMessages) : 0 %></span>
   </a>
 
   <a

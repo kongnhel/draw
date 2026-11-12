@@ -1,0 +1,230 @@
+<%- include('../partials/header') %>
+
+<%
+  const initialConversationId = Number(locals.initialConversationId) || 0;
+  const initialTo = String(locals.initialTo || '');
+  const shareArtworkId = Number(locals.shareArtworkId) || 0;
+%>
+
+<div class="messenger-page" data-messenger
+  data-initial-conversation="<%= initialConversationId %>"
+  data-initial-to="<%= initialTo %>"
+  data-share-artwork-id="<%= shareArtworkId %>"
+  data-viewer-id="<%= currentUser.id %>"
+  data-viewer-name="<%= currentUser.display_name %>"
+  data-viewer-username="<%= currentUser.username %>"
+  data-viewer-avatar="<%= currentUser.avatar || '/images/default-avatar.svg' %>">
+
+  <!-- ============ Conversations sidebar ============ -->
+  <aside class="messenger-sidebar" data-messenger-sidebar aria-label="Conversations">
+    <div class="msb-head">
+      <div class="msb-title">
+        <span class="msb-kicker">Sketchbook chat</span>
+        <h1 data-i18n-full="Messages">Messages</h1>
+      </div>
+      <button type="button" class="msb-new-chat" data-new-chat aria-label="New conversation">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.2-4.2L14.5 6.5a2.12 2.12 0 0 1 3 3L8.2 18.8 4 20Z" /><path d="M12.5 8.5l3 3" /></svg>
+        <span data-i18n-full="New chat">New chat</span>
+      </button>
+    </div>
+
+    <div class="msb-search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" /><path d="m15.6 15.6 4.4 4.4" /></svg>
+      <label class="sr-only" for="msb-search-input">Search conversations</label>
+      <input id="msb-search-input" type="search" data-conversation-search placeholder="Search conversations..." autocomplete="off" enterkeyhint="search" />
+    </div>
+
+    <div class="msb-list" data-conversation-list role="list" aria-live="polite">
+      <div class="msb-skeletons" data-list-skeleton>
+        <div class="msb-skeleton-item" aria-hidden="true"><span class="msb-sk-avatar"></span><span class="msb-sk-lines"><em></em><em></em></span></div>
+        <div class="msb-skeleton-item" aria-hidden="true"><span class="msb-sk-avatar"></span><span class="msb-sk-lines"><em></em><em></em></span></div>
+        <div class="msb-skeleton-item" aria-hidden="true"><span class="msb-sk-avatar"></span><span class="msb-sk-lines"><em></em><em></em></span></div>
+        <div class="msb-skeleton-item" aria-hidden="true"><span class="msb-sk-avatar"></span><span class="msb-sk-lines"><em></em><em></em></span></div>
+        <div class="msb-skeleton-item" aria-hidden="true"><span class="msb-sk-avatar"></span><span class="msb-sk-lines"><em></em><em></em></span></div>
+      </div>
+      <p class="msb-empty" data-list-empty hidden><span aria-hidden="true">✎</span><span data-i18n-full="No conversations yet. Start one with &quot;New chat&quot;.">No conversations yet. Start one with "New chat".</span></p>
+      <p class="msb-error" data-list-error hidden></p>
+    </div>
+  </aside>
+
+  <!-- ============ Chat panel ============ -->
+  <section class="messenger-chat" data-messenger-chat>
+    <!-- Empty state -->
+    <div class="msc-empty" data-chat-empty>
+      <span class="msc-empty-mark" aria-hidden="true">A/S</span>
+      <h2 data-i18n-full="Your private sketchbook chat">Your private sketchbook chat</h2>
+      <p data-i18n-full="Pick a conversation, or share artwork directly with a fellow artist.">Pick a conversation, or share artwork directly with a fellow artist.</p>
+      <button type="button" class="btn btn-primary" data-new-chat data-i18n-full="Start a conversation">Start a conversation</button>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div class="msc-loading" data-chat-skeleton hidden aria-hidden="true">
+      <div class="msc-load-head"><span class="msb-sk-avatar"></span><span class="msb-sk-lines"><em></em><em class="is-short"></em></span></div>
+      <div class="msc-load-body">
+        <span class="msc-sk-bubble is-left"></span>
+        <span class="msc-sk-bubble is-right"></span>
+        <span class="msc-sk-bubble is-left"></span>
+        <span class="msc-sk-bubble is-right is-short"></span>
+      </div>
+    </div>
+
+    <!-- Conversation -->
+    <div class="msc-thread" data-chat-thread hidden>
+      <header class="msc-head">
+        <button type="button" class="msc-back" data-chat-back aria-label="Back to conversations">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
+        </button>
+        <span class="msc-head-avatar">
+          <img data-chat-avatar src="/images/default-avatar.svg" alt="" data-fallback-src="/images/default-avatar.svg" />
+          <i class="msc-status-dot" data-chat-status-dot aria-hidden="true"></i>
+        </span>
+        <div class="msc-head-copy">
+          <strong class="msc-head-name" data-chat-name data-i18n-skip>Artist</strong>
+          <span class="msc-head-status" data-chat-status>Offline</span>
+        </div>
+        <div class="msc-head-actions">
+          <button type="button" class="msc-icon-btn" data-conversation-menu-toggle aria-haspopup="menu" aria-expanded="false" aria-controls="msc-conversation-menu" aria-label="Conversation options">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+          </button>
+        </div>
+        <div class="msc-conversation-menu" id="msc-conversation-menu" role="menu" data-conversation-menu hidden>
+          <button type="button" class="msc-menu-item" role="menuitem" data-action="mute">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" /><path d="M10.5 18a1.8 1.8 0 0 0 3 0" /></svg>
+            <span data-mute-label>Mute</span>
+          </button>
+          <button type="button" class="msc-menu-item" role="menuitem" data-action="report">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M6 5c2.5-1.3 4.5-1 7 .8 2.4 1.7 4.3 1.9 5.6.8l-1.4 5 1.4 5c-1.3 1-3.2.8-5.6-.9-2.5-1.8-4.5-2-7-.8" /></svg>
+            <span data-i18n-full="Report conversation">Report conversation</span>
+          </button>
+          <button type="button" class="msc-menu-item" role="menuitem" data-action="block">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4" /><path d="m6 6 12 12" /></svg>
+            <span data-block-label>Block user</span>
+          </button>
+          <button type="button" class="msc-menu-item is-danger" role="menuitem" data-action="delete-conversation">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13" /></svg>
+            <span data-i18n-full="Delete for me">Delete for me</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="msc-banner" data-chat-banner hidden></div>
+
+      <div class="msc-scroll" data-message-scroll tabindex="0" aria-label="Conversation messages">
+        <button type="button" class="msc-load-older" data-load-older hidden data-i18n-full="Load earlier messages">Load earlier messages</button>
+        <div class="msc-thread-list" data-message-list role="list"></div>
+        <div class="msc-typing" data-typing-indicator hidden>
+          <span class="msc-typing-avatar"><img src="/images/default-avatar.svg" alt="" data-fallback-src="/images/default-avatar.svg" /></span>
+          <span class="msc-typing-bubble" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="msc-typing-label" data-typing-label>Typing…</span>
+        </div>
+      </div>
+
+      <div class="msc-replying" data-reply-preview hidden>
+        <span class="msc-replying-copy">
+          <em data-i18n-full="Replying to">Replying to</em>
+          <strong data-reply-name data-i18n-skip></strong>
+          <span data-reply-content data-i18n-skip></span>
+        </span>
+        <button type="button" class="msc-reply-cancel" data-reply-cancel aria-label="Cancel reply">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+
+      <div class="msc-pending-artwork" data-pending-artwork hidden>
+        <span class="msc-pending-label" data-i18n-full="Sharing artwork">Sharing artwork</span>
+        <span class="msc-pending-card" data-pending-artwork-card></span>
+        <button type="button" class="msc-reply-cancel" data-pending-artwork-cancel aria-label="Remove artwork">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+
+      <footer class="msc-composer" data-composer>
+        <button type="button" class="msc-composer-btn" data-attach-button aria-label="Attach an image">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 12.6 13 20.4a5.2 5.2 0 0 1-7.4-7.4l8.2-8.2a3.5 3.5 0 0 1 5 5l-8.2 8.2a1.8 1.8 0 0 1-2.6-2.6l7.6-7.6" /></svg>
+        </button>
+        <button type="button" class="msc-composer-btn" data-emoji-button aria-label="Insert emoji" aria-expanded="false" aria-controls="msc-emoji-picker">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4" /><path d="M9 10h.01M15 10h.01" /><path d="M8.6 14.4c.9 1.2 2 1.8 3.4 1.8s2.5-.6 3.4-1.8" /></svg>
+        </button>
+        <div class="msc-emoji-picker" id="msc-emoji-picker" data-emoji-picker hidden role="menu" aria-label="Emoji picker"></div>
+        <label class="sr-only" for="msc-input">Write a message</label>
+        <textarea id="msc-input" class="msc-input" data-message-input rows="1" maxlength="2000" placeholder="Write a message..." data-i18n-km-placeholder="Write a message..."></textarea>
+        <button type="button" class="msc-send" data-send-button aria-label="Send message">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 11.5 16.5-7-6.5 16.5-2.8-6.2L3.5 11.5Z" /><path d="m10.7 14.8 9.3-10.3" /></svg>
+        </button>
+        <input type="file" accept="image/jpeg,image/png,image/webp" class="msc-file-input" data-attach-input hidden />
+      </footer>
+    </div>
+  </section>
+
+  <!-- ============ New conversation dialog ============ -->
+  <dialog class="msc-dialog" data-new-chat-dialog aria-labelledby="msc-new-chat-title">
+    <div class="msc-dialog-card">
+      <header class="msc-dialog-head">
+        <h2 id="msc-new-chat-title" data-i18n-full="New conversation">New conversation</h2>
+        <button type="button" class="msc-dialog-close" data-new-chat-close aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </header>
+      <div class="msc-dialog-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4" /><path d="m15.6 15.6 4.4 4.4" /></svg>
+        <label class="sr-only" for="msc-user-search">Search users</label>
+        <input type="search" data-user-search placeholder="Search artists by name or @username..." autocomplete="off" />
+      </div>
+      <div class="msc-dialog-list" data-user-results></div>
+      <p class="msc-dialog-note" data-new-chat-note hidden></p>
+    </div>
+  </dialog>
+
+  <!-- ============ Forward dialog ============ -->
+  <dialog class="msc-dialog" data-forward-dialog aria-labelledby="msc-forward-title">
+    <div class="msc-dialog-card">
+      <header class="msc-dialog-head">
+        <h2 id="msc-forward-title" data-i18n-full="Forward message">Forward message</h2>
+        <button type="button" class="msc-dialog-close" data-forward-close aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </header>
+      <p class="msc-forward-preview" data-forward-preview data-i18n-skip></p>
+      <div class="msc-dialog-list" data-forward-list></div>
+      <p class="msc-dialog-note" data-forward-note hidden></p>
+    </div>
+  </dialog>
+
+  <!-- ============ Report dialog ============ -->
+  <dialog class="msc-dialog" data-report-dialog aria-labelledby="msc-report-title">
+    <div class="msc-dialog-card">
+      <header class="msc-dialog-head">
+        <h2 id="msc-report-title" data-i18n-full="Report message">Report message</h2>
+        <button type="button" class="msc-dialog-close" data-report-close aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </header>
+      <label class="msc-field-label" for="msc-report-reason" data-i18n-full="Why are you reporting this conversation?">Why are you reporting this conversation?</label>
+      <textarea id="msc-report-reason" data-report-reason rows="3" maxlength="500" placeholder="Describe the problem (optional)..." data-i18n-km-placeholder="Describe the problem (optional)..."></textarea>
+      <div class="msc-dialog-actions">
+        <button type="button" class="msc-dialog-btn" data-report-cancel data-i18n-full="Cancel">Cancel</button>
+        <button type="button" class="msc-dialog-btn is-primary" data-report-submit data-i18n-full="Send report">Send report</button>
+      </div>
+      <p class="msc-dialog-note" data-report-note hidden></p>
+    </div>
+  </dialog>
+
+  <!-- ============ Confirm dialog ============ -->
+  <dialog class="msc-dialog" data-confirm-dialog aria-labelledby="msc-confirm-title">
+    <div class="msc-dialog-card">
+      <header class="msc-dialog-head">
+        <h2 id="msc-confirm-title" data-confirm-title data-i18n-full="Are you sure?">Are you sure?</h2>
+      </header>
+      <p class="msc-confirm-copy" data-confirm-copy data-i18n-full="This action cannot be undone.">This action cannot be undone.</p>
+      <div class="msc-dialog-actions">
+        <button type="button" class="msc-dialog-btn" data-confirm-cancel data-i18n-full="Cancel">Cancel</button>
+        <button type="button" class="msc-dialog-btn is-danger" data-confirm-accept data-i18n-full="Confirm">Confirm</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="msc-toasts" data-toasts aria-live="polite"></div>
+</div>
+
+<script src="/js/messages.js?v=<%= assetVersion %>" defer></script>
+<%- include('../partials/footer') %>

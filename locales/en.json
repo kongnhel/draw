@@ -1079,12 +1079,10 @@
     "Edit post": "Edit post",
     "Delete post": "Delete post",
     "Hide post": "Hide post",
-    "Report this artwork for review?": "Report this artwork for review?",
     "Report sent to the moderation desk.": "Report sent to the moderation desk.",
     "Link copied.": "Link copied.",
     "Could not copy the link.": "Could not copy the link.",
     "Post hidden. You can reset hidden posts from Settings.": "Post hidden. You can reset hidden posts from Settings.",
-    "Artwork deleted.": "Artwork deleted.",
     "Comment updated.": "Comment updated.",
     "Hide replies": "Hide replies",
     "Replying to": "Replying to",
@@ -1094,7 +1092,62 @@
     "The audience": "The audience",
     "Original artwork by": "Original artwork by",
     "Post actions": "Post actions",
-    "Edit this post": "Edit this post"
+    "Edit this post": "Edit this post",
+    "Messages": "Messages",
+    "New chat": "New chat",
+    "Sketchbook chat": "Sketchbook chat",
+    "Search conversations...": "Search conversations...",
+    "Search conversations": "Search conversations",
+    "No conversations yet. Start one with \"New chat\".": "No conversations yet. Start one with \"New chat\".",
+    "Your private sketchbook chat": "Your private sketchbook chat",
+    "Pick a conversation, or share artwork directly with a fellow artist.": "Pick a conversation, or share artwork directly with a fellow artist.",
+    "Start a conversation": "Start a conversation",
+    "Report conversation": "Report conversation",
+    "Delete for me": "Delete for me",
+    "Load earlier messages": "Load earlier messages",
+    "Sharing artwork": "Sharing artwork",
+    "Write a message...": "Write a message...",
+    "Write a message": "Write a message",
+    "Send message": "Send message",
+    "New conversation": "New conversation",
+    "Search users": "Search users",
+    "Forward message": "Forward message",
+    "Report message": "Report message",
+    "Why are you reporting this conversation?": "Why are you reporting this conversation?",
+    "Describe the problem (optional)...": "Describe the problem (optional)...",
+    "Send report": "Send report",
+    "Are you sure?": "Are you sure?",
+    "This action cannot be undone.": "This action cannot be undone.",
+    "Confirm": "Confirm",
+    "Offline": "Offline",
+    "Online": "Online",
+    "Typing…": "Typing…",
+    "Mute": "Mute",
+    "Unmute": "Unmute",
+    "Block user": "Block user",
+    "Unblock user": "Unblock user",
+    "Today": "Today",
+    "Yesterday": "Yesterday",
+    "Seen": "Seen",
+    "Sent": "Sent",
+    "Photo": "Photo",
+    "Message": "Message",
+    "Account unavailable": "Account unavailable",
+    "No messages yet": "No messages yet",
+    "Active just now": "Active just now",
+    "Unknown": "Unknown",
+    "Message deleted": "Message deleted",
+    "You deleted this message": "You deleted this message",
+    "This message was deleted": "This message was deleted",
+    "Artwork unavailable": "Artwork unavailable",
+    "No other conversations yet.": "No other conversations yet.",
+    "No artists found. Try another name.": "No artists found. Try another name.",
+    "No members found. Try another name.": "No members found. Try another name.",
+    "Search ArtSpace members by name or @username.": "Search ArtSpace members by name or @username.",
+    "Search an artist to message...": "Search an artist to message...",
+    "Send in a private message": "Send in a private message",
+    "Search ArtSpace members": "Search ArtSpace members",
+    "(edited)": "(edited)"
   },
   "patterns": [
     {
@@ -1412,6 +1465,22 @@
     {
       "en": "^PAGE A-([0-9]+)$",
       "km": "^PAGE A-([0-9]+)$"
+    },
+    {
+      "en": "^Active ([0-9]+)m ago$",
+      "km": "សកម្ម $1 នាទីមុន"
+    },
+    {
+      "en": "^Active ([0-9]+)h ago$",
+      "km": "សកម្ម $1 ម៉ោងមុន"
+    },
+    {
+      "en": "^Active ([0-9]+)d ago$",
+      "km": "សកម្ម $1 ថ្ងៃមុន"
+    },
+    {
+      "en": "^(.+) is typing…$",
+      "km": "$1 កំពុងសរសេរ…"
     }
   ]
 }

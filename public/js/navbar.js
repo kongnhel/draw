@@ -40,6 +40,7 @@
       home: path === '/',
       explore: path.startsWith('/explore') || path.startsWith('/search'),
       upload: path.startsWith('/upload'),
+      messages: path.startsWith('/messages'),
       saved: savedActive,
       profile: (path === '/profile/edit' || path.startsWith('/profile/')) && !savedActive
     };

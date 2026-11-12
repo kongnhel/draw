@@ -10,7 +10,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 const compression = require('compression');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
@@ -713,18 +713,53 @@ function normalizeReaction(value) {
   return REACTION_TYPES.includes(candidate) ? candidate : 'like';
 }
 
-async function createNotification({ userId, actorId, type, artworkId = null, commentId = null, shareId = null, message = null }) {
+async function createNotification({ userId, actorId, type, artworkId = null, commentId = null, shareId = null, conversationId = null, message = null }) {
   const recipientId = Number(userId);
   const actor = Number(actorId);
   if (!recipientId || !actor || recipientId === actor) return;
 
   try {
     await db.execute(
-      'INSERT INTO notifications (user_id, actor_id, type, artwork_id, comment_id, share_id, message) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [recipientId, actor, String(type), artworkId || null, commentId || null, shareId || null, message || null]
+      'INSERT INTO notifications (user_id, actor_id, type, artwork_id, comment_id, share_id, conversation_id, message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [recipientId, actor, String(type), artworkId || null, commentId || null, shareId || null, conversationId || null, message || null]
     );
   } catch (error) {
     console.error('Could not create notification:', error);
+  }
+}
+
+// One unread "message" notification per (recipient, actor, conversation): a new
+// message bumps the existing row instead of stacking duplicates.
+async function upsertMessageNotification({ userId, actorId, conversationId }) {
+  const recipientId = Number(userId);
+  const actor = Number(actorId);
+  const conversation = Number(conversationId);
+  if (!recipientId || !actor || !conversation || recipientId === actor) return;
+
+  try {
+    const existing = await db.execute(
+      `SELECT id FROM notifications
+        WHERE user_id = ? AND actor_id = ? AND type = 'message' AND conversation_id = ? AND is_read = 0
+        LIMIT 1`,
+      [recipientId, actor, conversation]
+    );
+    if (existing && existing.length) {
+      await db.execute(
+        'UPDATE notifications SET created_at = NOW() WHERE id = ?',
+        [Number(existing[0].id)]
+      );
+      return;
+    }
+
+    await createNotification({
+      userId: recipientId,
+      actorId: actor,
+      type: 'message',
+      conversationId: conversation,
+      message: 'sent you a private message'
+    });
+  } catch (error) {
+    console.error('Could not upsert message notification:', error);
   }
 }
 
@@ -759,6 +794,364 @@ async function countUnreadNotifications(userId) {
   );
   return Number((rows && rows[0] && rows[0].count) || 0);
 }
+
+// ----------------------------------------------------
+// Private messaging (user-to-user, Messenger style)
+// ----------------------------------------------------
+
+const MESSAGE_MAX_LENGTH = 2000;
+const MESSAGE_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MESSAGE_DELETE_EVERYONE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MESSAGE_TYPES = ['text', 'artwork', 'image'];
+const ONLINE_WINDOW_SECONDS = 180;
+const CONVERSATION_PAGE_SIZE = 30;
+const MESSAGES_PAGE_SIZE = 30;
+
+// In-memory typing + last-seen write throttle (single Node process; polling
+// remains fully functional on serverless platforms, typing simply degrades).
+const typingState = new Map();
+const lastSeenWrites = new Map();
+
+function setTypingFlag(conversationId, userId, isTyping) {
+  const key = Number(conversationId);
+  if (!key) return;
+  const now = Date.now();
+  let room = typingState.get(key);
+  if (!room) {
+    room = new Map();
+    typingState.set(key, room);
+  }
+  if (isTyping) {
+    room.set(Number(userId), now + 6000);
+  } else {
+    room.delete(Number(userId));
+  }
+  for (const [uid, expires] of room) {
+    if (expires <= now) room.delete(uid);
+  }
+}
+
+function getTypingUsers(conversationId, viewerId) {
+  const room = typingState.get(Number(conversationId));
+  if (!room) return [];
+  const now = Date.now();
+  const users = [];
+  for (const [uid, expires] of room) {
+    if (expires <= now) {
+      room.delete(uid);
+      continue;
+    }
+    if (Number(uid) === Number(viewerId)) continue;
+    users.push(Number(uid));
+  }
+  return users;
+}
+
+async function touchUserLastSeen(userId) {
+  const uid = Number(userId);
+  if (!uid) return;
+  const now = Date.now();
+  const previous = lastSeenWrites.get(uid) || 0;
+  if (now - previous < 45000) return;
+  lastSeenWrites.set(uid, now);
+  try {
+    await db.execute('UPDATE users SET last_seen_at = NOW() WHERE id = ?', [uid]);
+  } catch (error) {
+    console.error('Could not update last_seen_at:', error && (error.code || error.message));
+  }
+}
+
+function sanitizeMessageContent(raw) {
+  // Normalize whitespace, strip control characters and zero-width tricks.
+  return String(raw ?? '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\u2060\uFEFF]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim()
+    .slice(0, MESSAGE_MAX_LENGTH);
+}
+
+const MESSAGE_CONVERSATION_ACCESS_SQL = `EXISTS (
+    SELECT 1 FROM conversation_participants cp
+     WHERE cp.conversation_id = ? AND cp.user_id = ? AND cp.is_deleted = 0
+  )`;
+
+async function getConversationAccess(conversationId, userId) {
+  const rows = await db.execute(
+    `SELECT cp.id, cp.user_id, cp.last_read_at, cp.is_muted, cp.is_deleted, cp.deleted_at, c.created_at AS conversation_created_at, c.updated_at AS conversation_updated_at
+       FROM conversation_participants cp
+       JOIN conversations c ON c.id = cp.conversation_id
+      WHERE cp.conversation_id = ? AND cp.user_id = ?
+      LIMIT 1`,
+    [Number(conversationId), Number(userId)]
+  );
+  return rows && rows.length ? rows[0] : null;
+}
+
+async function getOtherParticipants(conversationId, userId) {
+  const rows = await db.execute(
+    `SELECT u.id, u.username, u.name, u.avatar, u.role, u.status, u.last_seen_at
+       FROM conversation_participants cp
+       JOIN users u ON u.id = cp.user_id
+      WHERE cp.conversation_id = ? AND cp.user_id <> ?
+      ORDER BY cp.id ASC`,
+    [Number(conversationId), Number(userId)]
+  );
+  return (rows || []).map((row) => ({
+    id: Number(row.id),
+    username: row.username,
+    display_name: (row.name && String(row.name).trim()) || row.username,
+    avatar: row.avatar || null,
+    role: row.role || 'user',
+    status: row.status || 'active',
+    last_seen_at: row.last_seen_at
+  }));
+}
+
+function isUserOnline(lastSeenAt) {
+  if (!lastSeenAt) return false;
+  const timestamp = new Date(lastSeenAt).getTime();
+  if (!Number.isFinite(timestamp)) return false;
+  return Date.now() - timestamp <= ONLINE_WINDOW_SECONDS * 1000;
+}
+
+async function getBlockStateBetween(userA, userB) {
+  const rows = await db.execute(
+    `SELECT blocker_id, blocked_id FROM blocks
+      WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)
+      LIMIT 2`,
+    [Number(userA), Number(userB), Number(userB), Number(userA)]
+  );
+  let iBlocked = false;
+  let blockedMe = false;
+  (rows || []).forEach((row) => {
+    if (Number(row.blocker_id) === Number(userA)) iBlocked = true;
+    else blockedMe = true;
+  });
+  return { iBlocked, blockedMe };
+}
+
+async function findOrCreateConversation(userId, otherUserId) {
+  const me = Number(userId);
+  const other = Number(otherUserId);
+  if (!me || !other || me === other) {
+    return { error: 'Please choose another ArtSpace member to message.' };
+  }
+
+  const [target] = await db.execute(
+    `SELECT id, username, status FROM users WHERE id = ? LIMIT 1`,
+    [other]
+  );
+  if (!target) return { error: 'That ArtSpace member could not be found.' };
+  if (target.status !== 'active') return { error: 'That account is not available for messaging.' };
+
+  const existing = await db.execute(
+    `SELECT c.id
+       FROM conversations c
+       JOIN conversation_participants a ON a.conversation_id = c.id AND a.user_id = ?
+       JOIN conversation_participants b ON b.conversation_id = c.id AND b.user_id = ?
+      WHERE (SELECT COUNT(*) FROM conversation_participants x WHERE x.conversation_id = c.id) = 2
+      LIMIT 1`,
+    [me, other]
+  );
+  if (existing && existing.length) {
+    const conversationId = Number(existing[0].id);
+    await db.execute(
+      'UPDATE conversation_participants SET is_deleted = 0, deleted_at = NULL, updated_at = NOW() WHERE conversation_id = ? AND user_id = ? AND is_deleted = 1',
+      [conversationId, me]
+    );
+    return { conversationId };
+  }
+
+  const blockState = await getBlockStateBetween(me, other);
+  if (blockState.iBlocked) return { error: 'You blocked this member. Unblock them to send messages.', blocked: true };
+  if (blockState.blockedMe) return { error: 'You cannot message this member right now.', blocked: true };
+
+  const insertedId = await withTransaction(async (connection) => {
+    const [conversationResult] = await connection.execute(
+      'INSERT INTO conversations (id) VALUES (DEFAULT)'
+    );
+    const conversationId = Number(conversationResult.insertId);
+    await connection.execute(
+      'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
+      [conversationId, me, conversationId, other]
+    );
+    return conversationId;
+  });
+
+  return { conversationId: insertedId };
+}
+
+const CONVERSATION_LIST_SELECT = `SELECT c.id, c.updated_at AS conversation_updated_at,
+       cp.last_read_at, cp.is_muted,
+       ou.id AS other_id, ou.username AS other_username, ou.avatar AS other_avatar, ou.last_seen_at AS other_last_seen_at,
+       ou.status AS other_status,
+       COALESCE(NULLIF(ou.name, ''), ou.username) AS other_display_name,
+       lm.id AS last_message_id, lm.sender_id AS last_sender_id, lm.message_type AS last_message_type,
+       lm.content AS last_content, lm.deleted_at AS last_deleted_at, lm.edited_at AS last_edited_at,
+       lm.created_at AS last_message_at,
+       lma.id AS last_attachment_id, lma.file_path AS last_attachment_path, lma.file_type AS last_attachment_type,
+       la.id AS last_artwork_id, la.title AS last_artwork_title,
+       lai.thumbnail_url AS last_artwork_thumbnail,
+       lai.image_url AS last_artwork_image,
+       lasu.username AS last_sender_username,
+       COALESCE(NULLIF(lasu.name, ''), lasu.username) AS last_sender_name
+  FROM conversation_participants cp
+  JOIN conversations c ON c.id = cp.conversation_id
+  JOIN conversation_participants other_cp ON other_cp.conversation_id = c.id AND other_cp.user_id <> cp.user_id
+  JOIN users ou ON ou.id = other_cp.user_id
+  LEFT JOIN messages lm ON lm.id = (
+    SELECT m.id
+      FROM messages m
+     WHERE m.conversation_id = c.id
+       AND m.deleted_at IS NULL
+       AND NOT EXISTS (SELECT 1 FROM message_deletions md WHERE md.message_id = m.id AND md.user_id = ?)
+       AND m.created_at > COALESCE(cp.deleted_at, '1971-01-01')
+     ORDER BY m.created_at DESC, m.id DESC
+     LIMIT 1
+  )
+  LEFT JOIN message_attachments lma ON lma.message_id = lm.id AND lma.file_type = 'image'
+  LEFT JOIN artworks la ON la.id = lm.artwork_id
+  LEFT JOIN artwork_images lai ON lai.id = la.cover_image_id
+  LEFT JOIN users lasu ON lasu.id = lm.sender_id
+ WHERE cp.user_id = ? AND cp.is_deleted = 0`;
+
+function mapConversationRow(row, viewerId) {
+  const lastType = row.last_message_type || 'text';
+  const senderIsViewer = Number(row.last_sender_id) === Number(viewerId);
+  let preview = '';
+  if (row.last_message_id) {
+    if (lastType === 'artwork') {
+      preview = row.last_artwork_title ? `Artwork · ${row.last_artwork_title}` : 'Artwork';
+    } else if (lastType === 'image') {
+      preview = row.last_content ? `Photo · ${row.last_content}` : 'Photo';
+    } else {
+      preview = String(row.last_content || '').replace(/\s+/g, ' ').slice(0, 90);
+    }
+  }
+  return {
+    id: Number(row.id),
+    updated_at: row.conversation_updated_at,
+    last_read_at: row.last_read_at,
+    is_muted: Boolean(Number(row.is_muted)),
+    other_user: {
+      id: Number(row.other_id),
+      username: row.other_username,
+      display_name: row.other_display_name,
+      avatar: row.other_avatar || null,
+      online: isUserOnline(row.other_last_seen_at),
+      last_seen_at: row.other_last_seen_at,
+      status: row.other_status
+    },
+    last_message: row.last_message_id
+      ? {
+          id: Number(row.last_message_id),
+          type: lastType,
+          content: row.last_deleted_at ? null : preview,
+          is_mine: senderIsViewer,
+          sender_name: row.last_sender_name,
+          created_at: row.last_message_at,
+          artwork: lastType === 'artwork' && row.last_artwork_id
+            ? { id: Number(row.last_artwork_id), title: row.last_artwork_title, thumbnail: row.last_artwork_thumbnail || row.last_artwork_image }
+            : null,
+          attachment: lastType === 'image' && row.last_attachment_path
+            ? { path: row.last_attachment_path, type: row.last_attachment_type }
+            : null
+        }
+      : null,
+    unread_count: 0
+  };
+}
+
+async function countUnreadMessagesByConversation(userId) {
+  const rows = await db.execute(
+    `SELECT m.conversation_id, COUNT(*) AS unread
+       FROM messages m
+       JOIN conversation_participants cp
+         ON cp.conversation_id = m.conversation_id AND cp.user_id = ? AND cp.is_deleted = 0
+      WHERE m.sender_id <> ?
+        AND m.deleted_at IS NULL
+        AND m.created_at > COALESCE(cp.last_read_at, '1971-01-01')
+        AND m.created_at > COALESCE(cp.deleted_at, '1971-01-01')
+        AND NOT EXISTS (SELECT 1 FROM message_deletions md WHERE md.message_id = m.id AND md.user_id = ?)
+      GROUP BY m.conversation_id`,
+    [Number(userId), Number(userId), Number(userId)]
+  );
+  const map = new Map();
+  (rows || []).forEach((row) => map.set(Number(row.conversation_id), Number(row.unread)));
+  return map;
+}
+
+async function countUnreadMessagesTotal(userId) {
+  const map = await countUnreadMessagesByConversation(userId);
+  let total = 0;
+  for (const count of map.values()) total += count;
+  return total;
+}
+
+const MESSAGE_SELECT = `SELECT m.id, m.conversation_id, m.sender_id, m.message_type, m.content, m.reply_to_id,
+       m.edited_at, m.deleted_at, m.created_at,
+       su.username AS sender_username, su.avatar AS sender_avatar,
+       COALESCE(NULLIF(su.name, ''), su.username) AS sender_name,
+       a.id AS artwork_id, a.title AS artwork_title, a.user_id AS artwork_artist_id, a.visibility AS artwork_visibility, a.status AS artwork_status,
+       au.username AS artwork_artist_username,
+       COALESCE(NULLIF(au.name, ''), au.username) AS artwork_artist_name,
+       COALESCE(ai.thumbnail_url, ai.image_url, a.thumbnail_url, a.image_url) AS artwork_thumbnail,
+       ma.id AS attachment_id, ma.file_path AS attachment_path, ma.file_type AS attachment_type,
+       rm.id AS reply_id, rm.content AS reply_content, rm.message_type AS reply_type, rm.created_at AS reply_created_at, rm.deleted_at AS reply_deleted_at,
+       ru.username AS reply_username,
+       COALESCE(NULLIF(ru.name, ''), ru.username) AS reply_name
+  FROM messages m
+  JOIN users su ON su.id = m.sender_id
+  LEFT JOIN artworks a ON a.id = m.artwork_id
+  LEFT JOIN users au ON au.id = a.user_id
+  LEFT JOIN artwork_images ai ON ai.id = a.cover_image_id
+  LEFT JOIN message_attachments ma ON ma.message_id = m.id AND ma.file_type = 'image'
+  LEFT JOIN messages rm ON rm.id = m.reply_to_id
+  LEFT JOIN users ru ON ru.id = rm.sender_id`;
+
+function mapMessageRow(row) {
+  const hiddenForMe = Boolean(Number(row.hidden_for_me));
+  const removedForEveryone = Boolean(row.deleted_at);
+  const isArtworkType = row.message_type === 'artwork';
+  const artworkVisible = Boolean(row.artwork_id) && row.artwork_visibility !== 'private' && row.artwork_status === 'active';
+  return {
+    id: Number(row.id),
+    conversation_id: Number(row.conversation_id),
+    sender_id: Number(row.sender_id),
+    sender_name: row.sender_name,
+    sender_username: row.sender_username,
+    sender_avatar: row.sender_avatar || null,
+    type: row.message_type,
+    content: removedForEveryone ? null : (row.content || ''),
+    is_removed: removedForEveryone || hiddenForMe,
+    removed_for_everyone: removedForEveryone,
+    edited_at: row.edited_at || null,
+    created_at: row.created_at,
+    reply_to: row.reply_id && !row.reply_deleted_at
+      ? {
+          id: Number(row.reply_id),
+          content: row.reply_type === 'text' ? String(row.reply_content || '').slice(0, 140) : null,
+          type: row.reply_type,
+          sender_name: row.reply_name,
+          created_at: row.reply_created_at
+        }
+      : null,
+    artwork: isArtworkType && artworkVisible
+      ? {
+          id: Number(row.artwork_id),
+          title: row.artwork_title,
+          artist_username: row.artwork_artist_username,
+          artist_name: row.artwork_artist_name,
+          thumbnail: row.artwork_thumbnail || null
+        }
+      : null,
+    attachment: row.message_type === 'image' && row.attachment_path
+      ? { path: row.attachment_path, type: row.attachment_type }
+      : null
+  };
+}
+
 
 function escapeHtmlText(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -1046,6 +1439,30 @@ function notificationLink(row) {
   return '/explore';
 }
 
+function notificationLink(row) {
+  const type = String(row.type || '');
+  if (type === 'message') {
+    return row.conversation_id ? `/messages?c=${Number(row.conversation_id)}` : '/messages';
+  }
+  if (row.share_id) {
+    const anchor = row.comment_id && ['share_comment', 'share_reply', 'share_mention', 'mention'].includes(type)
+      ? `#share-comment-${row.comment_id}`
+      : '';
+    return `/community/${row.share_id}${anchor}`;
+  }
+  if (row.artwork_id) {
+    if (row.comment_id && ['comment', 'reply', 'comment_like', 'mention'].includes(type)) {
+      return `/art/${row.artwork_id}#comment-${row.comment_id}`;
+    }
+    if (type === 'comment' || type === 'comment_like') {
+      return `/art/${row.artwork_id}#ad-comments`;
+    }
+    return `/art/${row.artwork_id}`;
+  }
+  if (row.actor_username) return `/profile/${encodeURIComponent(row.actor_username)}`;
+  return '/explore';
+}
+
 function mapNotificationRow(row) {
   return {
     id: Number(row.id),
@@ -1055,6 +1472,7 @@ function mapNotificationRow(row) {
     artwork_id: row.artwork_id ? Number(row.artwork_id) : null,
     comment_id: row.comment_id ? Number(row.comment_id) : null,
     share_id: row.share_id ? Number(row.share_id) : null,
+    conversation_id: row.conversation_id ? Number(row.conversation_id) : null,
     artwork_title: row.artwork_title || null,
     actor_username: row.actor_username || null,
     actor_name: row.actor_name || 'Someone',
@@ -1065,7 +1483,7 @@ function mapNotificationRow(row) {
   };
 }
 
-const NOTIFICATION_SELECT = `SELECT n.id, n.type, n.message, n.is_read, n.created_at, n.artwork_id, n.comment_id, n.share_id,
+const NOTIFICATION_SELECT = `SELECT n.id, n.type, n.message, n.is_read, n.created_at, n.artwork_id, n.comment_id, n.share_id, n.conversation_id,
        DATE_FORMAT(n.created_at, '%b %d, %Y') AS created_at_label,
        u.username AS actor_username,
        COALESCE(NULLIF(u.name, ''), u.username) AS actor_name,
@@ -1272,6 +1690,7 @@ const CSS_BUNDLE_FILES = [
   'multi-image.css',
   'social.css',
   'community.css',
+  'messages.css',
   'ads.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
@@ -1420,6 +1839,17 @@ app.use(async (req, res, next) => {
     } catch (error) {
       console.error('Could not load notification count:', error);
     }
+
+    touchUserLastSeen(res.locals.currentUser.id);
+
+    try {
+      res.locals.unreadMessages = await countUnreadMessagesTotal(res.locals.currentUser.id);
+    } catch (error) {
+      res.locals.unreadMessages = 0;
+      console.error('Could not load unread message count:', error);
+    }
+  } else {
+    res.locals.unreadMessages = 0;
   }
 
   next();
@@ -2170,7 +2600,7 @@ app.get('/profile/:username', async (req, res, next) => {
     const targetUsername = req.params.username;
     const viewerId = (req.session && req.session.user && req.session.user.id) || 0;
     const userRows = await db.execute(
-      `SELECT u.id, u.username, u.email, u.role, (u.email_verified_at IS NOT NULL) AS is_verified,
+      `SELECT u.id, u.username, u.email, u.role, u.status, (u.email_verified_at IS NOT NULL) AS is_verified,
               COALESCE(NULLIF(u.name, ''), u.username) AS display_name,
               u.avatar,
               u.bio, u.cover_image, u.website, u.instagram, u.twitter
@@ -4474,6 +4904,976 @@ app.get('/api/mentions/search', requireAuthApi, async (req, res, next) => {
         avatar: row.avatar
       }))
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------
+// 9b. Private messaging (Messenger-style user-to-user chat)
+// ----------------------------------------------------
+
+// Minimal artwork info for the "share in message" flow in the messenger.
+app.get('/api/artworks/:id/brief', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const artworkId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(artworkId) || artworkId <= 0) {
+      res.status(404).json({ ok: false, error: 'That artwork cannot be shared in messages.' });
+      return;
+    }
+    const rows = await db.execute(
+      `SELECT a.id, a.title, a.user_id, a.visibility, a.is_published, a.status,
+              COALESCE(ai.thumbnail_url, ai.image_url, a.thumbnail_url, a.image_url) AS thumbnail,
+              u.username,
+              COALESCE(NULLIF(u.name, ''), u.username) AS display_name
+         FROM artworks a
+         INNER JOIN users u ON u.id = a.user_id
+         LEFT JOIN artwork_images ai ON ai.id = a.cover_image_id
+        WHERE a.id = ?
+        LIMIT 1`,
+      [artworkId]
+    );
+    const artwork = rows && rows[0];
+    const shareable = Boolean(artwork)
+      && ((artwork.visibility === 'public' && Number(artwork.is_published) === 1 && artwork.status === 'active')
+        || Number(artwork.user_id) === viewerId);
+    if (!shareable) {
+      res.status(404).json({ ok: false, error: 'That artwork cannot be shared in messages.' });
+      return;
+    }
+    res.json({
+      ok: true,
+      artwork: {
+        id: Number(artwork.id),
+        title: artwork.title,
+        thumbnail: artwork.thumbnail || null,
+        artist_username: artwork.username,
+        artist_display_name: artwork.display_name
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const messageSendLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `u${(req.session && req.session.user && req.session.user.id) || ipKeyGenerator(req.ip)}`,
+  handler: (req, res) => res.status(429).json({ ok: false, error: 'You are sending messages too quickly. Take a short break and try again.' })
+});
+
+const conversationCreateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 40,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `u${(req.session && req.session.user && req.session.user.id) || ipKeyGenerator(req.ip)}`,
+  handler: (req, res) => res.status(429).json({ ok: false, error: 'You are opening conversations too quickly. Please try again shortly.' })
+});
+
+const messageAttachmentLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `u${(req.session && req.session.user && req.session.user.id) || ipKeyGenerator(req.ip)}`,
+  handler: (req, res) => res.status(429).json({ ok: false, error: 'You are attaching too many images right now. Please try again shortly.' })
+});
+
+app.get('/messages', requireAuth, (req, res) => {
+  const conversationParam = Number.parseInt(String(req.query.c || ''), 10);
+  const shareParam = Number.parseInt(String(req.query.share || ''), 10);
+  const toParam = String(req.query.to || '').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 50);
+
+  res.render('pages/messages', {
+    pageTitle: 'ArtSpace | Messages',
+    initialConversationId: Number.isFinite(conversationParam) && conversationParam > 0 ? conversationParam : 0,
+    shareArtworkId: Number.isFinite(shareParam) && shareParam > 0 ? shareParam : 0,
+    initialTo: toParam
+  });
+});
+
+app.get('/api/messages/conversations', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const search = sanitizeMessageContent(String(req.query.q || '')).slice(0, 60);
+    const like = `%${search.replace(/([\\%_])/g, '\\$1')}%`;
+
+    let params = [viewerId, viewerId];
+    let whereExtra = '';
+    if (search) {
+      params = [viewerId, viewerId, like, like, like];
+      whereExtra = `
+        AND (ou.username LIKE ? OR COALESCE(NULLIF(ou.name, ''), '') LIKE ? OR lm.content LIKE ?)`;
+    }
+
+    const rows = await db.execute(
+      `${CONVERSATION_LIST_SELECT}${whereExtra}
+        ORDER BY COALESCE(lm.created_at, c.updated_at) DESC, c.id DESC
+        LIMIT 60`,
+      params
+    );
+
+    const unreadMap = await countUnreadMessagesByConversation(viewerId);
+    const conversations = (rows || []).map((row) => ({
+      ...mapConversationRow(row, viewerId),
+      unread_count: unreadMap.get(Number(row.id)) || 0
+    }));
+
+    res.json({ ok: true, conversations });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations', requireAuthApi, conversationCreateLimiter, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    let otherUserId = Number.parseInt(req.body.user_id, 10);
+    if (!Number.isFinite(otherUserId)) {
+      const username = String(req.body.username || '').trim().replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 50);
+      if (username) {
+        const rows = await db.execute('SELECT id FROM users WHERE username = ? AND status = \'active\' LIMIT 1', [username]);
+        otherUserId = rows && rows.length ? Number(rows[0].id) : 0;
+      }
+    }
+
+    if (!Number.isFinite(otherUserId) || otherUserId <= 0) {
+      res.status(400).json({ ok: false, error: 'Choose an ArtSpace member to start a conversation.' });
+      return;
+    }
+
+    const result = await findOrCreateConversation(viewerId, otherUserId);
+    if (result.error) {
+      res.status(result.blocked ? 403 : 400).json({ ok: false, error: result.error, blocked: Boolean(result.blocked) });
+      return;
+    }
+
+    const unreadMap = await countUnreadMessagesByConversation(viewerId);
+    const rows = await db.execute(`${CONVERSATION_LIST_SELECT} AND c.id = ? LIMIT 1`, [viewerId, viewerId, result.conversationId]);
+    if (!rows || !rows.length) {
+      res.status(500).json({ ok: false, error: 'We could not open that conversation. Please try again.' });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      conversation: {
+        ...mapConversationRow(rows[0], viewerId),
+        unread_count: unreadMap.get(result.conversationId) || 0
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/messages/conversations/:id', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    if (Number(access.is_deleted)) {
+      await db.execute(
+        'UPDATE conversation_participants SET is_deleted = 0, deleted_at = NULL WHERE conversation_id = ? AND user_id = ?',
+        [conversationId, viewerId]
+      );
+    }
+
+    const [others, blockState] = await Promise.all([
+      getOtherParticipants(conversationId, viewerId),
+      Promise.all([getOtherParticipants(conversationId, viewerId)]).then(async ([participants]) => (
+        participants.length === 1 ? getBlockStateBetween(viewerId, participants[0].id) : { iBlocked: false, blockedMe: false }
+      ))
+    ]);
+
+    const participantRows = await db.execute(
+      `SELECT cp.user_id, cp.last_read_at, u.username, COALESCE(NULLIF(u.name, ''), u.username) AS display_name, u.avatar
+         FROM conversation_participants cp
+         JOIN users u ON u.id = cp.user_id
+        WHERE cp.conversation_id = ?
+        ORDER BY cp.id ASC`,
+      [conversationId]
+    );
+
+    const messageRows = await db.execute(
+      `SELECT * FROM (
+         ${MESSAGE_SELECT}
+          WHERE m.conversation_id = ?
+            AND NOT EXISTS (SELECT 1 FROM message_deletions md2 WHERE md2.message_id = m.id AND md2.user_id = ?)
+          ORDER BY m.created_at DESC, m.id DESC
+          LIMIT ${MESSAGES_PAGE_SIZE}
+       ) recent
+       ORDER BY recent.created_at ASC, recent.id ASC`,
+      [conversationId, viewerId]
+    );
+
+    const totalRows = await db.execute(
+      `SELECT COUNT(*) AS count FROM messages m
+        WHERE m.conversation_id = ?
+          AND m.deleted_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM message_deletions md3 WHERE md3.message_id = m.id AND md3.user_id = ?)`,
+      [conversationId, viewerId]
+    );
+    const total = Number((totalRows && totalRows[0] && totalRows[0].count) || 0);
+
+    // Opening a conversation marks it read (and clears its message notifications).
+    await db.execute(
+      'UPDATE conversation_participants SET last_read_at = NOW() WHERE conversation_id = ? AND user_id = ?',
+      [conversationId, viewerId]
+    );
+    await db.execute(
+      "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND type = 'message' AND conversation_id = ? AND is_read = 0",
+      [viewerId, conversationId]
+    );
+    const unreadNotifications = await countUnreadNotifications(viewerId);
+    const unreadMessages = await countUnreadMessagesTotal(viewerId);
+
+    const typingIds = getTypingUsers(conversationId, viewerId);
+    const typing = others
+      .filter((participant) => typingIds.includes(participant.id))
+      .map((participant) => ({ id: participant.id, username: participant.username, display_name: participant.display_name }));
+
+    res.json({
+      ok: true,
+      conversation: {
+        id: conversationId,
+        is_muted: Boolean(Number(access.is_muted)),
+        other_users: others,
+        other_user: others[0] || null,
+        participants: (participantRows || []).map((row) => ({
+          id: Number(row.user_id),
+          username: row.username,
+          display_name: row.display_name,
+          avatar: row.avatar || null,
+          last_read_at: row.last_read_at
+        })),
+        blocked: blockState,
+        messages: (messageRows || []).map(mapMessageRow),
+        has_more: total > messageRows.length,
+        total,
+        typing
+      },
+      unread_notifications: unreadNotifications,
+      unread_messages: unreadMessages
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/messages/conversations/:id/messages', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const afterId = Number.parseInt(req.query.after_id, 10);
+    const beforeId = Number.parseInt(req.query.before_id, 10);
+    let rows;
+    let hasMore = false;
+
+    if (Number.isFinite(afterId) && afterId >= 0) {
+      if (afterId === 0) {
+        rows = await db.execute(
+          `SELECT * FROM (
+             ${MESSAGE_SELECT}
+              WHERE m.conversation_id = ?
+                AND NOT EXISTS (SELECT 1 FROM message_deletions md2 WHERE md2.message_id = m.id AND md2.user_id = ?)
+              ORDER BY m.created_at DESC, m.id DESC
+              LIMIT ${MESSAGES_PAGE_SIZE}
+           ) recent
+           ORDER BY recent.created_at ASC, recent.id ASC`,
+          [conversationId, viewerId]
+        );
+      } else {
+        rows = await db.execute(
+          `${MESSAGE_SELECT}
+            WHERE m.conversation_id = ?
+              AND m.id > ?
+              AND NOT EXISTS (SELECT 1 FROM message_deletions md2 WHERE md2.message_id = m.id AND md2.user_id = ?)
+            ORDER BY m.created_at ASC, m.id ASC`,
+          [conversationId, afterId, viewerId]
+        );
+      }
+    } else if (Number.isFinite(beforeId) && beforeId > 0) {
+      rows = await db.execute(
+        `SELECT * FROM (
+           ${MESSAGE_SELECT}
+            WHERE m.conversation_id = ?
+              AND m.id < ?
+              AND NOT EXISTS (SELECT 1 FROM message_deletions md2 WHERE md2.message_id = m.id AND md2.user_id = ?)
+            ORDER BY m.created_at DESC, m.id DESC
+            LIMIT ${MESSAGES_PAGE_SIZE}
+         ) older
+         ORDER BY older.created_at ASC, older.id ASC`,
+        [conversationId, beforeId, viewerId]
+      );
+      const olderTotal = await db.execute(
+        `SELECT COUNT(*) AS count FROM messages m
+          WHERE m.conversation_id = ?
+            AND m.id < ?
+            AND m.deleted_at IS NULL
+            AND NOT EXISTS (SELECT 1 FROM message_deletions md3 WHERE md3.message_id = m.id AND md3.user_id = ?)`,
+        [conversationId, beforeId, viewerId]
+      );
+      hasMore = Number((olderTotal && olderTotal[0] && olderTotal[0].count) || 0) > 0;
+    } else {
+      res.status(400).json({ ok: false, error: 'Provide after_id or before_id.' });
+      return;
+    }
+
+    const others = await getOtherParticipants(conversationId, viewerId);
+    const typingIds = getTypingUsers(conversationId, viewerId);
+    const typing = others
+      .filter((participant) => typingIds.includes(participant.id))
+      .map((participant) => ({ id: participant.id, username: participant.username, display_name: participant.display_name }));
+
+    const participantRows = await db.execute(
+      `SELECT cp.user_id, cp.last_read_at FROM conversation_participants cp WHERE cp.conversation_id = ?`,
+      [conversationId]
+    );
+
+    let unread = 0;
+    if (afterId > 0) {
+      const unreadMap = await countUnreadMessagesByConversation(viewerId);
+      unread = unreadMap.get(conversationId) || 0;
+    }
+
+    res.json({
+      ok: true,
+      messages: (rows || []).map(mapMessageRow),
+      typing,
+      has_more: hasMore || (afterId > 0 ? false : undefined),
+      participants_last_read: (participantRows || []).map((row) => ({
+        user_id: Number(row.user_id),
+        last_read_at: row.last_read_at
+      })),
+      unread
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+async function persistMessage({ connection, conversationId, senderId, messageType, content, artworkId, replyToId, attachments }) {
+  const [insertResult] = await connection.execute(
+    `INSERT INTO messages (conversation_id, sender_id, message_type, content, artwork_id, reply_to_id)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    [conversationId, senderId, messageType, content, artworkId || null, replyToId || null]
+  );
+
+  const messageId = Number(insertResult.insertId);
+  for (const attachment of attachments || []) {
+    await connection.execute(
+      'INSERT INTO message_attachments (message_id, file_path, file_type) VALUES (?, ?, ?)',
+      [messageId, attachment.path, attachment.type || 'image']
+    );
+  }
+
+  // A new message restores the conversation for everyone who removed it from
+  // their inbox, and refreshes the conversation sort timestamp.
+  await connection.execute(
+    'UPDATE conversation_participants SET is_deleted = 0, deleted_at = NULL, updated_at = NOW() WHERE conversation_id = ?',
+    [conversationId]
+  );
+  await connection.execute('UPDATE conversations SET updated_at = NOW() WHERE id = ?', [conversationId]);
+
+  return messageId;
+}
+
+async function notifyMessageParticipants({ conversationId, senderId, others }) {
+  for (const participant of others) {
+    if (participant.is_muted) continue;
+    await upsertMessageNotification({ userId: participant.id, actorId: senderId, conversationId });
+  }
+}
+
+app.post('/api/messages/conversations/:id/messages', requireAuthApi, messageSendLimiter, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const messageType = MESSAGE_TYPES.includes(String(req.body.message_type)) ? String(req.body.message_type) : 'text';
+    const content = sanitizeMessageContent(req.body.content);
+    const replyToId = Number.parseInt(req.body.reply_to_id, 10);
+    let artworkId = Number.parseInt(req.body.artwork_id, 10);
+
+    if (messageType === 'text' && !content) {
+      res.status(400).json({ ok: false, error: 'Write a message before sending.' });
+      return;
+    }
+    if (messageType === 'artwork') {
+      if (!Number.isFinite(artworkId) || artworkId <= 0) {
+        res.status(400).json({ ok: false, error: 'Choose an artwork to send.' });
+        return;
+      }
+    } else {
+      artworkId = 0;
+    }
+
+    const others = await getOtherParticipants(conversationId, viewerId);
+    if (others.length === 1) {
+      const blockState = await getBlockStateBetween(viewerId, others[0].id);
+      if (blockState.iBlocked || blockState.blockedMe) {
+        res.status(403).json({
+          ok: false,
+          error: blockState.iBlocked
+            ? 'You blocked this member. Unblock them to send messages.'
+            : 'You cannot send messages to this member.',
+          blocked: true
+        });
+        return;
+      }
+    }
+
+    let replyValidated = 0;
+    if (Number.isFinite(replyToId) && replyToId > 0) {
+      const replyRows = await db.execute(
+        'SELECT id, deleted_at FROM messages WHERE id = ? AND conversation_id = ? LIMIT 1',
+        [replyToId, conversationId]
+      );
+      if (!replyRows || !replyRows.length || replyRows[0].deleted_at) {
+        res.status(400).json({ ok: false, error: 'That message can no longer be replied to.' });
+        return;
+      }
+      replyValidated = replyToId;
+    }
+
+    if (messageType === 'artwork') {
+      const artworkRows = await db.execute(
+        `SELECT id, user_id, visibility, is_published, status FROM artworks WHERE id = ? LIMIT 1`,
+        [artworkId]
+      );
+      const artwork = artworkRows && artworkRows[0];
+      const shareable = artwork
+        && (artwork.visibility === 'public' && Number(artwork.is_published) === 1 && artwork.status === 'active'
+          || Number(artwork.user_id) === viewerId);
+      if (!shareable) {
+        res.status(400).json({ ok: false, error: 'That artwork cannot be shared in messages.' });
+        return;
+      }
+    }
+
+    const insertPayload = {
+      conversationId,
+      senderId: viewerId,
+      messageType,
+      content: messageType === 'text' ? content : (content || null),
+      artworkId: messageType === 'artwork' ? artworkId : null,
+      replyToId: replyValidated || null,
+      attachments: []
+    };
+
+    let messageId;
+    try {
+      messageId = await withTransaction(async (connection) => persistMessage({ connection, ...insertPayload }));
+    } catch (error) {
+      console.error('Message send failed:', error);
+      res.status(500).json({ ok: false, error: 'We could not send that message. Please try again.' });
+      return;
+    }
+
+    const participantState = await db.execute(
+      'SELECT cp.user_id, cp.is_muted FROM conversation_participants cp WHERE cp.conversation_id = ? AND cp.user_id <> ?',
+      [conversationId, viewerId]
+    );
+    await notifyMessageParticipants({
+      conversationId,
+      senderId: viewerId,
+      others: (participantState || []).map((row) => ({ id: Number(row.user_id), is_muted: Boolean(Number(row.is_muted)) }))
+    });
+
+    const messageRows = await db.execute(`${MESSAGE_SELECT} WHERE m.id = ? LIMIT 1`, [messageId]);
+    const unreadMap = await countUnreadMessagesByConversation(viewerId);
+
+    res.status(201).json({
+      ok: true,
+      message: messageRows && messageRows.length ? mapMessageRow(messageRows[0]) : null,
+      unread: unreadMap.get(conversationId) || 0
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/attachments', requireAuthApi, messageAttachmentLimiter, (req, res, next) => {
+  upload.single('image')(req, res, (error) => {
+    if (error) {
+      res.status(400).json({ ok: false, error: getUploadErrorMessage(error) });
+      return;
+    }
+    next();
+  });
+}, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      cleanupUploadedFiles(req.file ? [req.file] : []);
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ ok: false, error: 'Choose an image to send.' });
+      return;
+    }
+
+    const others = await getOtherParticipants(conversationId, viewerId);
+    if (others.length === 1) {
+      const blockState = await getBlockStateBetween(viewerId, others[0].id);
+      if (blockState.iBlocked || blockState.blockedMe) {
+        cleanupUploadedFiles([req.file]);
+        res.status(403).json({ ok: false, error: 'You cannot send messages to this member.', blocked: true });
+        return;
+      }
+    }
+
+    const processed = await uploadArtworkToImageKit([req.file], viewerId);
+    const image = processed && processed[0];
+    if (!image || !image.image_url) {
+      res.status(500).json({ ok: false, error: 'We could not save that image. Please try again.' });
+      return;
+    }
+
+    const content = sanitizeMessageContent(req.body.content).slice(0, 300);
+    let messageId;
+    try {
+      messageId = await withTransaction(async (connection) => persistMessage({
+        connection,
+        conversationId,
+        senderId: viewerId,
+        messageType: 'image',
+        content: content || null,
+        artworkId: null,
+        replyToId: null,
+        attachments: [{ path: image.image_url, type: 'image' }]
+      }));
+    } catch (error) {
+      console.error('Image message failed:', error);
+      res.status(500).json({ ok: false, error: 'We could not send that image. Please try again.' });
+      return;
+    }
+
+    const participantState = await db.execute(
+      'SELECT cp.user_id, cp.is_muted FROM conversation_participants cp WHERE cp.conversation_id = ? AND cp.user_id <> ?',
+      [conversationId, viewerId]
+    );
+    await notifyMessageParticipants({
+      conversationId,
+      senderId: viewerId,
+      others: (participantState || []).map((row) => ({ id: Number(row.user_id), is_muted: Boolean(Number(row.is_muted)) }))
+    });
+
+    const messageRows = await db.execute(`${MESSAGE_SELECT} WHERE m.id = ? LIMIT 1`, [messageId]);
+    res.status(201).json({
+      ok: true,
+      message: messageRows && messageRows.length ? mapMessageRow(messageRows[0]) : null
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/read', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    await db.execute(
+      'UPDATE conversation_participants SET last_read_at = NOW() WHERE conversation_id = ? AND user_id = ?',
+      [conversationId, viewerId]
+    );
+    await db.execute(
+      "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND type = 'message' AND conversation_id = ? AND is_read = 0",
+      [viewerId, conversationId]
+    );
+
+    const [unreadMessages, unreadNotifications] = await Promise.all([
+      countUnreadMessagesTotal(viewerId),
+      countUnreadNotifications(viewerId)
+    ]);
+    res.json({ ok: true, unread: unreadMessages, unread_notifications: unreadNotifications });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/typing', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    setTypingFlag(conversationId, viewerId, req.body.typing !== false && req.body.typing !== 'false');
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/mute', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    await db.execute(
+      'UPDATE conversation_participants SET is_muted = IF(is_muted = 1, 0, 1) WHERE conversation_id = ? AND user_id = ?',
+      [conversationId, viewerId]
+    );
+    const refreshed = await getConversationAccess(conversationId, viewerId);
+    res.json({ ok: true, is_muted: Boolean(Number(refreshed.is_muted)) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/delete', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    // Removes the conversation from this user's inbox only. The other
+    // participant keeps their copy and full history.
+    await db.execute(
+      'UPDATE conversation_participants SET is_deleted = 1, deleted_at = NOW() WHERE conversation_id = ? AND user_id = ?',
+      [conversationId, viewerId]
+    );
+    const unreadMessages = await countUnreadMessagesTotal(viewerId);
+    res.json({ ok: true, deleted_for: 'self', unread_messages: unreadMessages });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/block', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const others = await getOtherParticipants(conversationId, viewerId);
+    if (others.length !== 1) {
+      res.status(400).json({ ok: false, error: 'Blocking is only available in one-to-one conversations.' });
+      return;
+    }
+
+    await db.execute(
+      'INSERT IGNORE INTO blocks (blocker_id, blocked_id) VALUES (?, ?)',
+      [viewerId, others[0].id]
+    );
+    res.json({ ok: true, blocked: true, blocked_user: others[0].username });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/unblock', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const others = await getOtherParticipants(conversationId, viewerId);
+    if (others.length !== 1) {
+      res.status(400).json({ ok: false, error: 'Blocking is only available in one-to-one conversations.' });
+      return;
+    }
+
+    await db.execute(
+      'DELETE FROM blocks WHERE blocker_id = ? AND blocked_id = ?',
+      [viewerId, others[0].id]
+    );
+    res.json({ ok: true, blocked: false, blocked_user: others[0].username });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/conversations/:id/report', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const reason = sanitizeMessageContent(req.body.reason).slice(0, 500);
+    let messageId = Number.parseInt(req.body.message_id, 10);
+    if (Number.isFinite(messageId) && messageId > 0) {
+      const rows = await db.execute(
+        'SELECT id FROM messages WHERE id = ? AND conversation_id = ? LIMIT 1',
+        [messageId, conversationId]
+      );
+      if (!rows || !rows.length) messageId = 0;
+    } else {
+      messageId = 0;
+    }
+
+    if (!messageId) {
+      const latest = await db.execute(
+        `SELECT id FROM messages
+          WHERE conversation_id = ? AND deleted_at IS NULL
+            AND NOT EXISTS (SELECT 1 FROM message_deletions md WHERE md.message_id = messages.id AND md.user_id = ?)
+          ORDER BY created_at DESC, id DESC
+          LIMIT 1`,
+        [conversationId, viewerId]
+      );
+      messageId = latest && latest.length ? Number(latest[0].id) : 0;
+    }
+
+    if (!messageId) {
+      res.status(400).json({ ok: false, error: 'There is no message to report in this conversation.' });
+      return;
+    }
+
+    await db.execute(
+      'INSERT INTO message_reports (message_id, reporter_id, reason) VALUES (?, ?, ?)',
+      [messageId, viewerId, reason || null]
+    );
+    res.json({ ok: true, reported: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/:id/delete', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const messageId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(messageId) || messageId <= 0) {
+      res.status(404).json({ ok: false, error: 'That message could not be found.' });
+      return;
+    }
+    const scope = req.body.scope === 'everyone' ? 'everyone' : 'self';
+
+    const messageRows = await db.execute(
+      `SELECT m.id, m.conversation_id, m.sender_id, m.message_type, m.created_at, m.deleted_at
+         FROM messages m
+        WHERE m.id = ? LIMIT 1`,
+      [messageId]
+    );
+    const message = messageRows && messageRows[0];
+    if (!message) {
+      res.status(404).json({ ok: false, error: 'That message could not be found.' });
+      return;
+    }
+
+    const access = await getConversationAccess(message.conversation_id, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    if (scope === 'everyone') {
+      const isSender = Number(message.sender_id) === viewerId;
+      const withinWindow = message.created_at
+        ? (Date.now() - new Date(message.created_at).getTime()) <= MESSAGE_DELETE_EVERYONE_WINDOW_MS
+        : false;
+      if (!isSender) {
+        res.status(403).json({ ok: false, error: 'Only the sender can delete a message for everyone.' });
+        return;
+      }
+      if (!withinWindow) {
+        res.status(400).json({ ok: false, error: 'Messages can only be deleted for everyone within 24 hours.' });
+        return;
+      }
+      await db.execute('UPDATE messages SET deleted_at = NOW() WHERE id = ?', [messageId]);
+    } else {
+      await db.execute(
+        'INSERT IGNORE INTO message_deletions (message_id, user_id) VALUES (?, ?)',
+        [messageId, viewerId]
+      );
+    }
+
+    const unreadMessages = await countUnreadMessagesTotal(viewerId);
+    res.json({ ok: true, scope, unread_messages: unreadMessages });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/messages/:id/edit', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const messageId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(messageId) || messageId <= 0) {
+      res.status(404).json({ ok: false, error: 'That message could not be found.' });
+      return;
+    }
+    const content = sanitizeMessageContent(req.body.content);
+
+    const messageRows = await db.execute(
+      'SELECT id, conversation_id, sender_id, message_type, deleted_at, created_at FROM messages WHERE id = ? LIMIT 1',
+      [messageId]
+    );
+    const message = messageRows && messageRows[0];
+    if (!message) {
+      res.status(404).json({ ok: false, error: 'That message could not be found.' });
+      return;
+    }
+
+    const access = await getConversationAccess(message.conversation_id, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const isSender = Number(message.sender_id) === viewerId;
+    const withinWindow = message.created_at
+      ? (Date.now() - new Date(message.created_at).getTime()) <= MESSAGE_EDIT_WINDOW_MS
+      : false;
+
+    if (!isSender || message.message_type !== 'text' || message.deleted_at || !withinWindow) {
+      res.status(400).json({ ok: false, error: 'That message can no longer be edited.' });
+      return;
+    }
+    if (!content) {
+      res.status(400).json({ ok: false, error: 'Write a message before saving.' });
+      return;
+    }
+
+    await db.execute('UPDATE messages SET content = ?, edited_at = NOW() WHERE id = ?', [content, messageId]);
+    const refreshed = await db.execute(`${MESSAGE_SELECT} WHERE m.id = ? LIMIT 1`, [messageId]);
+    res.json({ ok: true, message: refreshed && refreshed.length ? mapMessageRow(refreshed[0]) : null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/messages/users', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const search = sanitizeMessageContent(String(req.query.q || '')).slice(0, 60);
+    if (!search) {
+      res.json({ ok: true, users: [] });
+      return;
+    }
+
+    const like = `%${search.replace(/([\\%_])/g, '\\$1')}%`;
+    const rows = await db.execute(
+      `SELECT u.id, u.username, u.avatar, u.last_seen_at,
+              COALESCE(NULLIF(u.name, ''), u.username) AS display_name
+         FROM users u
+        WHERE u.status = 'active'
+          AND u.id <> ?
+          AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id = ? AND b.blocked_id = u.id)
+          AND (u.username LIKE ? OR u.name LIKE ?)
+        ORDER BY CASE WHEN u.username LIKE ? THEN 0 ELSE 1 END, u.username ASC
+        LIMIT 12`,
+      [viewerId, viewerId, like, like, `${search}%`]
+    );
+
+    res.json({
+      ok: true,
+      users: (rows || []).map((row) => ({
+        id: Number(row.id),
+        username: row.username,
+        display_name: row.display_name,
+        avatar: row.avatar || null,
+        online: isUserOnline(row.last_seen_at)
+      }))
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/messages/unread-count', requireAuthApi, async (req, res, next) => {
+  try {
+    const unread = await countUnreadMessagesTotal(Number(req.session.user.id));
+    res.json({ ok: true, unread });
   } catch (err) {
     next(err);
   }

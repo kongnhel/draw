@@ -311,6 +311,105 @@ const schemaStatements = [
     expires DATETIME NOT NULL,
     PRIMARY KEY (sid),
     KEY idx_sessions_expires (expires)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS conversations (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_conversations_updated (updated_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS conversation_participants (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    conversation_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    last_read_at DATETIME DEFAULT NULL,
+    is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+    deleted_at DATETIME DEFAULT NULL,
+    is_muted TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_participants_conversation_user (conversation_id, user_id),
+    KEY idx_participants_user (user_id, is_deleted),
+    CONSTRAINT fk_participants_conversation FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE,
+    CONSTRAINT fk_participants_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS messages (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    conversation_id INT UNSIGNED NOT NULL,
+    sender_id INT UNSIGNED NOT NULL,
+    message_type ENUM('text', 'artwork', 'image') NOT NULL DEFAULT 'text',
+    content TEXT,
+    artwork_id INT UNSIGNED DEFAULT NULL,
+    reply_to_id INT UNSIGNED DEFAULT NULL,
+    edited_at DATETIME DEFAULT NULL,
+    deleted_at DATETIME DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_messages_conversation (conversation_id, created_at, id),
+    KEY idx_messages_sender (sender_id),
+    KEY idx_messages_artwork (artwork_id),
+    KEY idx_messages_reply (reply_to_id),
+    CONSTRAINT fk_messages_conversation FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE,
+    CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_messages_artwork FOREIGN KEY (artwork_id) REFERENCES artworks (id) ON DELETE SET NULL,
+    CONSTRAINT fk_messages_reply FOREIGN KEY (reply_to_id) REFERENCES messages (id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS message_attachments (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    message_id INT UNSIGNED NOT NULL,
+    file_path VARCHAR(1000) NOT NULL,
+    file_type VARCHAR(32) NOT NULL DEFAULT 'image',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_message_attachments_message (message_id),
+    CONSTRAINT fk_message_attachments_message FOREIGN KEY (message_id) REFERENCES messages (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS message_deletions (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    message_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_message_deletions_message_user (message_id, user_id),
+    KEY idx_message_deletions_user (user_id),
+    CONSTRAINT fk_message_deletions_message FOREIGN KEY (message_id) REFERENCES messages (id) ON DELETE CASCADE,
+    CONSTRAINT fk_message_deletions_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS message_reports (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    message_id INT UNSIGNED NOT NULL,
+    reporter_id INT UNSIGNED NOT NULL,
+    reason VARCHAR(500) DEFAULT NULL,
+    status ENUM('open', 'resolved', 'dismissed') NOT NULL DEFAULT 'open',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_message_reports_message (message_id),
+    KEY idx_message_reports_reporter (reporter_id),
+    KEY idx_message_reports_status (status, created_at),
+    CONSTRAINT fk_message_reports_message FOREIGN KEY (message_id) REFERENCES messages (id) ON DELETE CASCADE,
+    CONSTRAINT fk_message_reports_reporter FOREIGN KEY (reporter_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS blocks (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    blocker_id INT UNSIGNED NOT NULL,
+    blocked_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_blocks_pair (blocker_id, blocked_id),
+    KEY idx_blocks_blocked (blocked_id),
+    CONSTRAINT fk_blocks_blocker FOREIGN KEY (blocker_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_blocks_blocked FOREIGN KEY (blocked_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT chk_blocks_not_self CHECK (blocker_id <> blocked_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
 ];
 
@@ -476,6 +575,49 @@ async function ensureSocialColumns(targetPool) {
   await targetPool.query("UPDATE likes SET reaction_type = 'like' WHERE reaction_type IS NULL OR reaction_type = ''");
 }
 
+async function ensureMessagingColumns(targetPool) {
+  const addColumn = async (table, column, definition) => {
+    const [columns] = await targetPool.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+      [table]
+    );
+    const names = new Set(columns.map((row) => row.COLUMN_NAME));
+    if (!names.has(column)) {
+      await targetPool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  };
+
+  const ensureIndex = async (table, indexName, definition) => {
+    const [indexes] = await targetPool.query(
+      `SELECT INDEX_NAME FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+      [table]
+    );
+    const names = new Set(indexes.map((row) => row.INDEX_NAME));
+    if (!names.has(indexName)) {
+      await targetPool.query(`ALTER TABLE ${table} ADD INDEX ${indexName} ${definition}`);
+    }
+  };
+
+  await addColumn('notifications', 'conversation_id', 'INT UNSIGNED DEFAULT NULL');
+  await ensureIndex('notifications', 'idx_notifications_conversation', '(conversation_id)');
+
+  const [constraints] = await targetPool.query(
+    `SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND CONSTRAINT_TYPE = 'FOREIGN KEY'`
+  );
+  const constraintNames = new Set(constraints.map((row) => row.CONSTRAINT_NAME));
+  if (!constraintNames.has('fk_notifications_conversation')) {
+    await targetPool.query(
+      'ALTER TABLE notifications ADD CONSTRAINT fk_notifications_conversation FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE SET NULL'
+    );
+  }
+
+  await addColumn('users', 'last_seen_at', 'DATETIME DEFAULT NULL');
+  await ensureIndex('users', 'idx_users_last_seen', '(last_seen_at)');
+}
+
 async function initializeSchema(targetPool) {
   for (const statement of schemaStatements) {
     await targetPool.query(statement);
@@ -484,6 +626,7 @@ async function initializeSchema(targetPool) {
   await ensureCommentColumns(targetPool);
   await ensureArtworkImageColumns(targetPool);
   await ensureSocialColumns(targetPool);
+  await ensureMessagingColumns(targetPool);
 }
 
 async function initPool() {

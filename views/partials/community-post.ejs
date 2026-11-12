@@ -39,6 +39,12 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.4" /><circle cx="17.5" cy="5.5" r="2.4" /><circle cx="17.5" cy="18.5" r="2.4" /><path d="M8.3 10.9l7-4.2M8.3 13.1l7 4.2" /></svg>
         <span>Share</span>
       </button>
+      <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+        <button type="button" class="social-post-menu-item" role="menuitem" data-send-in-message data-share-id="<%= artwork.id %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 6.8c0-1.2 1-2.2 2.2-2.2h11.2c1.2 0 2.2 1 2.2 2.2v7.9c0 1.2-1 2.2-2.2 2.2H9.6l-4 3.6c-.5.4-1.2.1-1.2-.5L4.2 6.8Z" /><path d="M8.4 10.6h7.2M8.4 13.4h4.4" /></svg>
+          <span>Send in message</span>
+        </button>
+      <% } %>
       <% if (viewerIsOwner) { %>
         <button type="button" class="social-post-menu-item" role="menuitem" data-community-edit-toggle data-share-id="<%= shareId %>">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17l-1 3Z" /><path d="M13.5 7.5l3 3" /></svg>

@@ -10,7 +10,8 @@
     "dev:css": "tailwindcss -i ./src/tailwind.css -o ./public/css/book-slider-tailwind.css --watch",
     "seed": "node src/db/seed.js",
     "db:create": "node scripts/create-database.js",
-    "db:verify": "node scripts/verify-schema.js"
+    "db:verify": "node scripts/verify-schema.js",
+    "test:messaging": "node scripts/test-messaging.js"
   },
   "keywords": [
     "art",

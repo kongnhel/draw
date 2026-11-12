@@ -77,7 +77,7 @@
     const bgSceneValue = String(bgSceneSource || '').trim().toLowerCase();
     const bodyTitle = typeof pageTitle === 'string' ? pageTitle : '';
   %>
-  <body data-theme="dark" data-locale="<%= typeof locale !== 'undefined' ? locale : 'en' %>" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Login') || bodyTitle.includes('Register') ? 'auth-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Admin') ? 'admin-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %> <%= bodyTitle.includes('Community') ? 'community-body' : '' %> <%= bodyTitle.includes('Edit artwork') ? 'edit-body' : '' %>">
+    <body data-theme="dark" data-locale="<%= typeof locale !== 'undefined' ? locale : 'en' %>" class="<%= bodyTitle === 'ArtSpace | Discover original artwork' ? 'home-body' : '' %> <%= bodyTitle.includes('Login') || bodyTitle.includes('Register') ? 'auth-body' : '' %> <%= bodyTitle.includes('Dashboard') ? 'dashboard-body' : '' %> <%= bodyTitle.includes('Admin') ? 'admin-body' : '' %> <%= bodyTitle.includes('Upload') ? 'upload-body' : '' %> <%= bodyTitle.includes('Explore') ? 'explore-body' : '' %> <%= bodyTitle.includes('Community') ? 'community-body' : '' %> <%= bodyTitle.includes('Messages') ? 'messages-body' : '' %> <%= bodyTitle.includes('Edit artwork') ? 'edit-body' : '' %>">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <%- include('./intro') %>
     <div class="bg-falling" aria-hidden="true">
@@ -119,6 +119,9 @@
               <a href="/community">Community</a>
               <a href="/upload">Upload</a>
               <% if (isAuthenticated) { %>
+                <a href="/messages">Messages<% if (typeof unreadMessages !== 'undefined' && unreadMessages > 0) { %><span class="nav-badge nav-badge--inline" data-messages-badge aria-hidden="true"><%= unreadMessages > 9 ? '9+' : unreadMessages %></span><% } %></a>
+              <% } %>
+              <% if (isAuthenticated) { %>
                 <% if (currentUser && currentUser.role === 'admin') { %>
                   <a href="/admin">Admin</a>
                 <% } else { %>
@@ -156,6 +159,7 @@
                 </a>
                 <div class="nav-drawer-actions">
                   <a href="/notifications">Notifications</a>
+                  <a href="/messages">Messages</a>
                   <a href="/profile/edit">Settings</a>
                   <a href="/logout">Log out</a>
                 </div>
@@ -196,6 +200,11 @@
             </button>
 
             <% if (isAuthenticated) { %>
+              <a href="/messages" class="nav-icon-btn nav-messages" aria-label="Messages<%= typeof unreadMessages !== 'undefined' && unreadMessages > 0 ? ` (${unreadMessages} unread)` : '' %>" data-messages-link>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 6.8c0-1.2 1-2.2 2.2-2.2h11.2c1.2 0 2.2 1 2.2 2.2v7.9c0 1.2-1 2.2-2.2 2.2H9.6l-4 3.6c-.5.4-1.2.1-1.2-.5L4.2 6.8Z" /><path d="M8.4 10.6h7.2M8.4 13.4h4.4" /></svg>
+                <span class="nav-badge" data-messages-badge<%= typeof unreadMessages !== 'undefined' && unreadMessages > 0 ? '' : ' hidden' %> aria-hidden="true"><%= typeof unreadMessages !== 'undefined' && unreadMessages > 9 ? '9+' : (unreadMessages || 0) %></span>
+              </a>
+
               <div class="nav-notify-wrap" data-notifications-wrap>
                 <button type="button" class="nav-icon-btn nav-notify" data-notifications-toggle aria-haspopup="true" aria-expanded="false" aria-controls="notifications-panel" aria-label="Notifications<%= typeof unreadNotifications !== 'undefined' && unreadNotifications > 0 ? ` (${unreadNotifications} unread)` : '' %>">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10.2a5.5 5.5 0 0 1 11 0c0 4 1.4 5.4 2 6.1.3.4 0 .9-.5.9H5c-.5 0-.8-.5-.5-.9.6-.7 2-2.1 2-6.1Z" /><path d="M10.2 20a2 2 0 0 0 3.6 0" /></svg>
@@ -248,6 +257,10 @@
                   <a role="menuitem" href="/notifications">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 10.2a5.5 5.5 0 0 1 11 0c0 4 1.4 5.4 2 6.1.3.4 0 .9-.5.9H5c-.5 0-.8-.5-.5-.9.6-.7 2-2.1 2-6.1Z" /><path d="M10.2 20a2 2 0 0 0 3.6 0" /></svg>
                     Notifications
+                  </a>
+                  <a role="menuitem" href="/messages">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 6.8c0-1.2 1-2.2 2.2-2.2h11.2c1.2 0 2.2 1 2.2 2.2v7.9c0 1.2-1 2.2-2.2 2.2H9.6l-4 3.6c-.5.4-1.2.1-1.2-.5L4.2 6.8Z" /><path d="M8.4 10.6h7.2M8.4 13.4h4.4" /></svg>
+                    Messages
                   </a>
                   <% if (currentUser.role === 'admin') { %>
                     <a role="menuitem" href="/admin">

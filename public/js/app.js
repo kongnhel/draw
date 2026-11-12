@@ -1230,6 +1230,21 @@ const openShareDialog = (context) => {
   if (copyLabel) copyLabel.textContent = 'Copy link';
   const internalMessage = dialog.querySelector('[data-share-message]');
   if (internalMessage) internalMessage.value = '';
+  const hasArtwork = Boolean(context.id);
+  const internalSection = dialog.querySelector('[data-share-internal]');
+  if (internalSection) internalSection.hidden = !hasArtwork;
+  const messageSection = dialog.querySelector('[data-share-message-send]');
+  if (messageSection) messageSection.hidden = !hasArtwork;
+  const msgSearchInput = dialog.querySelector('[data-share-msg-user]');
+  const msgResultsEl = dialog.querySelector('[data-share-msg-results]');
+  const msgNoteEl = dialog.querySelector('[data-share-msg-note]');
+  if (msgSearchInput) msgSearchInput.value = '';
+  if (msgResultsEl) msgResultsEl.replaceChildren();
+  if (msgNoteEl) {
+    msgNoteEl.hidden = true;
+    msgNoteEl.textContent = '';
+    msgNoteEl.classList.remove('is-success', 'is-error');
+  }
   setShareNote(dialog, '');
 
   dialog.showModal();
@@ -1363,6 +1378,131 @@ const bindShareDialog = () => {
       internalButton.classList.remove('is-loading');
     }
   });
+
+  // ---------- Send artwork in a private message ----------
+  const msgSearch = dialog.querySelector('[data-share-msg-user]');
+  const msgResults = dialog.querySelector('[data-share-msg-results]');
+  const msgNote = dialog.querySelector('[data-share-msg-note]');
+  let msgSearchTimer = 0;
+  let msgSearchToken = 0;
+
+  const setMessageNote = (message, tone = '') => {
+    if (!msgNote) return;
+    msgNote.textContent = message || '';
+    msgNote.classList.remove('is-success', 'is-error');
+    if (tone) msgNote.classList.add(`is-${tone}`);
+    msgNote.hidden = !message;
+  };
+
+  const renderMsgUsers = (users) => {
+    if (!msgResults) return;
+    msgResults.replaceChildren();
+    if (!users.length) {
+      const empty = document.createElement('p');
+      empty.className = 'ad-share-msg-empty';
+      empty.textContent = 'No members found. Try another name.';
+      msgResults.appendChild(empty);
+      return;
+    }
+    users.forEach((user) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'ad-share-msg-user';
+      const avatar = document.createElement('img');
+      avatar.src = user.avatar || '/images/default-avatar.svg';
+      avatar.alt = '';
+      avatar.loading = 'lazy';
+      avatar.dataset.fallbackSrc = '/images/default-avatar.svg';
+      const copy = document.createElement('span');
+      copy.className = 'ad-share-msg-copy';
+      const name = document.createElement('strong');
+      name.textContent = user.display_name || user.username;
+      const handle = document.createElement('small');
+      handle.textContent = `@${user.username}`;
+      copy.append(name, handle);
+      const online = document.createElement('i');
+      online.className = `ad-share-msg-online${user.online ? ' is-online' : ''}`;
+      item.append(avatar, copy, online);
+      item.addEventListener('click', () => sendArtworkToUser(user));
+      msgResults.appendChild(item);
+    });
+  };
+
+  const sendArtworkToUser = async (user) => {
+    const context = shareDialogContext;
+    if (msgSearch?.dataset.busy === 'true') return;
+    if (!context || !context.id) {
+      setMessageNote('This share has no artwork attached.', 'error');
+      return;
+    }
+    if (msgSearch) {
+      msgSearch.dataset.busy = 'true';
+      msgSearch.disabled = true;
+    }
+    setMessageNote(`Sending to ${user.display_name || user.username}…`);
+    try {
+      const opened = await fetch('/api/messages/conversations', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+      if (opened.status === 401) {
+        setMessageNote('Log in to send artwork in a message.', 'error');
+        return;
+      }
+      const openedData = await opened.json().catch(() => null);
+      if (!opened.ok || !openedData?.ok || !openedData.conversation) {
+        throw new Error(openedData?.error || 'We could not open that conversation.');
+      }
+
+      const sent = await fetch(`/api/messages/conversations/${openedData.conversation.id}/messages`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+        body: JSON.stringify({ message_type: 'artwork', artwork_id: context.id })
+      });
+      const sentData = await sent.json().catch(() => null);
+      if (!sent.ok || !sentData?.ok) {
+        throw new Error(sentData?.error || 'We could not send that artwork.');
+      }
+
+      setMessageNote(`Sent to ${user.display_name || user.username}.`, 'success');
+      showPinToast(`Artwork sent to ${user.display_name || user.username}.`);
+      window.setTimeout(() => { if (dialog.open) dialog.close(); }, 900);
+    } catch (error) {
+      setMessageNote(error.message || 'We could not send that artwork.', 'error');
+    } finally {
+      if (msgSearch) {
+        msgSearch.dataset.busy = 'false';
+        msgSearch.disabled = false;
+      }
+    }
+  };
+
+  msgSearch?.addEventListener('input', () => {
+    window.clearTimeout(msgSearchTimer);
+    const token = ++msgSearchToken;
+    const query = (msgSearch.value || '').trim();
+    msgSearchTimer = window.setTimeout(async () => {
+      if (token !== msgSearchToken) return;
+      if (!query) {
+        renderMsgUsers([]);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/messages/users?q=${encodeURIComponent(query.slice(0, 60))}`, {
+          headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        });
+        if (token !== msgSearchToken) return;
+        const data = await response.json().catch(() => null);
+        renderMsgUsers((data?.users || []));
+      } catch (error) {
+        if (token === msgSearchToken) renderMsgUsers([]);
+      }
+    }, 220);
+  });
 };
 
 const buildShareContextFromButton = (button) => ({
@@ -1381,7 +1521,7 @@ const bindShareButtons = () => {
 
   document.addEventListener('click', async (event) => {
     const button = event.target instanceof Element
-      ? event.target.closest('[data-share-artwork]')
+      ? event.target.closest('button[data-share-artwork], a[data-share-artwork]')
       : null;
     if (!button || button.closest('[data-share-dialog]')) return;
 
@@ -1410,6 +1550,29 @@ const bindShareButtons = () => {
         const label = button.querySelector('[data-share-label]');
         if (label) label.textContent = 'Share unavailable';
       }
+    }
+  });
+  document.addEventListener('click', (event) => {
+    const messageButton = event.target instanceof Element
+      ? event.target.closest('[data-send-in-message]')
+      : null;
+    if (!messageButton) return;
+    event.preventDefault();
+
+    const shareButton = messageButton.closest('[data-post-menu]')?.querySelector('[data-share-artwork]');
+    const context = shareButton
+      ? buildShareContextFromButton(shareButton)
+      : buildShareContextFromButton(messageButton);
+    if (!context.id) return;
+
+    document.querySelectorAll('[data-post-menu]').forEach((menu) => { menu.hidden = true; });
+    document.querySelectorAll('[data-post-menu-toggle]').forEach((toggle) => toggle.setAttribute('aria-expanded', 'false'));
+
+    const dialogEl = getShareDialog();
+    if (!dialogEl) return;
+    if (openShareDialog(context)) {
+      const msgSearch = dialogEl.querySelector('[data-share-msg-user]');
+      if (msgSearch) msgSearch.focus({ preventScroll: true });
     }
   });
 };
@@ -5669,7 +5832,8 @@ const NOTIFICATION_ACTIONS = {
   comment_like: 'liked your comment',
   mention: 'mentioned you',
   share: 'shared your artwork',
-  follow: 'started following you'
+  follow: 'started following you',
+  message: 'sent you a private message'
 };
 
 const updateNotificationBadges = (unread) => {
@@ -5681,6 +5845,8 @@ const updateNotificationBadges = (unread) => {
     button.setAttribute('aria-label', unread > 0 ? `Notifications (${unread} unread)` : 'Notifications');
   });
 };
+
+window.updateNotificationBadges = updateNotificationBadges;
 
 const bindNotificationBell = () => {
   if (document.documentElement.dataset.notificationsBound === 'true') return;
@@ -5829,6 +5995,38 @@ const bindNotificationBell = () => {
       /* ignore polling errors */
     }
   }, 60000);
+};
+
+const updateMessagesBadges = (unread) => {
+  document.querySelectorAll('[data-messages-badge]').forEach((badge) => {
+    badge.textContent = unread > 9 ? '9+' : String(unread);
+    badge.hidden = !unread;
+  });
+};
+
+const bindMessagesBadgePolling = () => {
+  if (document.documentElement.dataset.messagesBadgeBound === 'true') return;
+  if (!document.querySelector('[data-messages-badge]')) return;
+  document.documentElement.dataset.messagesBadgeBound = 'true';
+
+  const poll = async () => {
+    try {
+      const response = await fetch('/api/messages/unread-count', {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data?.ok) updateMessagesBadges(Number(data.unread || 0));
+    } catch (error) {
+      /* ignore polling errors */
+    }
+  };
+
+  poll();
+  window.setInterval(() => {
+    if (!document.hidden) poll();
+  }, 45000);
 };
 
 const bindMentionAutocomplete = () => {
@@ -7058,6 +7256,7 @@ const initPage = () => {
   bindArtworkLightbox();
   bindArtworkReactions();
   bindNotificationBell();
+  bindMessagesBadgePolling();
   bindMentionAutocomplete();
   bindSocialPostMenu();
   bindCommunityFeed();

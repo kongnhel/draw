@@ -10,6 +10,12 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7.1 0l2.4-2.4a5 5 0 0 0-7.1-7.1L11 5.9" /><path d="M14 10a5 5 0 0 0-7.1 0L4.5 12.4a5 5 0 0 0 7.1 7.1L13 18.1" /></svg>
     <span>Copy link</span>
   </button>
+  <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+    <button type="button" class="social-post-menu-item" role="menuitem" data-send-in-message data-share-id="<%= artwork.id %>">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 6.8c0-1.2 1-2.2 2.2-2.2h11.2c1.2 0 2.2 1 2.2 2.2v7.9c0 1.2-1 2.2-2.2 2.2H9.6l-4 3.6c-.5.4-1.2.1-1.2-.5L4.2 6.8Z" /><path d="M8.4 10.6h7.2M8.4 13.4h4.4" /></svg>
+      <span>Send in message</span>
+    </button>
+  <% } %>
   <button type="button" class="social-post-menu-item" role="menuitem" data-share-artwork data-share-title="<%= artwork.title %>" data-share-text="<%= menuShareText %>" data-share-url="/art/<%= artwork.id %>" data-share-id="<%= artwork.id %>" data-share-image="<%= artwork.thumbnail_url || artwork.image_url %>" data-share-artist="<%= artwork.display_name || artwork.username %>" data-share-category="<%= artwork.category_name || '' %>">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.4" /><circle cx="17.5" cy="5.5" r="2.4" /><circle cx="17.5" cy="18.5" r="2.4" /><path d="M8.3 10.9l7-4.2M8.3 13.1l7 4.2" /></svg>
     <span>Share</span>
