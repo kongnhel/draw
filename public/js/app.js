@@ -6021,6 +6021,10 @@ const updateMessagesBadges = (unread) => {
     badge.textContent = unread > 9 ? '9+' : String(unread);
     badge.hidden = !unread;
   });
+
+  document.querySelectorAll('[data-messages-link]').forEach((link) => {
+    link.setAttribute('aria-label', unread > 0 ? `Messages (${unread} unread)` : 'Messages');
+  });
 };
 
 const bindMessagesBadgePolling = () => {

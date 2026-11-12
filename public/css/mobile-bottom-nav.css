@@ -166,3 +166,75 @@
     transition: none !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Artistic bottom navigation — pencil & paper details
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    border-top: 1px dashed var(--border, rgba(0,0,0,0.12));
+    background: color-mix(in srgb, var(--card, #fff) 94%, transparent);
+    box-shadow: 0 -8px 24px color-mix(in srgb, var(--text, #111) 7%, transparent);
+  }
+
+  .mbn-item {
+    border-radius: 5px 11px 6px 9px;
+  }
+
+  .mbn-icon {
+    transition: transform 180ms ease;
+  }
+
+  .mbn-item.is-active {
+    color: var(--secondary, #b89a72);
+  }
+
+  .mbn-item.is-active .mbn-icon {
+    transform: rotate(-5deg) scale(1.06);
+  }
+
+  .mbn-item.is-active::after {
+    bottom: 1px;
+    width: 18px;
+    height: 3px;
+    border-radius: 60% 40% 55% 45%;
+    background: var(--secondary, #b89a72);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--secondary, #b89a72) 35%, transparent);
+    transform: translateX(-50%) rotate(-2deg);
+  }
+
+  .mbn-item.is-active .mbn-label {
+    color: var(--secondary, #b89a72);
+    font-weight: 700;
+  }
+
+  .mbn-create-btn {
+    border: 1.5px dashed color-mix(in srgb, var(--secondary, #b89a72) 65%, var(--card, #fff));
+    background: var(--text, #111);
+    color: var(--bg, #fff);
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--text, #111) 12%, transparent), 0 10px 18px rgba(0, 0, 0, 0.16);
+    transform: rotate(-3deg);
+  }
+
+  .mbn-create-btn svg {
+    transform: rotate(-12deg);
+    transition: transform 200ms ease;
+  }
+
+  .mbn-item--create:active .mbn-create-btn {
+    transform: rotate(0) scale(0.94);
+  }
+
+  .mbn-item--create.is-active .mbn-create-btn {
+    background: var(--secondary, #b89a72);
+    color: var(--text, #111);
+    border-color: color-mix(in srgb, var(--text, #111) 35%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mbn-icon,
+  .mbn-create-btn svg {
+    transition: none !important;
+  }
+}

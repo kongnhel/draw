@@ -347,6 +347,10 @@
   line-height: 1;
 }
 
+.topbar .nav-badge[hidden] {
+  display: none;
+}
+
 .topbar .theme-icon-sun {
   display: none;
 }
@@ -1588,4 +1592,253 @@ body.nav-open {
 
   .topbar .nav-drawer-pref { gap: 8px; }
   .topbar .nav-drawer-pref-name { font-size: 0.8rem; }
+}
+
+/* ==========================================================================
+   Artistic navbar polish — sketchbook & gallery identity
+   (visual only: no layout, route, or behavior changes)
+   ========================================================================== */
+
+/* Hand-cut controls */
+.topbar .nav-icon-btn {
+  border-style: dashed;
+}
+
+.topbar .nav-icon-btn svg {
+  transition: transform 220ms ease;
+}
+
+.topbar .nav-icon-btn:hover svg {
+  transform: rotate(-7deg) scale(1.06);
+}
+
+.topbar .nav-icon-btn:active svg {
+  transform: rotate(3deg) scale(0.94);
+}
+
+.topbar .nav-badge {
+  box-shadow: 1px 1px 0 color-mix(in srgb, var(--text) 16%, transparent);
+  transform: rotate(5deg);
+}
+
+/* Search — pencil-ruled field */
+.topbar .nav-search {
+  border-radius: 13px 19px 15px 21px;
+}
+
+.topbar .nav-search:focus-within {
+  border-color: var(--secondary);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--secondary) 13%, transparent),
+    0 2px 0 color-mix(in srgb, var(--secondary) 34%, transparent);
+}
+
+/* Language — little artist stamp */
+.topbar .lang-switch {
+  border-style: dashed;
+  border-radius: 10px 16px 11px 15px;
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--secondary) 24%, transparent);
+  transform: rotate(-0.6deg);
+}
+
+.topbar .lang-switch .lang-option {
+  border-radius: 50% 45% 55% 48% / 48% 55% 45% 52%;
+}
+
+.topbar .lang-switch .lang-option.is-active {
+  color: var(--text);
+  background: var(--secondary);
+}
+
+.topbar .lang-switch .lang-sep {
+  opacity: 0.45;
+}
+
+/* Theme toggle — warm turn */
+.topbar .theme-toggle svg {
+  transition: transform 320ms ease;
+}
+
+.topbar .theme-toggle:hover svg {
+  transform: rotate(22deg) scale(1.05);
+}
+
+/* Upload — hand-torn paper tag with pencil underline */
+.topbar .nav-create-btn {
+  position: relative;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1.5px solid var(--text);
+  border-radius: 5px 16px 6px 13px;
+  background: var(--text);
+  color: var(--bg);
+  font-family: 'Caveat', 'Kantumruy Pro', 'Noto Sans Khmer', cursive;
+  font-size: 1.24rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 2px 3px 0 color-mix(in srgb, var(--secondary) 38%, transparent);
+  transform: rotate(-0.8deg);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.topbar .nav-create-btn::after {
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  left: 10px;
+  height: 4px;
+  content: "";
+  border-bottom: 1.5px solid color-mix(in srgb, var(--secondary) 82%, transparent);
+  border-radius: 50%;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.topbar .nav-create-btn svg {
+  width: 18px;
+  height: 18px;
+  transform: rotate(-12deg);
+  transition: transform 200ms ease;
+}
+
+.topbar .nav-create-btn:hover {
+  background: transparent;
+  color: var(--text);
+  box-shadow: 3px 5px 0 color-mix(in srgb, var(--secondary) 32%, transparent);
+  transform: translate(-1px, -2px) rotate(0.5deg);
+}
+
+.topbar .nav-create-btn:hover svg {
+  transform: rotate(4deg) scale(1.08);
+}
+
+.topbar .nav-create-btn:active {
+  box-shadow: 1px 2px 0 color-mix(in srgb, var(--secondary) 30%, transparent);
+  transform: translate(0, 0) rotate(-0.4deg) scale(0.98);
+}
+
+/* Profile chip — taped paper label */
+.topbar .profile-chip {
+  border-style: dashed;
+  border-radius: 12px 20px 13px 18px;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.topbar .profile-chip:hover,
+.topbar .nav-profile.is-open .profile-chip {
+  transform: rotate(-0.6deg);
+}
+
+.topbar .profile-chip img {
+  border: 1.5px solid color-mix(in srgb, var(--secondary) 55%, var(--border));
+}
+
+/* Desktop nav — ink underline lift */
+@media (min-width: 1024px) {
+  .topbar .nav-link-group a {
+    transition: color 180ms ease, transform 180ms ease;
+  }
+
+  .topbar .nav-link-group a:hover {
+    transform: translateY(-1px) rotate(-0.4deg);
+  }
+
+  .topbar .nav-link-group a.is-current::before {
+    border-radius: 62% 38% 55% 45%;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--secondary) 14%, transparent);
+  }
+}
+
+/* Drawer — sketchbook sections */
+@media (max-width: 1023px) {
+  .topbar .nav-drawer-brand-mark {
+    border-style: dashed;
+    border-radius: 5px 12px 6px 10px;
+    background: color-mix(in srgb, var(--secondary) 8%, transparent);
+    transform: rotate(-3deg);
+  }
+
+  .topbar .nav-drawer-label {
+    color: var(--secondary);
+    font-family: 'Caveat', 'Kantumruy Pro', 'Noto Sans Khmer', cursive;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+    transform: rotate(-0.7deg);
+    transform-origin: left center;
+  }
+
+  .topbar .nav-drawer-block {
+    border-top-style: dashed;
+  }
+
+  .topbar .nav-link-group a {
+    border-radius: 5px 12px 6px 10px;
+  }
+
+  .topbar .nav-link-group a.is-current {
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--secondary) 65%, transparent);
+  }
+
+  .topbar .nav-drawer-item-icon {
+    transition: transform 200ms ease, color 200ms ease;
+  }
+
+  .topbar .nav-link-group a:hover .nav-drawer-item-icon {
+    transform: rotate(-7deg) scale(1.06);
+  }
+
+  .topbar .nav-link-group a.is-current .nav-drawer-item-icon {
+    color: var(--secondary);
+  }
+
+  .topbar .lang-switch--drawer,
+  .topbar .theme-segmented {
+    border-style: dashed;
+    border-radius: 5px 12px 6px 10px;
+    box-shadow: 1px 2px 0 color-mix(in srgb, var(--secondary) 20%, transparent);
+  }
+
+  .topbar .lang-switch--drawer .lang-option.is-active,
+  .topbar .theme-seg-btn.is-active {
+    color: var(--text);
+    background: var(--secondary);
+    border-radius: 4px 9px 5px 8px;
+    box-shadow: 1px 1px 0 color-mix(in srgb, var(--text) 14%, transparent);
+    transform: rotate(-0.8deg);
+  }
+
+  .topbar .nav-drawer-profile {
+    border-style: dashed;
+    border-radius: 5px 14px 6px 12px;
+    background: color-mix(in srgb, var(--panel-strong) 46%, transparent);
+    box-shadow: 2px 3px 0 color-mix(in srgb, var(--secondary) 16%, transparent);
+  }
+
+  .topbar .nav-drawer-profile img {
+    border: 1.5px solid color-mix(in srgb, var(--secondary) 55%, var(--border));
+  }
+
+  .topbar .nav-drawer-links a svg,
+  .topbar .nav-drawer-logout svg,
+  .topbar .nav-drawer-admin-list a svg {
+    transition: transform 180ms ease, color 180ms ease;
+  }
+
+  .topbar .nav-drawer-links a:hover svg,
+  .topbar .nav-drawer-admin-list a:hover svg {
+    transform: rotate(-8deg);
+    color: var(--secondary);
+  }
+
+  .topbar .nav-drawer-categories a {
+    border-style: dashed;
+    border-radius: 4px 9px 5px 8px;
+  }
+
+  .topbar .nav-drawer-actions a {
+    border-style: dashed;
+    border-radius: 5px 13px 6px 11px;
+  }
 }

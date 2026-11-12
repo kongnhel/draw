@@ -21243,18 +21243,6 @@ body.auth-body .auth-register a:hover {
 :root[data-theme='light'] .theme-toggle .theme-icon-moon { display: none; }
 :root:not([data-theme='light']) .theme-toggle .theme-icon-moon { display: block; }
 :root:not([data-theme='light']) .theme-toggle .theme-icon-sun { display: none; }
-.profile-menu-theme {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: none;
-  border: 0;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
 @media (max-width: 767px) {
   .nav-links { display: none; }
   .nav-links.is-open { display: flex !important; }
