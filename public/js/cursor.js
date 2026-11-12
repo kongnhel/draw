@@ -105,7 +105,7 @@
   let lastDustAt = 0;
 
   const TEXT_ZONE_SELECTOR = 'input, textarea, select, option, [contenteditable="true"], [contenteditable=""]';
-  const NATIVE_ZONE_SELECTOR = '.art-viewer, .ie-overlay, .intro-overlay, dialog, [data-native-cursor]';
+  const NATIVE_ZONE_SELECTOR = '.art-viewer, .ie-overlay, .intro-overlay, .messenger-page, dialog, [data-native-cursor]';
   const IMAGE_ZONE_SELECTOR = '.ad-artwork-open, .art-card-media';
   const BUTTON_ZONE_SELECTOR = 'button, [role="button"], input[type="submit"], .btn, .action-btn, .category-pill';
   const ARTWORK_ZONE_SELECTOR = '.art-card';

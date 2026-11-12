@@ -1,32 +1,20 @@
 ﻿<%
   const mbnRawPath = typeof currentPath !== 'undefined' ? String(currentPath) : '/';
   const mbnPath = mbnRawPath.split('?')[0] || '/';
-  const mbnQuery = new URLSearchParams(mbnRawPath.split('?')[1] || '');
-  const mbnSavedTab = mbnPath.startsWith('/profile/') && mbnQuery.get('tab') === 'saved';
-  const mbnOnProfile = mbnPath === '/profile/edit' || mbnPath.startsWith('/profile/');
   const mbnUsername = typeof currentUser !== 'undefined' && currentUser ? currentUser.username : '';
-  const mbnSavedHref = isAuthenticated && mbnUsername
-    ? `/profile/${encodeURIComponent(mbnUsername)}?tab=saved`
-    : '/login';
+  const mbnIsAdmin = Boolean(isAuthenticated && currentUser && currentUser.role === 'admin');
   const mbnProfileHref = isAuthenticated && mbnUsername
     ? `/profile/${encodeURIComponent(mbnUsername)}`
     : '/login';
-  const mbnOwnSaved = Boolean(
-    isAuthenticated && mbnUsername && mbnSavedTab
-    && mbnPath === `/profile/${encodeURIComponent(mbnUsername)}`
-  );
-  const mbnIsAdmin = Boolean(isAuthenticated && currentUser && currentUser.role === 'admin');
   const mbnActive = {
     home: mbnPath === '/',
     explore: mbnPath.startsWith('/explore') || mbnPath.startsWith('/search'),
+    create: mbnPath.startsWith('/upload'),
     community: mbnPath.startsWith('/community'),
-    upload: mbnPath.startsWith('/upload'),
-    messages: mbnPath.startsWith('/messages'),
-    saved: mbnOwnSaved,
-    admin: mbnPath.startsWith('/admin'),
-    profile: mbnOnProfile && !mbnOwnSaved
+    profile: mbnPath === '/profile/edit' || (mbnPath.startsWith('/profile/') && (!mbnUsername || mbnPath === `/profile/${encodeURIComponent(mbnUsername)}` || !isAuthenticated)) || mbnPath.startsWith('/dashboard') || mbnPath.startsWith('/messages') || mbnPath.startsWith('/notifications') || mbnPath.startsWith('/admin')
   };
 %>
+<% if (!mbnIsAdmin) { %>
 <nav class="mobile-bottom-nav" data-mobile-bottom-nav aria-label="Mobile primary navigation">
   <a
     href="/"
@@ -34,7 +22,7 @@
     data-mbn-key="home"
     <%- mbnActive.home ? 'aria-current="page"' : '' %>
   >
-    <span class="mbn-icon-wrap" aria-hidden="true">
+    <span class="mbn-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.8v-6.2H9.8V21H5a1 1 0 0 1-1-1V10.5Z" /></svg>
     </span>
     <span class="mbn-label">Home</span>
@@ -46,10 +34,23 @@
     data-mbn-key="explore"
     <%- mbnActive.explore ? 'aria-current="page"' : '' %>
   >
-    <span class="mbn-icon-wrap" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" /><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9 4.9-2.1Z" /></svg>
+    <span class="mbn-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
     </span>
     <span class="mbn-label">Explore</span>
+  </a>
+
+  <a
+    href="/upload"
+    class="mbn-item mbn-item--create<%= mbnActive.create ? ' is-active' : '' %>"
+    data-mbn-key="create"
+    aria-label="Create artwork"
+    <%- mbnActive.create ? 'aria-current="page"' : '' %>
+  >
+    <span class="mbn-create-btn" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+    </span>
+    <span class="mbn-label">Create</span>
   </a>
 
   <a
@@ -58,63 +59,11 @@
     data-mbn-key="community"
     <%- mbnActive.community ? 'aria-current="page"' : '' %>
   >
-    <span class="mbn-icon-wrap" aria-hidden="true">
+    <span class="mbn-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.2" /><path d="M2.8 19c.6-3 2.9-4.6 6.2-4.6s5.6 1.6 6.2 4.6" /><circle cx="17" cy="10" r="2.6" /><path d="M15.6 14.6c2.9-.3 5 1 5.6 3.6" /></svg>
     </span>
     <span class="mbn-label">Community</span>
   </a>
-
-  <a
-    href="/upload"
-    class="mbn-item mbn-item--upload<%= mbnActive.upload ? ' is-active' : '' %>"
-    data-mbn-key="upload"
-    aria-label="Upload artwork"
-    <%- mbnActive.upload ? 'aria-current="page"' : '' %>
-  >
-    <span class="mbn-icon-wrap mbn-upload-mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="m4 20 2.4-7L16 3.4l4.6 4.6L11 17.6 4 20Z" /><path d="m14 6 4 4M6.4 17.6l4 4" /></svg>
-    </span>
-    <span class="mbn-label">Upload</span>
-  </a>
-
-  <a
-    href="<%= isAuthenticated ? '/messages' : '/login' %>"
-    class="mbn-item<%= mbnActive.messages ? ' is-active' : '' %>"
-    data-mbn-key="messages"
-    <%- mbnActive.messages ? 'aria-current="page"' : '' %>
-  >
-    <span class="mbn-icon-wrap" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M4.2 6.8c0-1.2 1-2.2 2.2-2.2h11.2c1.2 0 2.2 1 2.2 2.2v7.9c0 1.2-1 2.2-2.2 2.2H9.6l-4 3.6c-.5.4-1.2.1-1.2-.5L4.2 6.8Z" /><path d="M8.4 10.6h7.2M8.4 13.4h4.4" /></svg>
-    </span>
-    <span class="mbn-label">Messages</span>
-    <span class="nav-badge mbn-badge" data-messages-badge<%= isAuthenticated && typeof unreadMessages !== 'undefined' && unreadMessages > 0 ? '' : ' hidden' %> aria-hidden="true"><%= isAuthenticated && typeof unreadMessages !== 'undefined' ? (unreadMessages > 9 ? '9+' : unreadMessages) : 0 %></span>
-  </a>
-
-  <a
-    href="<%= mbnSavedHref %>"
-    class="mbn-item<%= mbnActive.saved ? ' is-active' : '' %>"
-    data-mbn-key="saved"
-    <%- mbnActive.saved ? 'aria-current="page"' : '' %>
-  >
-    <span class="mbn-icon-wrap" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M20.8 5.8a5.4 5.4 0 0 0-7.7 0L12 7l-1.1-1.2a5.4 5.4 0 1 0-7.7 7.7L12 22l8.8-8.5a5.4 5.4 0 0 0 0-7.7Z" /></svg>
-    </span>
-    <span class="mbn-label">Saved</span>
-  </a>
-
-  <% if (mbnIsAdmin) { %>
-  <a
-    href="/admin"
-    class="mbn-item<%= mbnActive.admin ? ' is-active' : '' %>"
-    data-mbn-key="admin"
-    <%- mbnActive.admin ? 'aria-current="page"' : '' %>
-  >
-    <span class="mbn-icon-wrap" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="m12 3.5 7 3v5c0 4.3-2.9 7.3-7 9-4.1-1.7-7-4.7-7-9v-5l7-3Z" /><path d="m9 12 2 2 4-4.5" /></svg>
-    </span>
-    <span class="mbn-label">Admin</span>
-  </a>
-  <% } %>
 
   <a
     href="<%= mbnProfileHref %>"
@@ -122,10 +71,11 @@
     data-mbn-key="profile"
     <%- mbnActive.profile ? 'aria-current="page"' : '' %>
   >
-    <span class="mbn-icon-wrap" aria-hidden="true">
+    <span class="mbn-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6" /><path d="M5.2 20c.7-3.5 3.3-5.4 6.8-5.4s6.1 1.9 6.8 5.4" /></svg>
     </span>
     <span class="mbn-label">Profile</span>
   </a>
 </nav>
+<% } %>
 

@@ -1,7 +1,7 @@
 const root = document.documentElement;
 const assetVersion = document.querySelector('meta[name="asset-version"]')?.content || '';
 const versionedAsset = (url) => (assetVersion ? `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(assetVersion)}` : url);
-const toggleButton = document.querySelector('.theme-toggle');
+const getThemeToggles = () => Array.from(document.querySelectorAll('.theme-toggle'));
 const themeStorageKey = 'artspace-sketchbook-theme';
 
 try {
@@ -63,16 +63,24 @@ const runPageCleanups = () => {
 const applyTheme = (theme) => {
   const safeTheme = theme === 'light' ? 'light' : 'dark';
   root.setAttribute('data-theme', safeTheme);
-  localStorage.setItem(themeStorageKey, safeTheme);
+  try { localStorage.setItem(themeStorageKey, safeTheme); } catch (error) {}
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', safeTheme === 'light' ? '#f8f5ed' : '#171717');
 
-  if (toggleButton) {
-    toggleButton.setAttribute('aria-label', safeTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
-    toggleButton.title = safeTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
-  }
+  const label = safeTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+  getThemeToggles().forEach((button) => {
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.setAttribute('aria-pressed', String(safeTheme === 'light'));
+  });
+
+  document.querySelectorAll('[data-theme-set]').forEach((button) => {
+    const isActive = button.getAttribute('data-theme-set') === safeTheme;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
 };
 
-applyTheme(localStorage.getItem(themeStorageKey) || 'dark');
+applyTheme(localStorage.getItem(themeStorageKey) || root.getAttribute('data-theme') || 'dark');
 
 const setActionLabel = (button, text) => {
   const label = button?.querySelector('[data-action-label]');
@@ -3474,12 +3482,22 @@ const bindArtViewer = () => {
   viewer.addEventListener('close', clearViewer);
 };
 
-if (toggleButton) {
-  toggleButton.addEventListener('click', () => {
+document.addEventListener('click', (event) => {
+  if (!(event.target instanceof Element)) return;
+
+  const setter = event.target.closest('[data-theme-set]');
+  if (setter) {
+    const nextTheme = setter.getAttribute('data-theme-set');
+    if (nextTheme === 'light' || nextTheme === 'dark') applyTheme(nextTheme);
+    return;
+  }
+
+  const toggle = event.target.closest('.theme-toggle');
+  if (toggle) {
     const nextTheme = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     applyTheme(nextTheme);
-  });
-}
+  }
+});
 
 bindArtViewer();
 
@@ -5852,11 +5870,10 @@ const bindNotificationBell = () => {
   if (document.documentElement.dataset.notificationsBound === 'true') return;
   document.documentElement.dataset.notificationsBound = 'true';
 
-  const wrap = document.querySelector('[data-notifications-wrap]');
-  const toggle = wrap?.querySelector('[data-notifications-toggle]');
-  const panel = wrap?.querySelector('[data-notifications-panel]');
-  const list = wrap?.querySelector('[data-notifications-list]');
-  if (!wrap || !toggle || !panel || !list) return;
+  const panel = document.querySelector('[data-notifications-panel]');
+  const list = panel?.querySelector('[data-notifications-list]');
+  const toggles = Array.from(document.querySelectorAll('[data-notifications-toggle]'));
+  if (!panel || !list || !toggles.length) return;
 
   const renderItem = (item) => {
     const link = document.createElement('a');
@@ -5947,28 +5964,30 @@ const bindNotificationBell = () => {
 
   const closePanel = () => {
     panel.hidden = true;
-    toggle.setAttribute('aria-expanded', 'false');
+    toggles.forEach((toggle) => toggle.setAttribute('aria-expanded', 'false'));
   };
 
-  toggle.addEventListener('click', async (event) => {
-    event.preventDefault();
-    const willOpen = panel.hidden;
-    if (!willOpen) {
-      closePanel();
-      return;
-    }
-    panel.hidden = false;
-    toggle.setAttribute('aria-expanded', 'true');
-    await loadPanel();
+  toggles.forEach((toggle) => {
+    toggle.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const willOpen = panel.hidden;
+      if (!willOpen) {
+        closePanel();
+        return;
+      }
+      panel.hidden = false;
+      toggles.forEach((t) => t.setAttribute('aria-expanded', 'true'));
+      await loadPanel();
+    });
   });
 
   document.addEventListener('click', (event) => {
     if (!(event.target instanceof Element)) return;
-    if (event.target.closest('[data-notifications-wrap]')) return;
+    if (event.target.closest('[data-notifications-toggle]') || event.target.closest('[data-notifications-panel]')) return;
     if (!panel.hidden) closePanel();
   });
 
-  wrap.querySelector('[data-notifications-read-all]')?.addEventListener('click', async () => {
+  panel.querySelector('[data-notifications-read-all]')?.addEventListener('click', async () => {
     try {
       await fetch('/api/notifications/read-all', {
         method: 'POST',

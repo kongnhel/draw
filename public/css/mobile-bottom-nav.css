@@ -1,259 +1,168 @@
-/* ==========================================================================
-   Mobile primary navigation - a small sheet of sketchbook paper
-   ========================================================================== */
+/* Mobile bottom navigation - ArtSpace (5 destinations) */
 
 .mobile-bottom-nav {
   display: none;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 767px) {
   .mobile-bottom-nav {
-    --mbn-paper: #f7f1e4;
-    --mbn-paper-deep: #eee4d3;
-    --mbn-ink: #2b322c;
-    --mbn-muted: #756a59;
-    --mbn-accent: #a95b43;
-    --mbn-line: rgba(83, 65, 43, 0.22);
-    --mbn-line-strong: rgba(83, 65, 43, 0.36);
-
     position: fixed;
-    right: auto;
-    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-    left: 50%;
-    z-index: 95;
-    width: min(540px, calc(100vw - 18px));
-    min-height: 62px;
-    overflow: hidden;
-    padding: 5px 7px;
-    border: 1px solid var(--mbn-line);
-    border-radius: 9px 14px 8px 12px;
-    color: var(--mbn-ink);
-    background-color: var(--mbn-paper);
-    background-image:
-      url("/images/paper-grain.svg"),
-      linear-gradient(180deg, #faf5e9 0%, #f5edde 62%, #eee3d1 100%);
-    background-repeat: repeat, no-repeat;
-    background-size: 180px 180px, auto;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.62) inset,
-      0 10px 26px rgba(31, 24, 16, 0.24);
-    transform: translateX(-50%);
-    transition: transform 220ms ease, opacity 180ms ease, visibility 180ms ease;
-    isolation: isolate;
-  }
-
-  .mobile-bottom-nav::before {
-    position: absolute;
-    inset: 4px;
-    z-index: -1;
-    border: 1px dashed rgba(105, 83, 54, 0.14);
-    border-radius: 6px 10px 5px 9px;
-    content: "";
-    pointer-events: none;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 120;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: end;
+    gap: 2px;
+    min-height: calc(64px + env(safe-area-inset-bottom));
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border, rgba(0,0,0,0.08));
+    background: color-mix(in srgb, var(--card, #fff) 92%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 
   .mbn-item {
     position: relative;
     display: flex;
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 50px;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
-    gap: 1px;
-    padding: 4px 1px 5px;
-    border-radius: 4px 7px 4px 6px;
-    color: var(--mbn-muted);
-    font-family: 'Kantumruy Pro', 'Inter', sans-serif;
-    text-align: center;
+    gap: 3px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 4px 2px;
+    color: var(--muted, #6b7280);
     text-decoration: none;
+    border-radius: 12px;
+    transition: color 0.18s ease, background 0.18s ease;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    transition: color 160ms ease, background 160ms ease, transform 160ms ease;
-  }
-
-  .mbn-item::after {
-    position: absolute;
-    bottom: 1px;
-    left: 50%;
-    width: 18px;
-    height: 5px;
-    border-bottom: 1.5px solid var(--mbn-accent);
-    border-radius: 50%;
-    content: "";
-    opacity: 0;
-    transform: translateX(-50%) rotate(-2deg) scaleX(0.35);
-    transition: opacity 170ms ease, transform 170ms ease;
-  }
-
-  .mbn-icon-wrap {
-    display: grid;
-    width: 25px;
-    height: 24px;
-    place-items: center;
-    transition: transform 160ms ease, color 160ms ease;
-  }
-
-  .mbn-icon-wrap svg {
-    display: block;
-    width: 21px;
-    height: 21px;
-    fill: none;
-    stroke: currentColor;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 1.65;
-    transition: stroke-width 160ms ease;
-  }
-
-  .mbn-label {
-    max-width: 100%;
-    overflow: hidden;
-    color: inherit;
-    font-size: 0.54rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    line-height: 1.1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .mbn-item:active {
-    transform: translateY(1px) scale(0.98);
+    background: color-mix(in srgb, var(--text, #111) 6%, transparent);
   }
 
-  .mbn-item:active .mbn-icon-wrap {
-    transform: translateY(1px) scale(0.94);
+  .mbn-icon {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+  }
+
+  .mbn-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .mbn-label {
+    font-size: 0.64rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.01em;
   }
 
   .mbn-item.is-active {
-    color: var(--mbn-ink);
+    color: var(--text, #111);
   }
 
-  .mbn-item.is-active .mbn-icon-wrap svg {
-    stroke-width: 2.15;
-  }
-
-  .mbn-item.is-active .mbn-label {
-    color: var(--mbn-ink);
-    font-weight: 700;
+  .mbn-item.is-active .mbn-icon svg {
+    stroke-width: 2.1;
   }
 
   .mbn-item.is-active::after {
-    opacity: 1;
-    transform: translateX(-50%) rotate(-2deg) scaleX(1);
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    width: 16px;
+    height: 3px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: var(--secondary, #b89a72);
   }
 
-  .mbn-item:focus-visible {
-    outline: 2px solid var(--mbn-accent);
-    outline-offset: 1px;
+  .mbn-item--create {
+    color: var(--text, #111);
+    margin-top: -18px;
   }
 
-  .mbn-item--upload {
-    color: var(--mbn-ink);
+  .mbn-item--create::after {
+    bottom: -2px;
   }
 
-  .mbn-upload-mark {
-    width: 31px;
-    height: 31px;
-    margin-top: -1px;
-    border: 1px dashed var(--mbn-line-strong);
-    border-radius: 3px 6px 3px 5px;
-    background: rgba(255, 252, 245, 0.72);
-    box-shadow: 1px 2px 0 rgba(83, 65, 43, 0.08);
-    transform: rotate(-2deg);
+  .mbn-create-btn {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--text, #111);
+    color: var(--bg, #fff);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    border: 3px solid var(--card, #fff);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
   }
 
-  .mbn-upload-mark svg {
-    width: 17px;
-    height: 17px;
-    color: var(--mbn-accent);
-    stroke-width: 1.8;
+  .mbn-create-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
   }
 
-  .mbn-item--upload:active .mbn-upload-mark {
-    transform: rotate(1deg) translateY(1px) scale(0.95);
+  .mbn-item--create:active .mbn-create-btn {
+    transform: scale(0.96);
   }
 
-  .mbn-item--upload.is-active .mbn-upload-mark {
-    border-color: var(--mbn-ink);
-    background: var(--mbn-ink);
-    box-shadow: 1px 2px 0 rgba(43, 50, 44, 0.18);
-  }
-
-  .mbn-item--upload.is-active .mbn-upload-mark svg {
-    color: var(--mbn-paper);
+  .mbn-item--create.is-active .mbn-create-btn {
+    background: var(--secondary, #b89a72);
   }
 
   body.nav-open .mobile-bottom-nav,
   body.art-viewer-open .mobile-bottom-nav,
   body.ae-modal-open .mobile-bottom-nav,
-  body.studio-dialog-open .mobile-bottom-nav,
-  body.mobile-keyboard-open .mobile-bottom-nav {
+  body.mobile-keyboard-open .mobile-bottom-nav,
+  body.ad-lightbox-open .mobile-bottom-nav {
     visibility: hidden;
-    opacity: 0;
     pointer-events: none;
-    transform: translate(-50%, 18px);
-  }
-}
-
-/* Touch devices only: phones/tablets get the bottom bar, desktop keeps the drawer. */
-@media (max-width: 1080px) and (pointer: coarse) and (hover: none) {
-  body {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   }
 
-  .mobile-bottom-nav {
-    display: flex !important;
+  /* prevent content hidden behind bottom nav */
+  .page-shell {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
-  .topbar .nav-links .nav-link-group {
-    display: none;
+  .site-footer {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
   }
-}
 
-/* Any mouse / fine pointer means PC: never show the bottom bar. */
-@media (hover: hover) and (pointer: fine), (any-pointer: fine) {
-  .mobile-bottom-nav {
-    display: none !important;
+  .messenger-page {
+    /* keep messages usable above bottom nav */
   }
 }
 
 @media (max-width: 360px) {
-  .mobile-bottom-nav {
-    width: calc(100vw - 12px);
-    min-height: 58px;
-    padding-inline: 5px;
-  }
-
-  .mbn-item {
-    min-height: 48px;
-  }
-
-  .mbn-icon-wrap svg {
-    width: 20px;
-    height: 20px;
-  }
-
   .mbn-label {
-    font-size: 0.5rem;
+    font-size: 0.6rem;
   }
-
-  .mbn-upload-mark {
-    width: 29px;
-    height: 29px;
+  .mbn-create-btn {
+    width: 48px;
+    height: 48px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mobile-bottom-nav,
   .mbn-item,
-  .mbn-icon-wrap,
-  .mbn-icon-wrap svg,
-  .mbn-item::after,
-  .mbn-upload-mark {
+  .mbn-create-btn {
     transition: none !important;
-    animation: none !important;
   }
 }

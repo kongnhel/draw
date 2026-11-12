@@ -116,6 +116,25 @@ body.pencil-on [data-native-cursor] * {
   cursor: auto !important;
 }
 
+body.pencil-on .messenger-page,
+body.pencil-on .messenger-page * {
+  cursor: auto !important;
+}
+
+body.pencil-on .messenger-page button,
+body.pencil-on .messenger-page a[href],
+body.pencil-on .messenger-page [role="button"],
+body.pencil-on .messenger-page label,
+body.pencil-on .messenger-page .msc-image-msg img {
+  cursor: pointer !important;
+}
+
+body.pencil-on .messenger-page input:not([type="file"]),
+body.pencil-on .messenger-page textarea,
+body.pencil-on .messenger-page [contenteditable="true"] {
+  cursor: text !important;
+}
+
 body.pencil-on dialog,
 body.pencil-on dialog * {
   cursor: auto !important;

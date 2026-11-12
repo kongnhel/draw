@@ -2,17 +2,19 @@
   const topbar = document.querySelector('[data-topbar]');
   if (!topbar) return;
 
-  const mobileQuery = window.matchMedia('(max-width: 1080px)');
+  const mobileQuery = window.matchMedia('(max-width: 767px)');
+  const tabletDrawerQuery = window.matchMedia('(max-width: 1023px)');
   const nav = topbar.querySelector('#primary-nav');
-  const navToggle = topbar.querySelector('[data-nav-toggle]');
+  const navToggles = Array.from(topbar.querySelectorAll('[data-nav-toggle]'));
+  const navToggle = navToggles[0] || null;
   const navClose = topbar.querySelector('[data-nav-close]');
   const backdrop = topbar.querySelector('[data-nav-backdrop]');
-  const profileWrap = topbar.querySelector('[data-profile-menu-wrap]');
-  const profileButton = topbar.querySelector('[data-profile-menu-button]');
+  const profileWraps = Array.from(topbar.querySelectorAll('[data-profile-menu-wrap]'));
+  const profileButtons = Array.from(topbar.querySelectorAll('[data-profile-menu-button]'));
   const profileMenu = topbar.querySelector('[data-profile-menu]');
   const searchForm = topbar.querySelector('[data-nav-search]');
   const searchInput = topbar.querySelector('#nav-search-input');
-  const searchToggle = topbar.querySelector('[data-search-toggle]');
+  const searchToggles = Array.from(topbar.querySelectorAll('[data-search-toggle]'));
   const searchClear = topbar.querySelector('[data-search-clear]');
   const navInk = topbar.querySelector('[data-nav-ink]');
   const bottomNav = document.querySelector('[data-mobile-bottom-nav]');
@@ -25,24 +27,19 @@
     if (!bottomNav) return;
 
     const path = window.location.pathname;
-    const params = new URLSearchParams(window.location.search);
-    const savedLink = bottomNav.querySelector('[data-mbn-key="saved"]');
-    const savedAvailable = Boolean(savedLink?.getAttribute('href')?.includes('tab=saved'));
     const ownProfilePath = currentUsername ? `/profile/${encodeURIComponent(currentUsername)}` : '';
-    const savedActive = Boolean(
-      savedAvailable
-      && path.startsWith('/profile/')
-      && params.get('tab') === 'saved'
-      && ownProfilePath
-      && path === ownProfilePath
-    );
     const active = {
       home: path === '/',
       explore: path.startsWith('/explore') || path.startsWith('/search'),
-      upload: path.startsWith('/upload'),
-      messages: path.startsWith('/messages'),
-      saved: savedActive,
-      profile: (path === '/profile/edit' || path.startsWith('/profile/')) && !savedActive
+      create: path.startsWith('/upload'),
+      community: path.startsWith('/community'),
+      profile:
+        path === '/profile/edit'
+        || path.startsWith('/dashboard')
+        || path.startsWith('/messages')
+        || path.startsWith('/notifications')
+        || path.startsWith('/admin')
+        || (path.startsWith('/profile/') && (!ownProfilePath || path === ownProfilePath))
     };
 
     bottomNav.querySelectorAll('[data-mbn-key]').forEach((item) => {
@@ -83,7 +80,7 @@
   const updateNavIndicator = () => {
     if (!navInk) return;
     const currentLink = nav?.querySelector('.nav-link-group a.is-current');
-    if (!currentLink || mobileQuery.matches || nav?.classList.contains('is-open')) {
+    if (!currentLink || tabletDrawerQuery.matches || nav?.classList.contains('is-open')) {
       navInk.classList.remove('is-visible');
       return;
     }
@@ -93,12 +90,14 @@
   };
 
   const setDrawerState = (open, restoreFocus = true) => {
-    if (!nav || !navToggle) return;
+    if (!nav) return;
 
     nav.classList.toggle('is-open', open);
-    navToggle.setAttribute('aria-expanded', String(open));
-    navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
-    document.body.classList.toggle('nav-open', open && mobileQuery.matches);
+    navToggles.forEach((toggle) => {
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    });
+    document.body.classList.toggle('nav-open', open && tabletDrawerQuery.matches);
     updateNavIndicator();
 
     if (open) {
@@ -120,9 +119,11 @@
       nav?.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])') || []
     ).filter((element) => element.getClientRects().length > 0);
 
-  navToggle?.addEventListener('click', () => {
-    const isOpen = nav?.classList.contains('is-open');
-    setDrawerState(!isOpen);
+  navToggles.forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      const isOpen = nav?.classList.contains('is-open');
+      setDrawerState(!isOpen);
+    });
   });
 
   navClose?.addEventListener('click', () => setDrawerState(false));
@@ -131,40 +132,42 @@
   nav?.addEventListener('click', (event) => {
     if (!(event.target instanceof Element)) return;
     const link = event.target.closest('a');
-    if (link && nav.classList.contains('is-open') && mobileQuery.matches) {
+    if (link && nav.classList.contains('is-open') && tabletDrawerQuery.matches) {
       setDrawerState(false, false);
     }
   });
 
   const setProfileOpen = (open) => {
-    if (!profileWrap || !profileButton || !profileMenu) return;
+    if (!profileMenu) return;
 
-    profileWrap.classList.toggle('is-open', open);
-    profileButton.setAttribute('aria-expanded', String(open));
+    profileWraps.forEach((wrap) => wrap.classList.toggle('is-open', open));
+    profileButtons.forEach((button) => button.setAttribute('aria-expanded', String(open)));
     profileMenu.setAttribute('aria-hidden', String(!open));
   };
 
   const closeProfileMenu = (restoreFocus = true) => {
-    const wasOpen = profileWrap?.classList.contains('is-open');
+    const wasOpen = profileWraps.some((wrap) => wrap.classList.contains('is-open'));
     setProfileOpen(false);
-    if (wasOpen && restoreFocus) profileButton?.focus({ preventScroll: true });
+    if (wasOpen && restoreFocus) profileButtons[0]?.focus({ preventScroll: true });
   };
 
   const menuItems = () => Array.from(profileMenu?.querySelectorAll('[role="menuitem"]') || []);
 
-  profileButton?.addEventListener('click', () => {
-    const willOpen = !profileWrap.classList.contains('is-open');
-    if (willOpen) setSearchOpen(false, false);
-    setProfileOpen(willOpen);
-  });
+  profileButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const willOpen = !profileWraps.some((wrap) => wrap.classList.contains('is-open'));
+      if (willOpen) setSearchOpen(false, false);
+      setProfileOpen(willOpen);
+    });
 
-  profileButton?.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-    event.preventDefault();
-    setProfileOpen(true);
-    const items = menuItems();
-    if (!items.length) return;
-    (event.key === 'ArrowDown' ? items[0] : items[items.length - 1]).focus();
+    button.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      event.preventDefault();
+      setProfileOpen(true);
+      const items = menuItems();
+      if (!items.length) return;
+      (event.key === 'ArrowDown' ? items[0] : items[items.length - 1]).focus();
+    });
   });
 
   profileMenu?.addEventListener('keydown', (event) => {
@@ -202,8 +205,10 @@
 
   const setSearchOpen = (open, focusInput = true) => {
     topbar.classList.toggle('is-search-open', Boolean(open));
-    searchToggle?.setAttribute('aria-expanded', String(Boolean(open)));
-    searchToggle?.setAttribute('aria-label', open ? 'Close search' : 'Open search');
+    searchToggles.forEach((toggle) => {
+      toggle.setAttribute('aria-expanded', String(Boolean(open)));
+      toggle.setAttribute('aria-label', open ? 'Close search' : 'Open search');
+    });
 
     if (open) {
       closeProfileMenu(false);
@@ -220,8 +225,10 @@
     if (searchClear && searchInput) searchClear.hidden = searchInput.value.length === 0;
   };
 
-  searchToggle?.addEventListener('click', () => {
-    setSearchOpen(!topbar.classList.contains('is-search-open'));
+  searchToggles.forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      setSearchOpen(!topbar.classList.contains('is-search-open'));
+    });
   });
 
   searchInput?.addEventListener('input', syncSearchClear);
@@ -244,9 +251,11 @@
     }
   });
 
+  const anyProfileOpen = () => profileWraps.some((wrap) => wrap.classList.contains('is-open'));
+
   document.addEventListener('click', (event) => {
     if (!(event.target instanceof Node)) return;
-    if (profileWrap?.classList.contains('is-open') && !profileWrap.contains(event.target)) {
+    if (anyProfileOpen() && !profileWraps.some((wrap) => wrap.contains(event.target))) {
       setProfileOpen(false);
     }
   });
@@ -254,7 +263,7 @@
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
 
-    if (profileWrap?.classList.contains('is-open')) {
+    if (anyProfileOpen()) {
       event.preventDefault();
       closeProfileMenu();
       return;
@@ -269,7 +278,7 @@
     if (topbar.classList.contains('is-search-open')) {
       event.preventDefault();
       setSearchOpen(false, false);
-      searchToggle?.focus({ preventScroll: true });
+      searchToggles[0]?.focus({ preventScroll: true });
     }
   });
 
@@ -293,21 +302,25 @@
   });
 
   const handleViewportChange = () => {
-    if (!mobileQuery.matches) {
+    if (!tabletDrawerQuery.matches) {
       if (nav?.classList.contains('is-open')) setDrawerState(false, false);
-      document.body.classList.remove('nav-open', 'mobile-keyboard-open');
+      document.body.classList.remove('nav-open');
       topbar.classList.remove('is-search-open');
-      searchToggle?.setAttribute('aria-expanded', 'false');
-      searchToggle?.setAttribute('aria-label', 'Open search');
+      searchToggles.forEach((toggle) => {
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Open search');
+      });
+    }
+    if (!mobileQuery.matches) {
+      document.body.classList.remove('mobile-keyboard-open');
     }
     updateNavIndicator();
   };
 
-  if (typeof mobileQuery.addEventListener === 'function') {
-    mobileQuery.addEventListener('change', handleViewportChange);
-  } else if (typeof mobileQuery.addListener === 'function') {
-    mobileQuery.addListener(handleViewportChange);
-  }
+  [mobileQuery, tabletDrawerQuery].forEach((query) => {
+    if (typeof query.addEventListener === 'function') query.addEventListener('change', handleViewportChange);
+    else if (typeof query.addListener === 'function') query.addListener(handleViewportChange);
+  });
 
   const handleScroll = () => {
     topbar.classList.toggle('is-scrolled', window.scrollY > 8);

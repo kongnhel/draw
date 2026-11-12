@@ -659,7 +659,7 @@ body.nav-open {
   }
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1023px) {
   :root .topbar,
   :root[data-theme='dark'] .topbar,
   :root[data-theme='dark'] body.home-body .topbar,
@@ -1113,7 +1113,7 @@ body.nav-open {
 
 
 /* Mid-size desktop navbar: fold the search into a toggle so the links breathe */
-@media (min-width: 1081px) {
+@media (min-width: 1024px) {
   .topbar .nav-wrap {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "brand links actions";
@@ -1164,7 +1164,7 @@ body.nav-open {
 }
 
 /* Slightly tighter English nav on the smallest desktop widths */
-@media (min-width: 1081px) and (max-width: 1240px) {
+@media (min-width: 1024px) and (max-width: 1240px) {
   .topbar .nav-link-group a {
     padding-inline: 9px;
     font-size: 1.28rem;
@@ -1172,7 +1172,7 @@ body.nav-open {
 }
 
 /* Khmer labels are wider than English */
-@media (min-width: 1081px) {
+@media (min-width: 1024px) {
   body[data-locale='km'] .topbar .nav-link-group a {
     padding-inline: 8px;
     font-size: 1.08rem;
@@ -1188,8 +1188,404 @@ body.nav-open {
 }
 
 /* Touch phones use the bottom nav instead of the drawer toggle */
-@media (max-width: 1080px) and (pointer: coarse) and (hover: none) {
+@media (max-width: 1023px) and (pointer: coarse) and (hover: none) {
   .topbar .nav-menu-toggle {
     display: none !important;
   }
+}
+
+/* ==========================================================================
+   Mobile navigation drawer — structured sections (A–E)
+   Desktop navbar is untouched; everything here lives inside the drawer
+   breakpoint only.
+   ========================================================================== */
+
+.topbar .nav-drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.topbar .nav-drawer-brand-mark {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--panel-strong) 55%, transparent);
+}
+
+.topbar .nav-drawer-brand-mark svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.topbar .nav-drawer-item-icon { display: none; }
+.topbar .nav-drawer-prefs,
+.topbar .nav-drawer-account,
+.topbar .nav-drawer-admin { display: none; }
+
+@media (max-width: 1023px) {
+  .topbar .nav-links {
+    max-height: 100vh;
+    max-height: 100dvh;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .topbar .nav-drawer-head {
+    padding: calc(14px + env(safe-area-inset-top)) 18px 13px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .topbar .nav-drawer-kicker {
+    display: block;
+    margin-bottom: 1px;
+    font-size: 0.92rem;
+    line-height: 1.1;
+    transform: none;
+  }
+
+  .topbar .nav-drawer-title strong {
+    display: block;
+    font-size: 1.05rem;
+    line-height: 1.15;
+  }
+
+  /* Section B — main navigation */
+  .topbar .nav-link-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 12px 14px 4px;
+  }
+
+  .topbar .nav-link-group a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    font-family: 'Inter', 'Kantumruy Pro', 'Noto Sans Khmer', sans-serif;
+    font-size: 0.94rem;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: normal;
+    transition: background 160ms ease, color 160ms ease;
+  }
+
+  .topbar .nav-link-group a:last-child { border: 0; }
+  .topbar .nav-link-group a::after { display: none; }
+  .topbar .nav-link-group a:hover {
+    background: color-mix(in srgb, var(--secondary) 8%, transparent);
+  }
+
+  .topbar .nav-link-group a.is-current {
+    padding-left: 12px;
+    color: var(--secondary);
+    background: color-mix(in srgb, var(--secondary) 13%, transparent);
+  }
+
+  .topbar .nav-link-group a.is-current::before { display: none; }
+
+  .topbar .nav-drawer-item-icon {
+    display: grid;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    color: color-mix(in srgb, var(--muted) 88%, transparent);
+  }
+
+  .topbar .nav-drawer-item-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .topbar .nav-link-group a:hover .nav-drawer-item-icon,
+  .topbar .nav-link-group a.is-current .nav-drawer-item-icon { color: currentColor; }
+
+  .topbar .nav-ink { display: none; }
+
+  /* Shared section shell + quiet labels */
+  .topbar .nav-drawer-block {
+    display: block;
+    margin: 8px 14px 0;
+    padding: 14px 0 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .topbar .nav-drawer-label {
+    display: block;
+    margin: 0 0 10px;
+    color: color-mix(in srgb, var(--muted) 90%, transparent);
+    font-family: 'Inter', 'Kantumruy Pro', 'Noto Sans Khmer', sans-serif;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    transform: none;
+  }
+
+  .topbar .nav-drawer-categories-block { padding: 14px 0 0; }
+  .topbar .nav-drawer-categories { gap: 6px; }
+
+  .topbar .nav-drawer-categories a {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--panel-strong) 58%, transparent);
+    font-family: 'Inter', 'Kantumruy Pro', 'Noto Sans Khmer', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  /* Section C — preferences (segmented controls) */
+  .topbar .nav-drawer-pref {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .topbar .nav-drawer-prefs .nav-drawer-label + .nav-drawer-pref { margin-top: 0; }
+
+  .topbar .nav-drawer-pref-name {
+    color: var(--text);
+    font-size: 0.84rem;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .topbar .lang-switch--drawer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    width: 148px;
+    margin: 0;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--panel-strong) 55%, transparent);
+    box-shadow: none;
+    font-size: 0.72rem;
+  }
+
+  .topbar .lang-switch--drawer .lang-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 30px;
+    padding: 4px 6px;
+    border-radius: 7px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .topbar .lang-switch--drawer .lang-option.is-active {
+    color: var(--bg);
+    background: var(--secondary);
+  }
+
+  .topbar .lang-switch--drawer .lang-sep { display: none; }
+
+  .topbar .theme-segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    width: 148px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--panel-strong) 55%, transparent);
+  }
+
+  .topbar .theme-seg-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Inter', 'Kantumruy Pro', 'Noto Sans Khmer', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .topbar .theme-seg-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .topbar .theme-seg-btn:hover { color: var(--text); }
+  .topbar .theme-seg-btn.is-active { color: var(--bg); background: var(--secondary); }
+
+  /* Section D — account */
+  .topbar .nav-drawer-account { display: block; }
+
+  .topbar .nav-drawer-profile {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--panel-strong) 55%, transparent);
+  }
+
+  .topbar .nav-drawer-profile img {
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+  }
+
+  .topbar .nav-drawer-profile strong {
+    display: block;
+    overflow: hidden;
+    font-size: 0.9rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar .nav-drawer-profile small {
+    display: block;
+    margin-top: 1px;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.74rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar .nav-drawer-links { display: grid; gap: 1px; }
+
+  .topbar .nav-drawer-links a,
+  .topbar .nav-drawer-logout,
+  .topbar .nav-drawer-admin-list a {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Inter', 'Kantumruy Pro', 'Noto Sans Khmer', sans-serif;
+    font-size: 0.86rem;
+    font-weight: 500;
+    line-height: 1.2;
+    text-align: left;
+    transition: background 150ms ease, color 150ms ease;
+  }
+
+  .topbar .nav-drawer-links a svg,
+  .topbar .nav-drawer-logout svg,
+  .topbar .nav-drawer-admin-list a svg {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color: color-mix(in srgb, var(--muted) 85%, transparent);
+  }
+
+  .topbar .nav-drawer-links a:hover,
+  .topbar .nav-drawer-admin-list a:hover {
+    background: color-mix(in srgb, var(--secondary) 9%, transparent);
+  }
+
+  .topbar .nav-drawer-links a:hover svg,
+  .topbar .nav-drawer-admin-list a:hover svg { color: var(--secondary); }
+
+  .topbar .nav-drawer-logout {
+    margin-top: 6px;
+    color: color-mix(in srgb, var(--muted) 92%, transparent);
+  }
+
+  .topbar .nav-drawer-logout:hover {
+    color: var(--text);
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+
+  .topbar .nav-drawer-actions {
+    display: grid;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .topbar .nav-drawer-actions a {
+    flex: none;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: 'Inter', 'Kantumruy Pro', 'Noto Sans Khmer', sans-serif;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .topbar .nav-drawer-actions a.btn-primary {
+    border-color: var(--secondary);
+    background: var(--secondary);
+    color: var(--bg);
+  }
+
+  /* Section E — admin, visually separated from user navigation */
+  .topbar .nav-drawer-admin { margin-top: 14px; }
+  .topbar .nav-drawer-admin > .nav-drawer-label { color: var(--secondary); }
+  .topbar .nav-drawer-admin-list { display: grid; gap: 1px; }
+  .topbar .nav-drawer-admin-list a svg { color: var(--secondary); }
+}
+
+@media (max-width: 360px) {
+  .topbar .lang-switch--drawer,
+  .topbar .theme-segmented { width: 132px; }
+
+  .topbar .nav-drawer-pref { gap: 8px; }
+  .topbar .nav-drawer-pref-name { font-size: 0.8rem; }
 }

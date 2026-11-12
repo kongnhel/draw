@@ -360,6 +360,28 @@
     return card;
   };
 
+  const openImageLightbox = (src, alt = 'Image preview') => {
+    const lightbox = qs('[data-msc-lightbox]');
+    const image = qs('[data-msc-lightbox-image]');
+    if (!lightbox || !image || !src) return;
+    image.src = src;
+    image.alt = alt || 'Image preview';
+    if (typeof lightbox.showModal === 'function') {
+      if (!lightbox.open) lightbox.showModal();
+    } else {
+      lightbox.setAttribute('open', '');
+    }
+  };
+
+  const closeImageLightbox = () => {
+    const lightbox = qs('[data-msc-lightbox]');
+    const image = qs('[data-msc-lightbox-image]');
+    if (!lightbox) return;
+    if (typeof lightbox.close === 'function' && lightbox.open) lightbox.close();
+    else lightbox.removeAttribute('open');
+    if (image) image.removeAttribute('src');
+  };
+
   const buildMessageBubble = (row) => {
     const bubble = document.createElement('div');
     bubble.className = `msc-bubble${row.type === 'artwork' ? ' msc-bubble-artwork' : ''}${row.type === 'image' ? ' msc-bubble-image' : ''}`;
@@ -404,9 +426,24 @@
     if (row.type === 'image' && row.attachment && row.attachment.path) {
       const image = document.createElement('img');
       image.src = row.attachment.path;
-      image.alt = 'Photo';
+      image.alt = row.content || 'Photo';
       image.loading = 'lazy';
       image.dataset.fallbackSrc = '/images/default-artwork.svg';
+      image.tabIndex = 0;
+      image.setAttribute('role', 'button');
+      image.setAttribute('aria-label', 'Open image');
+      image.title = 'Open image';
+      image.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openImageLightbox(row.attachment.path, row.content || 'Photo');
+      });
+      image.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          openImageLightbox(row.attachment.path, row.content || 'Photo');
+        }
+      });
       const wrap = document.createElement('div');
       wrap.className = 'msc-image-msg';
       wrap.appendChild(image);
@@ -549,9 +586,31 @@
         meta.appendChild(receipt);
       }
       wrap.appendChild(meta);
+      wrap.appendChild(buildRowActions(row));
       rowEl.appendChild(wrap);
-      rowEl.appendChild(buildRowActions(row));
       messageList.appendChild(rowEl);
+
+      let longPressTimer = 0;
+      const clearLongPress = () => {
+        if (longPressTimer) {
+          window.clearTimeout(longPressTimer);
+          longPressTimer = 0;
+        }
+      };
+      rowEl.addEventListener('contextmenu', (event) => {
+        if (event.target && event.target.closest && event.target.closest('a, img, button, input, textarea')) return;
+        event.preventDefault();
+        openRowMenu(wrap, row);
+      });
+      rowEl.addEventListener('pointerdown', (event) => {
+        if (event.pointerType !== 'touch') return;
+        if (event.target && event.target.closest && event.target.closest('a, img, button, input, textarea, .msc-row-actions')) return;
+        clearLongPress();
+        longPressTimer = window.setTimeout(() => openRowMenu(wrap, row), 450);
+      });
+      ['pointerup', 'pointercancel', 'pointermove', 'scroll'].forEach((type) => {
+        rowEl.addEventListener(type, clearLongPress, { passive: true });
+      });
 
       previous = row;
     });
@@ -908,6 +967,7 @@
       rowMenu.remove();
       rowMenu = null;
     }
+    document.querySelectorAll('.msc-row.is-actions-open').forEach((rowEl) => rowEl.classList.remove('is-actions-open'));
     document.removeEventListener('click', onDocumentClickForMenu, true);
   };
 
@@ -917,6 +977,8 @@
 
   const openRowMenu = (anchor, row) => {
     closeRowMenu();
+    const parentRow = anchor && anchor.closest ? anchor.closest('.msc-row') : null;
+    if (parentRow) parentRow.classList.add('is-actions-open');
     rowMenu = document.createElement('div');
     rowMenu.className = 'msc-row-menu';
 
@@ -934,6 +996,12 @@
       rowMenu.appendChild(button);
     };
 
+    addItem('Reply', false, () => startReply(row));
+    if (row.is_mine && row.type === 'text' && !row.removed_for_everyone) {
+      addItem('Edit', false, () => startEdit(row));
+    }
+    addItem('Copy text', false, () => copyMessage(row));
+    addItem('Forward', false, () => openForward(row));
     if (row.is_mine && !row.removed_for_everyone) {
       const withinWindow = (Date.now() - new Date(row.created_at).getTime()) <= 24 * 60 * 60 * 1000;
       if (withinWindow) {
@@ -942,8 +1010,6 @@
     }
     addItem('Delete for me', false, () => deleteMessage(row, 'self'));
     addItem('Report message', false, () => openReport(row.id));
-    addItem('Copy text', false, () => copyMessage(row));
-    addItem('Forward', false, () => openForward(row));
 
     document.body.appendChild(rowMenu);
     const rect = anchor.getBoundingClientRect();
@@ -1644,6 +1710,17 @@
         }).catch(() => {});
       }
     }, 2500);
+  });
+
+  const mscLightbox = qs('[data-msc-lightbox]');
+  const mscLightboxClose = qs('[data-msc-lightbox-close]');
+  mscLightboxClose && mscLightboxClose.addEventListener('click', closeImageLightbox);
+  mscLightbox && mscLightbox.addEventListener('click', (event) => {
+    if (event.target === mscLightbox) closeImageLightbox();
+  });
+  mscLightbox && mscLightbox.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeImageLightbox();
   });
 
   input && input.addEventListener('keydown', (event) => {

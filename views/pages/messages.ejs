@@ -6,7 +6,7 @@
   const shareArtworkId = Number(locals.shareArtworkId) || 0;
 %>
 
-<div class="messenger-page" data-messenger
+<div class="messenger-page" data-messenger data-native-cursor
   data-initial-conversation="<%= initialConversationId %>"
   data-initial-to="<%= initialTo %>"
   data-share-artwork-id="<%= shareArtworkId %>"
@@ -225,6 +225,17 @@
 
   <div class="msc-toasts" data-toasts aria-live="polite"></div>
 </div>
+
+<dialog class="ad-lightbox msc-image-lightbox" data-msc-lightbox aria-label="Image preview">
+  <div class="ad-lightbox-shell">
+    <button type="button" class="ad-lightbox-close" data-msc-lightbox-close aria-label="Close image view">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+    </button>
+    <figure class="ad-lightbox-stage">
+      <img class="ad-lightbox-image" data-msc-lightbox-image alt="" decoding="async" />
+    </figure>
+  </div>
+</dialog>
 
 <script src="/js/messages.js?v=<%= assetVersion %>" defer></script>
 <%- include('../partials/footer') %>
