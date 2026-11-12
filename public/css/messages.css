@@ -15,11 +15,16 @@
   grid-template-columns: 340px minmax(0, 1fr);
   gap: 22px;
   width: 100%;
-  min-height: min(720px, calc(100vh - 240px));
   height: calc(100vh - 210px);
-  min-height: 560px;
+  height: calc(100dvh - 210px);
+  min-height: min(560px, calc(100vh - 210px));
+  min-height: min(560px, calc(100dvh - 210px));
   margin: 0 auto;
   padding: 6px 0 26px;
+}
+
+.messenger-page [hidden] {
+  display: none !important;
 }
 
 /* ---------- Conversations sidebar ---------- */
