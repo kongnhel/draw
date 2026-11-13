@@ -1741,7 +1741,8 @@ const CSS_BUNDLE_FILES = [
   'social.css',
   'community.css',
   'messages.css',
-  'ads.css'
+  'ads.css',
+  'mobile-sketchbook.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 

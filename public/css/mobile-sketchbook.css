@@ -1,0 +1,146 @@
+/* ==========================================================================
+   ArtSpace — Mobile spiral sketchbook background (phones only)
+   Applies the paper sheet + metal spiral binding to the main content area
+   below 768px. Desktop and tablet layouts are untouched.
+   The home page's notebook is merged onto the same sheet: its own spine,
+   page stacks and inner page chrome are replaced by the shared binding.
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  /* ---------- The paper sheet ---------- */
+
+  body:not(.edit-body) .main-content {
+    --msk-ring-gutter: 52px;
+    --msk-paper: #f6f0e1;
+    --msk-line: rgba(122, 100, 70, 0.15);
+    --msk-line-size: 27px;
+    --msk-margin-line: rgba(163, 86, 64, 0.32);
+    --msk-margin-x: 43px;
+    --msk-edge: rgba(120, 100, 70, 0.2);
+    --msk-sheet-shadow:
+      0 12px 28px rgba(53, 41, 27, 0.16),
+      0 3px 6px rgba(53, 41, 27, 0.08),
+      inset -12px 0 20px -16px rgba(80, 60, 35, 0.28);
+
+    position: relative;
+    padding-left: var(--msk-ring-gutter);
+    padding-right: 14px;
+    border: 1px solid var(--msk-edge);
+    border-radius: 3px 10px 6px 9px;
+    background-color: var(--msk-paper);
+    background-image:
+      url("/images/paper-grain.svg"),
+      repeating-linear-gradient(0deg, var(--msk-line) 0, var(--msk-line) 1px, transparent 1px, transparent var(--msk-line-size)),
+      linear-gradient(90deg, transparent 0, transparent var(--msk-margin-x), var(--msk-margin-line) var(--msk-margin-x), var(--msk-margin-line) calc(var(--msk-margin-x) + 1px), transparent calc(var(--msk-margin-x) + 1px)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(213, 198, 168, 0.16));
+    background-repeat: repeat, repeat, no-repeat, no-repeat;
+    background-size: 180px 180px, auto, auto 100%, auto 100%;
+    background-position: left top, left top, left top, left top;
+    box-shadow: var(--msk-sheet-shadow);
+  }
+
+  /* ---------- Metal spiral binding (left edge) ---------- */
+
+  body:not(.edit-body) .main-content::before {
+    content: "";
+    position: absolute;
+    top: 9px;
+    bottom: 12px;
+    left: 0;
+    z-index: 2;
+    width: 34px;
+    background-image: url("/images/notebook-spiral.svg");
+    background-repeat: repeat-y;
+    background-position: left top;
+    background-size: 30px 38px;
+    filter: drop-shadow(1px 2px 1px rgba(53, 41, 27, 0.18));
+    pointer-events: none;
+  }
+
+  /* ---------- Dark mode: charcoal sketchbook paper, muted rings ---------- */
+
+  html[data-theme='dark'] body:not(.edit-body) .main-content {
+    --msk-paper: #1d1c19;
+    --msk-line: rgba(232, 224, 207, 0.055);
+    --msk-margin-line: rgba(184, 154, 114, 0.26);
+    --msk-edge: rgba(255, 255, 255, 0.06);
+    --msk-sheet-shadow:
+      0 14px 32px rgba(0, 0, 0, 0.45),
+      0 3px 8px rgba(0, 0, 0, 0.3),
+      inset -12px 0 20px -16px rgba(0, 0, 0, 0.5);
+    background-image:
+      url("/images/paper-grain.svg"),
+      repeating-linear-gradient(0deg, var(--msk-line) 0, var(--msk-line) 1px, transparent 1px, transparent var(--msk-line-size)),
+      linear-gradient(90deg, transparent 0, transparent var(--msk-margin-x), var(--msk-margin-line) var(--msk-margin-x), var(--msk-margin-line) calc(var(--msk-margin-x) + 1px), transparent calc(var(--msk-margin-x) + 1px)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.14));
+  }
+
+  html[data-theme='dark'] body:not(.edit-body) .main-content::before {
+    filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.45)) brightness(0.72) saturate(0.55);
+    opacity: 0.85;
+  }
+
+  /* ---------- Home: merge the notebook onto the shared sheet ---------- */
+
+  body.home-body .nb-notebook {
+    width: 100%;
+    margin: 0;
+    padding-left: 0;
+  }
+
+  body.home-body .nb-spine,
+  body.home-body .nb-page-stack,
+  body.home-body .nb-sheet::before,
+  body.home-body .nb-sheet::after {
+    display: none;
+  }
+
+  body.home-body .nb-sheet {
+    padding: 23px 0 34px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  html[data-theme='dark'] body.home-body .nb-home {
+    --nb-paper: #1d1c19;
+    --nb-paper-light: #252420;
+    --nb-paper-deep: #181713;
+    --nb-ink: #ece6d8;
+    --nb-ink-soft: #d6cfc0;
+    --nb-muted: #a89f8d;
+    --nb-line: rgba(236, 228, 210, 0.16);
+    --nb-line-soft: rgba(236, 228, 210, 0.08);
+    --nb-brass: #c9a06a;
+    --nb-rust: #d98a6c;
+    --nb-shadow: rgba(0, 0, 0, 0.45);
+  }
+
+  html[data-theme='dark'] body.home-body .nb-btn--paper {
+    background: rgba(255, 252, 245, 0.1);
+  }
+
+  html[data-theme='dark'] body.home-body .nb-artist-note {
+    background: rgba(255, 251, 242, 0.05);
+  }
+}
+
+/* ---------- Narrow phones: keep the ring gutter compact ---------- */
+
+@media (max-width: 380px) {
+  body:not(.edit-body) .main-content {
+    --msk-ring-gutter: 46px;
+    --msk-margin-x: 38px;
+  }
+
+  body:not(.edit-body) .main-content::before {
+    width: 30px;
+    background-size: 26px 33px;
+  }
+}
