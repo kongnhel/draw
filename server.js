@@ -533,6 +533,9 @@ const ASSET_VERSION = (() => {
     'public/css/social.css',
     'public/css/community.css',
     'public/css/ads.css',
+    'public/css/messages.css',
+    'public/css/mobile-sketchbook.css',
+    'public/css/mobile-polish.css',
     'public/js/ads.js',
     'public/js/book-slider.js',
     'public/js/i18n.js',
@@ -1742,7 +1745,8 @@ const CSS_BUNDLE_FILES = [
   'community.css',
   'messages.css',
   'ads.css',
-  'mobile-sketchbook.css'
+  'mobile-sketchbook.css',
+  'mobile-polish.css'
 ];
 let cssBundleCache = { key: '', css: '', gzip: null, br: null };
 

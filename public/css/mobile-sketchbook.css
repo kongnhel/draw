@@ -1,9 +1,7 @@
 /* ==========================================================================
-   ArtSpace — Mobile spiral sketchbook background (phones only)
-   Applies the paper sheet + metal spiral binding to the main content area
-   below 768px. Desktop and tablet layouts are untouched.
-   The home page's notebook is merged onto the same sheet: its own spine,
-   page stacks and inner page chrome are replaced by the shared binding.
+   ArtSpace - Mobile spiral sketchbook background (phones only)
+   Home page only: the paper sheet + metal spiral binding are merged with the
+   home notebook below 768px. All other pages and desktop remain untouched.
    ========================================================================== */
 
 @media (max-width: 767px) {
@@ -14,7 +12,7 @@
 
   /* ---------- The paper sheet ---------- */
 
-  body:not(.edit-body) .main-content {
+  body.home-body .main-content {
     --msk-ring-gutter: 52px;
     --msk-paper: #f6f0e1;
     --msk-line: rgba(122, 100, 70, 0.15);
@@ -46,7 +44,7 @@
 
   /* ---------- Metal spiral binding (left edge) ---------- */
 
-  body:not(.edit-body) .main-content::before {
+  body.home-body .main-content::before {
     content: "";
     position: absolute;
     top: 9px;
@@ -64,7 +62,7 @@
 
   /* ---------- Dark mode: charcoal sketchbook paper, muted rings ---------- */
 
-  html[data-theme='dark'] body:not(.edit-body) .main-content {
+  html[data-theme='dark'] body.home-body .main-content {
     --msk-paper: #1d1c19;
     --msk-line: rgba(232, 224, 207, 0.055);
     --msk-margin-line: rgba(184, 154, 114, 0.26);
@@ -80,7 +78,7 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.14));
   }
 
-  html[data-theme='dark'] body:not(.edit-body) .main-content::before {
+  html[data-theme='dark'] body.home-body .main-content::before {
     filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.45)) brightness(0.72) saturate(0.55);
     opacity: 0.85;
   }
@@ -134,12 +132,12 @@
 /* ---------- Narrow phones: keep the ring gutter compact ---------- */
 
 @media (max-width: 380px) {
-  body:not(.edit-body) .main-content {
+  body.home-body .main-content {
     --msk-ring-gutter: 46px;
     --msk-margin-x: 38px;
   }
 
-  body:not(.edit-body) .main-content::before {
+  body.home-body .main-content::before {
     width: 30px;
     background-size: 26px 33px;
   }

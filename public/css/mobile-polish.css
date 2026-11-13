@@ -1,0 +1,760 @@
+/* ==========================================================================
+   ArtSpace — Mobile polish (phones, <= 767px)
+   Readability, spacing, and touch-target improvements across the app.
+   Desktop and tablet are untouched. Loaded last in the CSS bundle.
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  /* ---------- Page gutters ---------- */
+
+  .container {
+    width: calc(100% - 32px);
+  }
+
+  /* iOS: keep inputs at 16px so focusing never auto-zooms the page */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* ---------- Shared touch targets ---------- */
+
+  .social-post-more {
+    width: 38px;
+    height: 38px;
+  }
+
+  .social-post-action {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 0.84rem;
+  }
+
+  .social-post-actions {
+    gap: 10px;
+  }
+
+  .social-post-time,
+  .social-post-context {
+    font-size: 0.78rem;
+  }
+
+  .social-post-menu a,
+  .social-post-menu button {
+    min-height: 42px;
+    padding: 10px 12px;
+    font-size: 0.86rem;
+  }
+
+  /* ---------- Footer ---------- */
+
+  .site-footer .footer-grid {
+    gap: 26px;
+  }
+
+  .site-footer .footer-grid ul {
+    display: grid;
+    gap: 2px;
+  }
+
+  .site-footer .footer-grid li a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    font-size: 0.88rem;
+  }
+
+  .site-footer .footer-bottom {
+    gap: 14px;
+    font-size: 0.78rem;
+  }
+
+  /* ---------- Home (notebook) ---------- */
+
+  .nb-masthead-line {
+    font-size: 0.66rem;
+    gap: 12px;
+  }
+
+  .nb-brand {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    line-height: 1.5;
+  }
+
+  .nb-volume {
+    font-size: 0.66rem;
+  }
+
+  .nb-kicker {
+    font-size: 0.7rem;
+  }
+
+  .nb-ledger dt {
+    font-size: 0.66rem;
+  }
+
+  .nb-ledger {
+    gap: 12px;
+  }
+
+  .nb-tabs-track {
+    gap: 10px 18px;
+  }
+
+  .nb-tabs-track a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 8px 0;
+    font-size: 0.72rem;
+  }
+
+  .nb-tabs-track a sup {
+    font-size: 0.66rem;
+  }
+
+  .nb-btn {
+    min-height: 46px;
+    padding: 11px 16px;
+    font-size: 0.78rem;
+  }
+
+  .nb-gallery-head p {
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+
+  .nb-art-index {
+    font-size: 0.66rem;
+  }
+
+  .nb-art-caption {
+    gap: 3px;
+    padding-top: 8px;
+  }
+
+  .nb-art-caption h3 {
+    font-size: 1.02rem;
+  }
+
+  .nb-art-meta {
+    font-size: 0.63rem;
+    gap: 3px;
+  }
+
+  .nb-art-artist {
+    min-height: 32px;
+  }
+
+  .nb-art-artist img {
+    width: 17px;
+    height: 17px;
+  }
+
+  .nb-art-actions {
+    margin-top: 5px;
+  }
+
+  .nb-action {
+    min-width: 42px;
+    height: 42px;
+    padding: 0 7px;
+  }
+
+  .nb-action-count {
+    font-size: 0.6rem;
+  }
+
+  .nb-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    font-size: 0.78rem;
+  }
+
+  .nb-gallery-foot {
+    gap: 12px;
+  }
+
+  .nb-artist-copy p {
+    font-size: 0.8rem;
+    line-height: 1.55;
+  }
+
+  .nb-artist-stat span {
+    font-size: 0.66rem;
+  }
+
+  .nb-page-number {
+    font-size: 0.8rem;
+  }
+
+  /* ---------- Explore ---------- */
+
+  .studio-explore-kicker {
+    font-size: 0.66rem;
+  }
+
+  .studio-explore-section-label {
+    font-size: 0.68rem;
+  }
+
+  .studio-explore-category-track {
+    gap: 2px 22px;
+    padding: 2px 2px 6px;
+  }
+
+  .studio-explore-category {
+    min-height: 40px;
+    padding: 8px 2px 10px;
+  }
+
+  .studio-explore-category sup {
+    font-size: 0.66rem;
+  }
+
+  .studio-explore-sort-label span {
+    font-size: 0.66rem;
+  }
+
+  .studio-explore-sort-label small {
+    font-size: 1rem;
+  }
+
+  .studio-explore-sort {
+    gap: 8px 20px;
+  }
+
+  .studio-explore-sort a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 9px 0;
+  }
+
+  .studio-explore-spotlight-index {
+    font-size: 0.68rem;
+  }
+
+  .studio-explore-spotlight-caption small {
+    font-size: 0.72rem;
+  }
+
+  .studio-explore-spotlight-caption em {
+    font-size: 0.66rem;
+  }
+
+  .studio-explore-artist-number {
+    font-size: 0.68rem;
+  }
+
+  /* Explore cards (journey/masonry) — undo the ultra-compact phone copy */
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card h3 {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-meta {
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+  }
+
+  .studio-explore-card-meta time {
+    font-size: 0.72rem;
+  }
+
+  .studio-explore-more small {
+    font-size: 0.72rem;
+  }
+
+  .studio-explore-artist-copy small {
+    font-size: 0.8rem;
+  }
+
+  .studio-explore-artist-copy em {
+    font-size: 0.72rem;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-artist {
+    min-height: 32px;
+    font-size: 0.74rem;
+  }
+
+  .studio-explore-masonry.sketch-journey .studio-explore-card-artist img {
+    width: 21px;
+    height: 21px;
+  }
+
+  .studio-explore-card .studio-explore-save button {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .studio-explore-card .studio-explore-save button::before {
+    font-size: 17px;
+  }
+
+  .studio-explore-card-open {
+    min-height: 36px;
+  }
+
+  /* ---------- Community ---------- */
+
+  .community-kicker {
+    font-size: 0.68rem;
+  }
+
+  .community-scope-link,
+  .community-sort-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 42px;
+    padding: 9px 16px;
+    font-size: 0.8rem;
+  }
+
+  .social-post-art-label strong {
+    font-size: 0.96rem;
+  }
+
+  .social-post-art-label span {
+    font-size: 0.8rem;
+  }
+
+  /* ---------- Artwork detail ---------- */
+
+  .ad-section-kicker {
+    font-size: 0.7rem;
+  }
+
+  .ad-category {
+    font-size: 0.74rem;
+  }
+
+  .ad-visibility-chip {
+    font-size: 0.68rem;
+  }
+
+  .ad-stats .info-item span {
+    font-size: 0.72rem;
+  }
+
+  .ad-comment-char {
+    font-size: 0.72rem;
+  }
+
+  .ad-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    font-size: 0.8rem;
+  }
+
+  .ad-back-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
+
+  .ad-comment-jump {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+
+  .ad-reaction-summary-link {
+    min-height: 36px;
+    padding: 6px;
+    font-size: 0.76rem;
+  }
+
+  .ad-zoom-hint {
+    font-size: 0.7rem;
+  }
+
+  .ad-toolbar-secondary .ad-tool {
+    min-height: 40px;
+  }
+
+  .ad-section-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+  }
+
+  .ad-byline-link {
+    min-height: 32px;
+  }
+
+  /* ---------- Upload / create ---------- */
+
+  .studio-upload-page--compact .studio-upload-kicker {
+    font-size: 0.72rem;
+  }
+
+  .studio-upload-page--compact .studio-upload-subtitle {
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .studio-upload-page--compact .studio-upload-step-number {
+    font-size: 0.78rem;
+  }
+
+  .studio-upload-page--compact .studio-dropzone-copy {
+    font-size: 0.82rem;
+  }
+
+  .studio-upload-page--compact .studio-format-row span {
+    font-size: 0.66rem;
+    padding: 3px 7px;
+  }
+
+  .studio-upload-page--compact .studio-format-row em {
+    font-size: 0.72rem;
+  }
+
+  .studio-browse-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    font-size: 0.82rem;
+  }
+
+  .studio-upload-page--compact .studio-field-hint {
+    font-size: 0.68rem;
+  }
+
+  .studio-upload-page--compact .studio-field-help {
+    font-size: 0.74rem;
+    line-height: 1.5;
+  }
+
+  .studio-upload-page--compact .studio-upload-field > label,
+  .studio-upload-page--compact .studio-visibility legend {
+    font-size: 11.5px;
+  }
+
+  .studio-upload-page--compact .studio-visibility-card strong {
+    font-size: 11.5px;
+  }
+
+  .studio-upload-page--compact .studio-visibility-card em {
+    font-size: 0.72rem;
+    line-height: 1.45;
+  }
+
+  .studio-upload-page--compact .studio-publish-btn {
+    min-height: 46px;
+    font-size: 11px;
+  }
+
+  .studio-upload-page--compact .studio-draft-btn {
+    min-height: 46px;
+    font-size: 0.78rem;
+  }
+
+  .studio-upload-page--compact .studio-upload-readiness {
+    font-size: 0.76rem;
+  }
+
+  /* ---------- Profile / sketchbook ---------- */
+
+  .pf-verified {
+    font-size: 0.68rem;
+  }
+
+  .pf-role {
+    font-size: 0.74rem;
+  }
+
+  .pf-tab {
+    min-height: 42px;
+    padding: 9px 18px;
+    font-size: 0.86rem;
+  }
+
+  .pf-tabs {
+    gap: 10px;
+  }
+
+  .pf-stats dt {
+    font-size: 0.66rem;
+  }
+
+  .pf-stats span {
+    font-size: 0.68rem;
+  }
+
+  .pf-collection-count > span:not(.pf-collection-pin) {
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+  }
+
+  .pf-collection .pf-tab sup {
+    font-size: 0.66rem;
+  }
+
+  .pf-clipping-item span {
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+  }
+
+  .pf-clipping-item {
+    padding: 16px 10px 14px;
+  }
+
+  .pf-collection-kicker > span {
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* ---------- Profile edit / settings ---------- */
+
+  .pe-badge {
+    font-size: 0.68rem;
+  }
+
+  .pe-label {
+    font-size: 0.76rem;
+  }
+
+  .pe-drop-action {
+    font-size: 0.8rem;
+    min-height: 36px;
+  }
+
+  .pe-hint {
+    font-size: 0.78rem;
+  }
+
+  .pe-live {
+    font-size: 0.68rem;
+  }
+
+  /* ---------- Messages ---------- */
+
+  .msb-kicker {
+    font-size: 0.66rem;
+  }
+
+  .msb-new-chat {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* ---------- Notifications ---------- */
+
+  .notifications-kicker {
+    font-size: 0.68rem;
+  }
+
+  .notification-item {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 12px;
+    min-height: 70px;
+    padding: 12px 10px;
+  }
+
+  .notification-avatar {
+    width: 42px;
+    height: 42px;
+  }
+
+  .notification-type {
+    font-size: 0.62rem;
+  }
+
+  .notification-line {
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .notification-time {
+    font-size: 0.66rem;
+  }
+
+  /* ---------- Book slider cover labels (home / dashboard widget) ---------- */
+
+  #artspace-book-slider .asb-cover-head span {
+    font-size: 0.72rem;
+  }
+
+  #artspace-book-slider .asb-cover-eyebrow {
+    font-size: 0.72rem;
+  }
+
+  #artspace-book-slider .asb-cover-identity p {
+    font-size: 0.76rem;
+  }
+
+  #artspace-book-slider .asb-cover-foot span {
+    font-size: 0.7rem;
+  }
+
+  #artspace-book-slider .text-\[10px\] {
+    font-size: 12px;
+  }
+
+  #artspace-book-slider p.mt-4.text-center {
+    font-size: 12px;
+  }
+
+  /* ---------- Admin ---------- */
+
+  .admin-kicker {
+    font-size: 0.7rem;
+  }
+
+  .admin-status {
+    font-size: 0.68rem;
+  }
+
+  .admin-stat span {
+    font-size: 0.68rem;
+  }
+
+  .admin-stat a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    font-size: 0.84rem;
+  }
+
+  .admin-tab {
+    min-height: 42px;
+    font-size: 0.78rem;
+  }
+
+  .admin-action {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 0.76rem;
+  }
+
+  .admin-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Tables become comfortable stacked cards */
+
+  #artworks .admin-table-wrap,
+  #users .admin-table-wrap {
+    overflow: visible;
+    border: 0;
+  }
+
+  #artworks .admin-table,
+  #users .admin-table {
+    display: block;
+    min-width: 0;
+  }
+
+  #artworks .admin-table thead,
+  #users .admin-table thead {
+    display: none;
+  }
+
+  #artworks .admin-table tbody,
+  #users .admin-table tbody {
+    display: grid;
+    gap: 14px;
+  }
+
+  #artworks .admin-table tr,
+  #users .admin-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px 10px 5px 8px;
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+  }
+
+  #artworks .admin-table td,
+  #users .admin-table td {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0.8rem;
+  }
+
+  #artworks .admin-table .admin-art-cell,
+  #users .admin-table .admin-user-cell {
+    min-width: 0;
+    flex: 1;
+  }
+
+  #artworks .admin-table .admin-art-cell > a {
+    min-width: 0;
+  }
+
+  #artworks .admin-table .admin-art-cell strong {
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #artworks .admin-table .admin-art-cell small,
+  #users .admin-table .admin-user-cell small {
+    overflow-wrap: anywhere;
+  }
+
+  #artworks .admin-table td:first-child,
+  #users .admin-table td:first-child {
+    flex: 1 0 100%;
+  }
+
+  #artworks .admin-table td[data-label]::before,
+  #users .admin-table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  #users .admin-table td[data-label='Email'] {
+    flex: 1 0 100%;
+    overflow-wrap: anywhere;
+    font-size: 0.78rem;
+  }
+
+  #artworks .admin-table td:last-child,
+  #users .admin-table td:last-child {
+    flex: 1 0 100%;
+    margin-top: 2px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+}
+
+/* Extra-small phones: single-column artwork grids for comfortable cards */
+
+@media (max-width: 359px) {
+  .studio-explore-masonry.sketch-journey {
+    columns: 1;
+  }
+
+  .nb-art-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .nb-art-mount {
+    max-width: 320px;
+  }
+}

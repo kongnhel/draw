@@ -117,16 +117,16 @@
                     </a>
                   </div>
                 </td>
-                <td><%= artwork.category_name || 'Uncategorized' %></td>
-                <td><span class="admin-status is-<%= artwork.status %>"><%= artwork.status %></span></td>
-                <td>
+                <td data-label="Category"><%= artwork.category_name || 'Uncategorized' %></td>
+                <td data-label="Status"><span class="admin-status is-<%= artwork.status %>"><%= artwork.status %></span></td>
+                <td data-label="Reports">
                   <% if (Number(artwork.open_reports) > 0) { %>
                     <span class="admin-status is-report"><%= artwork.open_reports %> open</span>
                   <% } else { %>
                     <span class="muted-copy">None</span>
                   <% } %>
                 </td>
-                <td><%= artwork.created_label %></td>
+                <td data-label="Added"><%= artwork.created_label %></td>
                 <td>
                   <div class="admin-actions">
                     <a class="admin-action" href="/art/<%= artwork.id %>">View</a>
@@ -192,11 +192,11 @@
                     </span>
                   </div>
                 </td>
-                <td data-i18n-skip><%= user.email %></td>
-                <td><span class="admin-status"><%= user.role %></span></td>
-                <td><%= user.artwork_count %></td>
-                <td><span class="admin-status is-<%= user.status %>"><%= user.status %></span></td>
-                <td><%= user.joined_label %></td>
+                <td data-label="Email" data-i18n-skip><%= user.email %></td>
+                <td data-label="Role"><span class="admin-status"><%= user.role %></span></td>
+                <td data-label="Works"><%= user.artwork_count %></td>
+                <td data-label="Status"><span class="admin-status is-<%= user.status %>"><%= user.status %></span></td>
+                <td data-label="Joined"><%= user.joined_label %></td>
                 <td>
                   <div class="admin-actions">
                     <a class="admin-action" href="/profile/<%= user.username %>">Profile</a>
