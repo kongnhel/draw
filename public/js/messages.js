@@ -16,6 +16,7 @@
   const initialConversationId = Number(root.dataset.initialConversation) || 0;
   const initialTo = String(root.dataset.initialTo || '');
   const shareArtworkId = Number(root.dataset.shareArtworkId) || 0;
+  const MESSAGE_REACTIONS_SYNC_LIMIT = 200;
 
   const qs = (selector, scope = root) => scope.querySelector(selector);
   const sidebar = qs('[data-messenger-sidebar]');
@@ -491,6 +492,7 @@
       actions.appendChild(button);
     };
 
+    add('React', 'M12 2.75a9.25 9.25 0 1 0 0 18.5 9.25 9.25 0 0 0 0-18.5M9.2 10h.01M14.8 10h.01M8.4 14.1a4.6 4.6 0 0 0 7.2 0', () => openReactionPicker(actions, row));
     add('Reply', 'M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11Z', () => startReply(row));
     if (row.is_mine && row.type === 'text' && !row.removed_for_everyone) {
       add('Edit', 'M4 20l1.2-4.2L14.5 6.5a2.12 2.12 0 0 1 3 3L8.2 18.8 4 20Z', () => startEdit(row));
@@ -559,6 +561,35 @@
       wrap.className = 'msc-bubble-wrap';
       wrap.appendChild(buildMessageBubble(row));
 
+      if (!row.removed_for_everyone && Array.isArray(row.reactions) && row.reactions.length) {
+        const chips = document.createElement('div');
+        chips.className = 'msc-reactions';
+        chips.setAttribute('data-i18n-skip', '');
+        row.reactions.forEach((entry) => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = `msc-reaction${entry.mine ? ' is-mine' : ''}`;
+          chip.title = `${entry.count} reaction${entry.count === 1 ? '' : 's'}`;
+          chip.setAttribute('aria-label', `Reaction ${entry.reaction}, ${entry.count}`);
+          const emoji = document.createElement('span');
+          emoji.className = 'msc-reaction-emoji';
+          emoji.textContent = entry.reaction;
+          chip.appendChild(emoji);
+          if (entry.count > 1) {
+            const count = document.createElement('span');
+            count.className = 'msc-reaction-count';
+            count.textContent = entry.count > 99 ? '99+' : String(entry.count);
+            chip.appendChild(count);
+          }
+          chip.addEventListener('click', (event) => {
+            event.stopPropagation();
+            toggleReaction(row, entry.reaction);
+          });
+          chips.appendChild(chip);
+        });
+        wrap.appendChild(chips);
+      }
+
       const meta = document.createElement('span');
       meta.className = 'msc-meta';
       const time = document.createElement('time');
@@ -601,6 +632,12 @@
         if (event.target && event.target.closest && event.target.closest('a, img, button, input, textarea')) return;
         event.preventDefault();
         openRowMenu(wrap, row);
+      });
+      rowEl.addEventListener('dblclick', (event) => {
+        if (!(event.target instanceof Element)) return;
+        if (event.target.closest('a, img, button, input, textarea, .msc-reactions, .msc-row-actions')) return;
+        event.preventDefault();
+        toggleReaction(row, '❤️');
       });
       rowEl.addEventListener('pointerdown', (event) => {
         if (event.pointerType !== 'touch') return;
@@ -823,6 +860,37 @@
         }
       }
 
+      // Live reaction sync for already-loaded messages (their ids never change,
+      // so the after_id poll alone would never carry reaction updates).
+      if (state.messages.length && !reactionMutationInFlight) {
+        try {
+          const seqAtFetch = reactionStateSeq;
+          const syncIds = state.messages.slice(-MESSAGE_REACTIONS_SYNC_LIMIT).map((message) => message.id).join(',');
+          const reactionData = await fetchJson(`/api/messages/conversations/${conversationId}/reactions?ids=${syncIds}`);
+          if (state.destroyed || state.activeId !== conversationId) return;
+          // A reaction toggle happened while this snapshot was in flight; its
+          // data is stale, so skip it (the next poll tick returns fresh state).
+          if (seqAtFetch !== reactionStateSeq) return;
+          let reactionsChanged = false;
+          Object.entries(reactionData.reactions || {}).forEach(([id, list]) => {
+            const target = state.messages.find((message) => message.id === Number(id));
+            if (!target) return;
+            const before = JSON.stringify(target.reactions || []);
+            const next = JSON.stringify(Array.isArray(list) ? list : []);
+            if (before !== next) {
+              target.reactions = Array.isArray(list) ? list : [];
+              reactionsChanged = true;
+            }
+          });
+          if (reactionsChanged) {
+            renderMessages(false);
+            if (nearBottom()) scrollToBottom(false);
+          }
+        } catch (reactionError) {
+          /* reaction sync is best-effort; polling continues regardless */
+        }
+      }
+
       if (Number(data.unread) > 0 && document.hasFocus && document.hasFocus()) scheduleMarkRead();
     } catch (error) {
       /* transient polling errors are ignored */
@@ -996,6 +1064,7 @@
       rowMenu.appendChild(button);
     };
 
+    addItem('React', false, () => openReactionPicker(anchor, row));
     addItem('Reply', false, () => startReply(row));
     if (row.is_mine && row.type === 'text' && !row.removed_for_everyone) {
       addItem('Edit', false, () => startEdit(row));
@@ -1048,6 +1117,86 @@
       toast(scope === 'everyone' ? 'Deleted for everyone.' : 'Deleted for you.', 'success');
     } catch (error) {
       toast(error.message || 'Could not delete that message.', 'error');
+    }
+  };
+
+  /* ---------------- message reactions ---------------- */
+
+  const REACTION_SET = ['👍', '❤️', '😂', '😮', '😢', '🙏', '👎'];
+
+  let reactionPicker = null;
+  let reactionMutationInFlight = false;
+  let reactionStateSeq = 0;
+
+  const closeReactionPicker = () => {
+    if (reactionPicker) {
+      reactionPicker.remove();
+      reactionPicker = null;
+    }
+    document.removeEventListener('click', onDocumentClickForPicker, true);
+    document.removeEventListener('keydown', onKeydownForPicker, true);
+  };
+
+  const onDocumentClickForPicker = (event) => {
+    if (reactionPicker && !reactionPicker.contains(event.target)) closeReactionPicker();
+  };
+
+  const onKeydownForPicker = (event) => {
+    if (event.key === 'Escape') closeReactionPicker();
+  };
+
+  const openReactionPicker = (anchor, row) => {
+    if (row.removed_for_everyone) return;
+    closeReactionPicker();
+    const mine = (row.reactions || []).find((entry) => entry.mine);
+    reactionPicker = document.createElement('div');
+    reactionPicker.className = 'msc-reaction-picker';
+    reactionPicker.setAttribute('role', 'menu');
+    reactionPicker.setAttribute('data-i18n-skip', '');
+    REACTION_SET.forEach((emoji) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `msc-reaction-option${mine && mine.reaction === emoji ? ' is-mine' : ''}`;
+      button.textContent = emoji;
+      button.setAttribute('aria-label', `React ${emoji}`);
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeReactionPicker();
+        toggleReaction(row, emoji);
+      });
+      reactionPicker.appendChild(button);
+    });
+
+    document.body.appendChild(reactionPicker);
+    const rect = anchor.getBoundingClientRect();
+    const pickerRect = reactionPicker.getBoundingClientRect();
+    let top = rect.bottom + 6;
+    if (top + pickerRect.height > window.innerHeight - 8) top = rect.top - pickerRect.height - 6;
+    let left = rect.left + rect.width / 2 - pickerRect.width / 2;
+    left = Math.min(Math.max(8, left), window.innerWidth - pickerRect.width - 8);
+    reactionPicker.style.top = `${Math.max(8, top)}px`;
+    reactionPicker.style.left = `${left}px`;
+    document.addEventListener('click', onDocumentClickForPicker, true);
+    document.addEventListener('keydown', onKeydownForPicker, true);
+  };
+
+  const toggleReaction = async (row, reaction) => {
+    reactionStateSeq += 1;
+    reactionMutationInFlight = true;
+    try {
+      const data = await fetchJson(`/api/messages/${row.id}/react`, {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ reaction: reaction || '' })
+      });
+      const target = state.messages.find((message) => message.id === row.id);
+      if (target) target.reactions = data.reactions || [];
+      renderMessages(false);
+      if (nearBottom()) scrollToBottom(false);
+    } catch (error) {
+      toast(error.message || 'Could not update the reaction.', 'error');
+    } finally {
+      reactionMutationInFlight = false;
     }
   };
 
@@ -1642,6 +1791,12 @@
     const willOpen = conversationMenu ? conversationMenu.hidden : true;
     if (conversationMenu) conversationMenu.hidden = !willOpen;
     if (menuToggle) menuToggle.setAttribute('aria-expanded', String(willOpen));
+  });
+
+  conversationMenu && conversationMenu.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    const item = event.target.closest('[data-action]');
+    if (item) handleMenuAction(item.dataset.action);
   });
 
   document.addEventListener('click', (event) => {

@@ -717,8 +717,8 @@
 }
 
 .msc-row-avatar {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   flex: none;
   border-radius: 50%;
   overflow: hidden;
@@ -754,22 +754,22 @@
 
 .msc-bubble {
   position: relative;
-  padding: 9px 13px;
-  border-radius: 18px;
+  padding: 10px 15px;
+  border-radius: 20px;
   background: var(--bg-soft);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   line-height: 1.45;
   word-break: break-word;
   white-space: pre-wrap;
-  border-bottom-left-radius: 6px;
+  border-bottom-left-radius: 7px;
   animation: msc-pop 0.18s ease both;
 }
 
 .msc-row.is-mine .msc-bubble {
   background: color-mix(in srgb, var(--secondary) 26%, var(--card));
-  border-bottom-left-radius: 18px;
-  border-bottom-right-radius: 6px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 7px;
 }
 
 :root[data-theme='dark'] .msc-row.is-mine .msc-bubble {
@@ -1049,6 +1049,112 @@
   border-radius: 12px;
   background: var(--panel-strong, var(--card));
   box-shadow: var(--shadow);
+}
+
+/* Message reactions */
+
+.msc-reactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: -9px;
+  margin-left: 8px;
+  z-index: 2;
+}
+
+.msc-row.is-mine .msc-reactions {
+  margin-left: 0;
+  margin-right: 8px;
+}
+
+.msc-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-strong, var(--card));
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.msc-reaction:hover {
+  transform: translateY(-1px);
+}
+
+.msc-reaction.is-mine {
+  border-color: color-mix(in srgb, var(--msb-accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--msb-accent) 18%, var(--panel-strong, var(--card)));
+}
+
+.msc-reaction-emoji {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.msc-reaction-count {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.msc-reaction.is-mine .msc-reaction-count {
+  color: var(--msb-accent);
+}
+
+.msc-reaction-picker {
+  position: fixed;
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-strong, var(--card));
+  box-shadow: var(--shadow);
+  animation: msc-reaction-pop 0.16s ease both;
+}
+
+@keyframes msc-reaction-pop {
+  from { transform: translateY(4px) scale(0.92); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.msc-reaction-option {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 1.18rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+
+.msc-reaction-option:hover {
+  transform: translateY(-3px) scale(1.12);
+  background: var(--bg-soft);
+}
+
+.msc-reaction-option.is-mine {
+  background: color-mix(in srgb, var(--msb-accent) 22%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msc-reaction,
+  .msc-reaction-option,
+  .msc-reaction-picker {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* Typing indicator */
@@ -1916,6 +2022,25 @@
     opacity: 1;
   }
 
+  .msc-reaction {
+    height: 25px;
+    padding: 0 8px;
+  }
+
+  .msc-reaction-emoji {
+    font-size: 0.95rem;
+  }
+
+  .msc-reaction-count {
+    font-size: 0.68rem;
+  }
+
+  .msc-reaction-option {
+    width: 38px;
+    height: 38px;
+    font-size: 1.32rem;
+  }
+
   .msc-composer {
     padding: 8px 10px max(10px, env(safe-area-inset-bottom));
     gap: 5px;
@@ -2004,9 +2129,18 @@
     max-width: 94%;
   }
 
+  .msc-row-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
   .msc-bubble {
-    font-size: 0.86rem;
-    padding: 8px 11px;
+    font-size: 1.02rem;
+    padding: 10px 15px;
+  }
+
+  .msc-quote {
+    font-size: 0.88rem;
   }
 }
 

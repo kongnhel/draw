@@ -1110,7 +1110,7 @@ const MESSAGE_SELECT = `SELECT m.id, m.conversation_id, m.sender_id, m.message_t
   LEFT JOIN messages rm ON rm.id = m.reply_to_id
   LEFT JOIN users ru ON ru.id = rm.sender_id`;
 
-function mapMessageRow(row) {
+function mapMessageRow(row, viewerId) {
   const hiddenForMe = Boolean(Number(row.hidden_for_me));
   const removedForEveryone = Boolean(row.deleted_at);
   const isArtworkType = row.message_type === 'artwork';
@@ -1119,6 +1119,7 @@ function mapMessageRow(row) {
     id: Number(row.id),
     conversation_id: Number(row.conversation_id),
     sender_id: Number(row.sender_id),
+    is_mine: viewerId !== undefined && Number(row.sender_id) === Number(viewerId),
     sender_name: row.sender_name,
     sender_username: row.sender_username,
     sender_avatar: row.sender_avatar || null,
@@ -1150,6 +1151,43 @@ function mapMessageRow(row) {
       ? { path: row.attachment_path, type: row.attachment_type }
       : null
   };
+}
+
+const MESSAGE_REACTIONS_ALLOWED = ['👍', '❤️', '😂', '😮', '😢', '🙏', '👎'];
+
+async function mapMessageRowsWithReactions(rows, viewerId) {
+  const mapped = (rows || []).map((row) => mapMessageRow(row, viewerId));
+  const ids = mapped.map((message) => message.id);
+  if (!ids.length) return mapped;
+
+  const placeholders = ids.map(() => '?').join(',');
+  const reactionRows = await db.execute(
+    `SELECT message_id, user_id, reaction FROM message_reactions WHERE message_id IN (${placeholders})`,
+    ids
+  );
+
+  const byMessage = new Map();
+  for (const row of reactionRows || []) {
+    if (!byMessage.has(row.message_id)) byMessage.set(row.message_id, []);
+    byMessage.get(row.message_id).push(row);
+  }
+  for (const message of mapped) {
+    message.reactions = summarizeReactions(byMessage.get(message.id) || [], viewerId);
+  }
+  return mapped;
+}
+
+function summarizeReactions(reactionRows, viewerId) {
+  const grouped = new Map();
+  for (const row of reactionRows || []) {
+    if (!grouped.has(row.reaction)) {
+      grouped.set(row.reaction, { reaction: row.reaction, count: 0, mine: false });
+    }
+    const entry = grouped.get(row.reaction);
+    entry.count += 1;
+    if (Number(row.user_id) === Number(viewerId)) entry.mine = true;
+  }
+  return [...grouped.values()];
 }
 
 
@@ -5179,7 +5217,7 @@ app.get('/api/messages/conversations/:id', requireAuthApi, async (req, res, next
           last_read_at: row.last_read_at
         })),
         blocked: blockState,
-        messages: (messageRows || []).map(mapMessageRow),
+        messages: await mapMessageRowsWithReactions(messageRows, viewerId),
         has_more: total > messageRows.length,
         total,
         typing
@@ -5280,7 +5318,7 @@ app.get('/api/messages/conversations/:id/messages', requireAuthApi, async (req, 
 
     res.json({
       ok: true,
-      messages: (rows || []).map(mapMessageRow),
+      messages: await mapMessageRowsWithReactions(rows, viewerId),
       typing,
       has_more: hasMore || (afterId > 0 ? false : undefined),
       participants_last_read: (participantRows || []).map((row) => ({
@@ -5436,7 +5474,7 @@ app.post('/api/messages/conversations/:id/messages', requireAuthApi, messageSend
 
     res.status(201).json({
       ok: true,
-      message: messageRows && messageRows.length ? mapMessageRow(messageRows[0]) : null,
+      message: messageRows && messageRows.length ? mapMessageRow(messageRows[0], viewerId) : null,
       unread: unreadMap.get(conversationId) || 0
     });
   } catch (err) {
@@ -5520,7 +5558,7 @@ app.post('/api/messages/conversations/:id/attachments', requireAuthApi, messageA
     const messageRows = await db.execute(`${MESSAGE_SELECT} WHERE m.id = ? LIMIT 1`, [messageId]);
     res.status(201).json({
       ok: true,
-      message: messageRows && messageRows.length ? mapMessageRow(messageRows[0]) : null
+      message: messageRows && messageRows.length ? mapMessageRow(messageRows[0], viewerId) : null
     });
   } catch (err) {
     next(err);
@@ -5843,7 +5881,117 @@ app.post('/api/messages/:id/edit', requireAuthApi, async (req, res, next) => {
 
     await db.execute('UPDATE messages SET content = ?, edited_at = NOW() WHERE id = ?', [content, messageId]);
     const refreshed = await db.execute(`${MESSAGE_SELECT} WHERE m.id = ? LIMIT 1`, [messageId]);
-    res.json({ ok: true, message: refreshed && refreshed.length ? mapMessageRow(refreshed[0]) : null });
+    res.json({ ok: true, message: refreshed && refreshed.length ? mapMessageRow(refreshed[0], viewerId) : null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const MESSAGE_REACTION_SELECT_LIMIT = 200;
+
+app.post('/api/messages/:id/react', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const messageId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(messageId) || messageId <= 0) {
+      res.status(404).json({ ok: false, error: 'That message could not be found.' });
+      return;
+    }
+
+    const messageRows = await db.execute(
+      'SELECT id, conversation_id, sender_id, deleted_at FROM messages WHERE id = ? LIMIT 1',
+      [messageId]
+    );
+    const message = messageRows && messageRows[0];
+    if (!message || message.deleted_at) {
+      res.status(404).json({ ok: false, error: 'That message could not be found.' });
+      return;
+    }
+
+    const access = await getConversationAccess(message.conversation_id, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const others = await getOtherParticipants(message.conversation_id, viewerId);
+    if (others.length === 1) {
+      const blockState = await getBlockStateBetween(viewerId, others[0].id);
+      if (blockState.iBlocked || blockState.blockedMe) {
+        res.status(403).json({ ok: false, error: 'You cannot react in this conversation.' });
+        return;
+      }
+    }
+
+    const requested = String(req.body.reaction || '').trim();
+    if (requested && !MESSAGE_REACTIONS_ALLOWED.includes(requested)) {
+      res.status(400).json({ ok: false, error: 'That reaction is not available.' });
+      return;
+    }
+
+    if (!requested) {
+      await db.execute('DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?', [messageId, viewerId]);
+    } else {
+      await db.execute(
+        `INSERT INTO message_reactions (message_id, user_id, reaction) VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE reaction = VALUES(reaction), created_at = NOW()`,
+        [messageId, viewerId, requested]
+      );
+    }
+
+    const reactionRows = await db.execute(
+      'SELECT message_id, user_id, reaction FROM message_reactions WHERE message_id = ?',
+      [messageId]
+    );
+    res.json({ ok: true, message_id: messageId, reactions: summarizeReactions(reactionRows, viewerId) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/messages/conversations/:id/reactions', requireAuthApi, async (req, res, next) => {
+  try {
+    const viewerId = Number(req.session.user.id);
+    const conversationId = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(conversationId) || conversationId <= 0) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+    const access = await getConversationAccess(conversationId, viewerId);
+    if (!access) {
+      res.status(404).json({ ok: false, error: 'That conversation could not be found.' });
+      return;
+    }
+
+    const ids = String(req.query.ids || '')
+      .split(',')
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .slice(0, MESSAGE_REACTION_SELECT_LIMIT);
+    if (!ids.length) {
+      res.json({ ok: true, reactions: {} });
+      return;
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+    const reactionRows = await db.execute(
+      `SELECT mr.message_id, mr.user_id, mr.reaction
+         FROM message_reactions mr
+         JOIN messages m ON m.id = mr.message_id
+        WHERE m.conversation_id = ? AND mr.message_id IN (${placeholders})`,
+      [conversationId, ...ids]
+    );
+
+    const byMessage = new Map();
+    for (const row of reactionRows || []) {
+      if (!byMessage.has(row.message_id)) byMessage.set(row.message_id, []);
+      byMessage.get(row.message_id).push(row);
+    }
+    const reactions = {};
+    for (const [key, rows] of byMessage) {
+      reactions[String(key)] = summarizeReactions(rows, viewerId);
+    }
+    res.json({ ok: true, reactions });
   } catch (err) {
     next(err);
   }
