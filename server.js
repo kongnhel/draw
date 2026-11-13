@@ -1581,6 +1581,18 @@ function requireAuthApi(req, res, next) {
   res.status(401).json({ ok: false, error: 'Please log in to continue.' });
 }
 
+// Guest-only guard: sends already-authenticated users away from /login and /register.
+function redirectIfAuthenticated(req, res, next) {
+  if (req.session && req.session.user) {
+    if (requestWantsJson(req)) {
+      res.status(200).json({ ok: true, redirect: '/' });
+      return;
+    }
+    return res.redirect('/');
+  }
+  return next();
+}
+
 function requireAdmin(req, res, next) {
   if (!req.session || !req.session.user) return res.redirect('/login');
   if (req.session.user.role !== 'admin') {
@@ -1710,7 +1722,12 @@ function buildCssBundle() {
 
   const css = CSS_BUNDLE_FILES.map((file) => {
     try {
-      return fs.readFileSync(path.join(cssDir, file), 'utf8');
+      // Files saved with a BOM or in UTF-16 (stray NUL bytes when read as UTF-8)
+      // would otherwise corrupt the first selector of the following stylesheet.
+      return fs.readFileSync(path.join(cssDir, file), 'utf8')
+        .replace(/^\uFEFF+/, '')
+        .replace(/\u0000/g, '')
+        .replace(/\uFFFD/g, '');
     } catch (error) {
       return '';
     }
@@ -2381,7 +2398,7 @@ app.post('/upload', requireAuth, handleArtworkUpload, async (req, res, next) => 
 });
 
 // 4. Login Page Route
-app.get('/login', (req, res) => {
+app.get('/login', redirectIfAuthenticated, (req, res) => {
   res.render('pages/login', {
     pageTitle: 'ArtSpace | Login',
     error: null,
@@ -2390,7 +2407,7 @@ app.get('/login', (req, res) => {
 });
 
 // 5. Register Page Route
-app.get('/register', (req, res) => {
+app.get('/register', redirectIfAuthenticated, (req, res) => {
   res.render('pages/register', {
     pageTitle: 'ArtSpace | Register',
     error: null,
@@ -2399,7 +2416,7 @@ app.get('/register', (req, res) => {
 });
 
 // Register submission
-app.post('/register', async (req, res, next) => {
+app.post('/register', redirectIfAuthenticated, async (req, res, next) => {
   try {
     const username = String(req.body.username || '').trim();
     const email = String(req.body.email || '').trim().toLowerCase();
@@ -2451,7 +2468,7 @@ app.post('/register', async (req, res, next) => {
 });
 
 // Login submission
-app.post('/login', async (req, res, next) => {
+app.post('/login', redirectIfAuthenticated, async (req, res, next) => {
   try {
     const identifier = String(req.body.email || '').trim();
     const password = String(req.body.password || '');

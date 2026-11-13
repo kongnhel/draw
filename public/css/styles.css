@@ -1,4 +1,12 @@
 
+/* Inline SVG safety net: icons without width/height attributes or CSS sizing
+   must never expand to their container width (giant black shapes) if the
+   stylesheet fails to load or parses partially. */
+svg:not([width]):not([height]) {
+  width: 24px;
+  height: 24px;
+}
+
 :root {
   --black: #292824;
   --black-soft: #4a4740;
